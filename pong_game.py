@@ -1,5 +1,6 @@
 import turtle
 import time
+import random
 
 # Set up the screen
 win = turtle.Screen()
@@ -8,20 +9,48 @@ win.bgcolor("black")
 win.setup(width=800, height=600)
 win.tracer(0)
 
-# Title screen
+# Game state
+game_state = "main_menu"
+
 def title_screen():
     """
     Displays the title screen with game options.
     - Creates and configures turtle objects to display the game title and options.
     - Listens for key presses to start the game.
     """
-    title = turtle.Turtle()
-    title.speed(0)
-    title.color("white")
-    title.penup()
-    title.hideturtle()
-    title.goto(0, 100)
-    title.write("Ping", align="center", font=("Courier", 36, "normal"))
+    global title_updating
+    title_updating = True
+
+    global game_state
+    game_state = "main_menu"
+
+    def random_color():
+        return f"#{random.randint(0, 0xFFFFFF):06x}"
+
+    letters = []
+    positions = [-60, -20, 20, 60]
+    for i, char in enumerate("Ping"):
+        letter = turtle.Turtle()
+        letter.speed(0)
+        letter.color("white")
+        letter.penup()
+        letter.hideturtle()
+        letter.goto(positions[i], 100)
+        letter.write(char, align="center", font=("Courier", 36, "normal"))
+        letter._char = char  # Store the character
+        letters.append(letter)
+
+    def update_title_colors():
+        if not title_updating:
+            clear_title()
+            return
+        for letter in letters:
+            letter.clear()
+            letter.color(random_color())
+            letter.write(letter._char, align="center", font=("Courier", 36, "normal"))
+        win.ontimer(update_title_colors, 3000)
+
+    update_title_colors()
 
     option1 = turtle.Turtle()
     option1.speed(0)
@@ -40,8 +69,14 @@ def title_screen():
     option2.write("2. Player vs AI", align="center", font=("Courier", 24, "normal"))
 
     win.listen()
-    win.onkeypress(lambda: start_game(False), "1")
-    win.onkeypress(lambda: start_game(True), "2")
+    def clear_title():
+        for letter in letters:
+            letter.clear()
+        option1.clear()
+        option2.clear()
+
+    win.onkeypress(lambda: clear_title() or start_game(False), "1")
+    win.onkeypress(lambda: clear_title() or start_game(True), "2")
 
 def start_game(ai_mode):
     """
@@ -49,6 +84,9 @@ def start_game(ai_mode):
     - Clears the screen and reinitializes the game window.
     - Calls main_game() to start the main game.
     """
+    global title_updating
+    title_updating = False
+    
     win.clearscreen()
     win.title("Pong")
     win.bgcolor("black")
@@ -221,11 +259,9 @@ def main_game(ai_mode):
             # Move paddles based on flags or AI
             paddle_movement = PADDLE_SPEED * FRAME_TIME
 
-            import random
-            
             # AI hesitation chance
             AI_HESITATION_CHANCE = 0.1  # 10% chance to hesitate
-            
+
             if ai_mode:
                 if random.random() > AI_HESITATION_CHANCE:
                     if ball.ycor() > paddle_b.ycor() and paddle_b.ycor() < 250:
