@@ -2,7 +2,7 @@ import turtle
 
 # Set up the screen
 win = turtle.Screen()
-win.title("Ping")
+win.title("Pong")
 win.bgcolor("black")
 win.setup(width=800, height=600)
 win.tracer(0)
@@ -88,6 +88,23 @@ win.onkeyrelease(paddle_b_up_release, "Up")
 win.onkeypress(paddle_b_down, "Down")
 win.onkeyrelease(paddle_b_down_release, "Down")
 
+# Score variables
+score_a = 0
+score_b = 0
+
+# Score display
+score_display = turtle.Turtle()
+score_display.speed(0)
+score_display.color("white")
+score_display.penup()
+score_display.hideturtle()
+score_display.goto(0, 260)
+score_display.write("Player A: 0  Player B: 0", align="center", font=("Courier", 24, "normal"))
+
+def update_score():
+    score_display.clear()
+    score_display.write(f"Player A: {score_a}  Player B: {score_b}", align="center", font=("Courier", 24, "normal"))
+
 # Main game loop
 while True:
     win.update()
@@ -116,10 +133,14 @@ while True:
         ball.dy *= -1
 
     if ball.xcor() > 390:
+        score_b += 1
+        update_score()
         ball.goto(0, 0)
         ball.dx *= -1
 
     if ball.xcor() < -390:
+        score_a += 1
+        update_score()
         ball.goto(0, 0)
         ball.dx *= -1
 
@@ -133,3 +154,6 @@ while True:
             ball.ycor() < paddle_a.ycor() + 50 and ball.ycor() > paddle_a.ycor() - 50):
         ball.setx(-340)
         ball.dx *= -1
+
+    # Add a delay to control the frame rate
+    turtle.delay(10)
