@@ -284,10 +284,12 @@ def main_game(ai_mode):
             if ball.ycor() > 290:
                 ball.sety(290)
                 ball.dy *= -1
+                winsound.PlaySound("Ping_Sounds/Ping_FX/wall.wav", winsound.SND_ASYNC)
 
             if ball.ycor() < -290:
                 ball.sety(-290)
                 ball.dy *= -1
+                winsound.PlaySound("Ping_Sounds/Ping_FX/wall.wav", winsound.SND_ASYNC)
 
             if ball.xcor() > 390:
                 score_a += 1
@@ -308,11 +310,13 @@ def main_game(ai_mode):
                     ball.ycor() < paddle_b.ycor() + 50 and ball.ycor() > paddle_b.ycor() - 50):
                 ball.setx(340)
                 ball.dx *= -1
+                winsound.PlaySound("Ping_Sounds/Ping_FX/Paddle.wav", winsound.SND_ASYNC)
 
             if (ball.dx < 0 and ball.xcor() < -340 and ball.xcor() > -350 and
                     ball.ycor() < paddle_a.ycor() + 50 and ball.ycor() > paddle_a.ycor() - 50):
                 ball.setx(-340)
                 ball.dx *= -1
+                winsound.PlaySound("Ping_Sounds/Ping_FX/Paddle.wav", winsound.SND_ASYNC)
 
             accumulated_time -= FRAME_TIME
 
