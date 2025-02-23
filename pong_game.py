@@ -104,8 +104,8 @@ def main_game(ai_mode):
     # AI mode flag
     ai_mode = ai_mode
 
-    # AI paddle speed
-    ai_paddle_speed = 0.1
+    # AI paddle speed (same as player paddle speed)
+    ai_paddle_speed = paddle_speed
 
     def paddle_a_up():
         nonlocal paddle_a_up_flag
@@ -205,9 +205,9 @@ def main_game(ai_mode):
         # Move paddles based on flags or AI
         if ai_mode:
             if ball.ycor() > paddle_b.ycor() and paddle_b.ycor() < 250:
-                paddle_b.sety(paddle_b.ycor() + ai_paddle_speed)
+                paddle_b.sety(paddle_b.ycor() + paddle_speed)
             elif ball.ycor() < paddle_b.ycor() and paddle_b.ycor() > -240:
-                paddle_b.sety(paddle_b.ycor() - ai_paddle_speed)
+                paddle_b.sety(paddle_b.ycor() - paddle_speed)
         else:
             if paddle_b_up_flag and paddle_b.ycor() < 250:
                 paddle_b.sety(paddle_b.ycor() + paddle_speed)
@@ -218,10 +218,11 @@ def main_game(ai_mode):
             paddle_a.sety(paddle_a.ycor() + paddle_speed)
         if paddle_a_down_flag and paddle_a.ycor() > -240:
             paddle_a.sety(paddle_a.ycor() - paddle_speed)
-        if paddle_b_up_flag and paddle_b.ycor() < 250:
-            paddle_b.sety(paddle_b.ycor() + paddle_speed)
-        if paddle_b_down_flag and paddle_b.ycor() > -240:
-            paddle_b.sety(paddle_b.ycor() - paddle_speed)
+        if not ai_mode:
+            if paddle_b_up_flag and paddle_b.ycor() < 250:
+                paddle_b.sety(paddle_b.ycor() + paddle_speed)
+            if paddle_b_down_flag and paddle_b.ycor() > -240:
+                paddle_b.sety(paddle_b.ycor() - paddle_speed)
 
         # Border checking
         if ball.ycor() > 290:
