@@ -1,6 +1,7 @@
 import turtle
 import time
 import random
+import winsound
 
 # Set up the screen
 win = turtle.Screen()
@@ -291,12 +292,14 @@ def main_game(ai_mode):
             if ball.xcor() > 390:
                 score_a += 1
                 update_score()
+                winsound.PlaySound("Ping_Sounds/Ping_FX/Score.wav", winsound.SND_FILENAME)
                 ball.goto(0, 0)
                 ball.dx *= -1
 
             if ball.xcor() < -390:
                 score_b += 1
                 update_score()
+                winsound.PlaySound("Ping_Sounds/Ping_FX/Score.wav", winsound.SND_FILENAME)
                 ball.goto(0, 0)
                 ball.dx *= -1
 
