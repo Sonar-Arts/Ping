@@ -257,14 +257,14 @@ def main_game(ai_mode):
                 score_a += 1
                 update_score()
                 winsound.PlaySound("Ping_Sounds/Ping_FX/Score.wav", winsound.SND_FILENAME)
-            ball.goto(0, 0)
+                ball.goto(0, 0)
                 ball.dx *= -1
 
             if ball.xcor() < -390:
                 score_b += 1
                 update_score()
                 winsound.PlaySound("Ping_Sounds/Ping_FX/Score.wav", winsound.SND_FILENAME)
-            ball.goto(0, 0)
+                ball.goto(0, 0)
                 ball.dx *= -1
 
             # Paddle and ball collisions
