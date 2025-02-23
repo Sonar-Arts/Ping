@@ -1,4 +1,5 @@
 import turtle
+import time
 
 # Set up the screen
 win = turtle.Screen()
@@ -64,6 +65,12 @@ def main_game(ai_mode):
     - Sets up keyboard bindings for paddle controls.
     - Contains the main game loop that updates the game state, moves the ball and paddles, checks for collisions, and updates the score.
     """
+    # Game constants
+    FRAME_RATE = 60
+    FRAME_TIME = 1.0 / FRAME_RATE
+    BALL_SPEED = 400  # pixels per second
+    PADDLE_SPEED = 400  # pixels per second
+
     # Paddle A
     paddle_a = turtle.Turtle()
     paddle_a.speed(0)
@@ -84,16 +91,13 @@ def main_game(ai_mode):
 
     # Ball
     ball = turtle.Turtle()
-    ball.speed(40)
+    ball.speed(0)
     ball.shape("square")
     ball.color("white")
     ball.penup()
     ball.goto(0, 0)
-    ball.dx = 0.1
-    ball.dy = -0.1
-
-    # Paddle speed
-    paddle_speed = 0.1
+    ball.dx = BALL_SPEED
+    ball.dy = -BALL_SPEED
 
     # Movement flags
     paddle_a_up_flag = False
@@ -103,9 +107,6 @@ def main_game(ai_mode):
 
     # AI mode flag
     ai_mode = ai_mode
-
-    # AI paddle speed (same as player paddle speed)
-    ai_paddle_speed = paddle_speed
 
     def paddle_a_up():
         nonlocal paddle_a_up_flag
@@ -184,80 +185,99 @@ def main_game(ai_mode):
         countdown_display.clear()
         countdown_display.write(i, align="center", font=("Courier", 48, "normal"))
         win.update()
-        turtle.time.sleep(1)
+        time.sleep(1)
 
     countdown_display.clear()
+
+    # Initialize timing variables
+    last_frame_time = time.time()
+    accumulated_time = 0
 
     while True:
         """
         Continuously updates the game state.
+        - Implements frame rate control using time-based movement
         - Moves the ball and paddles based on their respective flags.
         - Checks for collisions with the borders and paddles.
         - Updates the score when the ball crosses the left or right border.
-        - Adds a delay to control the frame rate.
         """
+        current_time = time.time()
+        delta_time = current_time - last_frame_time
+        last_frame_time = current_time
+
+        # Accumulate time and check if we should process the frame
+        accumulated_time += delta_time
+        if accumulated_time < FRAME_TIME:
+            continue
+
+        # Process as many frames as we've accumulated (usually just one)
+        while accumulated_time >= FRAME_TIME:
+            # Move the ball using delta time
+            movement_x = (ball.dx * FRAME_TIME)
+            movement_y = (ball.dy * FRAME_TIME)
+            ball.setx(ball.xcor() + movement_x)
+            ball.sety(ball.ycor() + movement_y)
+
+            # Move paddles based on flags or AI
+            paddle_movement = PADDLE_SPEED * FRAME_TIME
+
+            import random
+            
+            # AI hesitation chance
+            AI_HESITATION_CHANCE = 0.1  # 10% chance to hesitate
+            
+            if ai_mode:
+                if random.random() > AI_HESITATION_CHANCE:
+                    if ball.ycor() > paddle_b.ycor() and paddle_b.ycor() < 250:
+                        paddle_b.sety(paddle_b.ycor() + paddle_movement)
+                    elif ball.ycor() < paddle_b.ycor() and paddle_b.ycor() > -240:
+                        paddle_b.sety(paddle_b.ycor() - paddle_movement)
+
+            if paddle_a_up_flag and paddle_a.ycor() < 250:
+                paddle_a.sety(paddle_a.ycor() + paddle_movement)
+            if paddle_a_down_flag and paddle_a.ycor() > -240:
+                paddle_a.sety(paddle_a.ycor() - paddle_movement)
+            if not ai_mode:
+                if paddle_b_up_flag and paddle_b.ycor() < 250:
+                    paddle_b.sety(paddle_b.ycor() + paddle_movement)
+                if paddle_b_down_flag and paddle_b.ycor() > -240:
+                    paddle_b.sety(paddle_b.ycor() - paddle_movement)
+
+            # Border checking
+            if ball.ycor() > 290:
+                ball.sety(290)
+                ball.dy *= -1
+
+            if ball.ycor() < -290:
+                ball.sety(-290)
+                ball.dy *= -1
+
+            if ball.xcor() > 390:
+                score_a += 1
+                update_score()
+                ball.goto(0, 0)
+                ball.dx *= -1
+
+            if ball.xcor() < -390:
+                score_b += 1
+                update_score()
+                ball.goto(0, 0)
+                ball.dx *= -1
+
+            # Paddle and ball collisions
+            if (ball.dx > 0 and ball.xcor() > 340 and ball.xcor() < 350 and
+                    ball.ycor() < paddle_b.ycor() + 50 and ball.ycor() > paddle_b.ycor() - 50):
+                ball.setx(340)
+                ball.dx *= -1
+
+            if (ball.dx < 0 and ball.xcor() < -340 and ball.xcor() > -350 and
+                    ball.ycor() < paddle_a.ycor() + 50 and ball.ycor() > paddle_a.ycor() - 50):
+                ball.setx(-340)
+                ball.dx *= -1
+
+            accumulated_time -= FRAME_TIME
+
         win.update()
-
-        # Move the ball
-        ball.setx(ball.xcor() + ball.dx)
-        ball.sety(ball.ycor() + ball.dy)
-
-        # Move paddles based on flags or AI
-        if ai_mode:
-            if ball.ycor() > paddle_b.ycor() and paddle_b.ycor() < 250:
-                paddle_b.sety(paddle_b.ycor() + paddle_speed)
-            elif ball.ycor() < paddle_b.ycor() and paddle_b.ycor() > -240:
-                paddle_b.sety(paddle_b.ycor() - paddle_speed)
-        else:
-            if paddle_b_up_flag and paddle_b.ycor() < 250:
-                paddle_b.sety(paddle_b.ycor() + paddle_speed)
-            if paddle_b_down_flag and paddle_b.ycor() > -240:
-                paddle_b.sety(paddle_b.ycor() - paddle_speed)
-
-        if paddle_a_up_flag and paddle_a.ycor() < 250:
-            paddle_a.sety(paddle_a.ycor() + paddle_speed)
-        if paddle_a_down_flag and paddle_a.ycor() > -240:
-            paddle_a.sety(paddle_a.ycor() - paddle_speed)
-        if not ai_mode:
-            if paddle_b_up_flag and paddle_b.ycor() < 250:
-                paddle_b.sety(paddle_b.ycor() + paddle_speed)
-            if paddle_b_down_flag and paddle_b.ycor() > -240:
-                paddle_b.sety(paddle_b.ycor() - paddle_speed)
-
-        # Border checking
-        if ball.ycor() > 290:
-            ball.sety(290)
-            ball.dy *= -1
-
-        if ball.ycor() < -290:
-            ball.sety(-290)
-            ball.dy *= -1
-
-        if ball.xcor() > 390:
-            score_b += 1
-            update_score()
-            ball.goto(0, 0)
-            ball.dx *= -1
-
-        if ball.xcor() < -390:
-            score_a += 1
-            update_score()
-            ball.goto(0, 0)
-            ball.dx *= -1
-
-        # Paddle and ball collisions
-        if (ball.dx > 0 and ball.xcor() > 340 and ball.xcor() < 350 and
-                ball.ycor() < paddle_b.ycor() + 50 and ball.ycor() > paddle_b.ycor() - 50):
-            ball.setx(340)
-            ball.dx *= -1
-
-        if (ball.dx < 0 and ball.xcor() < -340 and ball.xcor() > -350 and
-                ball.ycor() < paddle_a.ycor() + 50 and ball.ycor() > paddle_a.ycor() - 50):
-            ball.setx(-340)
-            ball.dx *= -1
-
-        # Add a delay to control the frame rate
-        turtle.delay(10)
 
 # Start the title screen
 title_screen()
