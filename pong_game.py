@@ -145,10 +145,11 @@ def main_game(ai_mode):
     win.onkeyrelease(paddle_a_up_release, "w")
     win.onkeypress(paddle_a_down, "s")
     win.onkeyrelease(paddle_a_down_release, "s")
-    win.onkeypress(paddle_b_up, "Up")
-    win.onkeyrelease(paddle_b_up_release, "Up")
-    win.onkeypress(paddle_b_down, "Down")
-    win.onkeyrelease(paddle_b_down_release, "Down")
+    if not ai_mode:
+        win.onkeypress(paddle_b_up, "Up")
+        win.onkeyrelease(paddle_b_up_release, "Up")
+        win.onkeypress(paddle_b_down, "Down")
+        win.onkeyrelease(paddle_b_down_release, "Down")
 
     # Score variables
     score_a = 0
