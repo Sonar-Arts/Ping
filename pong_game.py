@@ -306,16 +306,24 @@ def main_game(ai_mode):
                 ball.dx *= -1
 
             # Paddle and ball collisions
+            def calculate_new_dy(paddle_y, ball_y):
+                offset = ball_y - paddle_y
+                if abs(offset) < 10:  # If the ball hits near the center, keep the trajectory
+                    return ball.dy
+                return offset * 10  # Adjust the multiplier as needed (set to 80 for funny)
+            
             if (ball.dx > 0 and ball.xcor() > 340 and ball.xcor() < 350 and
                     ball.ycor() < paddle_b.ycor() + 50 and ball.ycor() > paddle_b.ycor() - 50):
                 ball.setx(340)
                 ball.dx *= -1
+                ball.dy = calculate_new_dy(paddle_b.ycor(), ball.ycor())
                 winsound.PlaySound("Ping_Sounds/Ping_FX/Paddle.wav", winsound.SND_ASYNC)
-
+            
             if (ball.dx < 0 and ball.xcor() < -340 and ball.xcor() > -350 and
                     ball.ycor() < paddle_a.ycor() + 50 and ball.ycor() > paddle_a.ycor() - 50):
                 ball.setx(-340)
                 ball.dx *= -1
+                ball.dy = calculate_new_dy(paddle_a.ycor(), ball.ycor())
                 winsound.PlaySound("Ping_Sounds/Ping_FX/Paddle.wav", winsound.SND_ASYNC)
 
             accumulated_time -= FRAME_TIME
