@@ -53,7 +53,7 @@ def start_game(ai_mode):
     win.bgcolor("black")
     win.setup(width=800, height=600)
     win.tracer(0)
-    main_game()
+    main_game(ai_mode)
 
 # Main game function
 def main_game(ai_mode):
