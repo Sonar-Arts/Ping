@@ -18,3 +18,4 @@ Ideas to Flesh out:
 
 Implemented Features:
 - Pause Menu
+- Random first and last name Generator for ai
