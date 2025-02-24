@@ -47,7 +47,50 @@ def random_color():
     """Generate a random color."""
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def settings_screen():
+def player_name_screen():
+    """Display the player name input screen."""
+    font = pygame.font.Font(None, 48)
+    input_box = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 - 30, 300, 50)
+    color_inactive = pygame.Color('lightskyblue3')
+    color_active = pygame.Color('dodgerblue2')
+    color = color_inactive
+    active = False
+    text = ''
+    done = False
+
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if input_box.collidepoint(event.pos):
+                    active = not active
+                else:
+                    active = False
+                color = color_active if active else color_inactive
+            if event.type == pygame.KEYDOWN:
+                if active:
+                    if event.key == pygame.K_RETURN:
+                        return text
+                    elif event.key == pygame.K_BACKSPACE:
+                        text = text[:-1]
+                    else:
+                        text += event.unicode
+
+        screen.fill(BLACK)
+        txt_surface = font.render(text, True, color)
+        width = max(300, txt_surface.get_width()+10)
+        input_box.w = width
+        screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
+        pygame.draw.rect(screen, color, input_box, 2)
+
+        prompt_text = font.render("Enter your name:", True, WHITE)
+        screen.blit(prompt_text, (WINDOW_WIDTH//2 - prompt_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
+
+        pygame.display.flip()
+        clock.tick(30)
+
     """Display the settings screen with volume control and back option."""
     option_font = pygame.font.Font(None, 48)
     volume = paddle_sound.get_volume()  # Get current volume
@@ -326,7 +369,7 @@ def main_game(ai_mode):
         pygame.draw.rect(screen, WHITE, ball)
         
         # Draw score
-        score_text = font.render(f"Player A: {score_a}  Player B: {score_b}", True, WHITE)
+        score_text = font.render(f"{player_name}: {score_a}  Player B: {score_b}", True, WHITE)
         screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 20))
         
         pygame.display.flip()
@@ -334,7 +377,8 @@ def main_game(ai_mode):
 
 if __name__ == "__main__":
     while True:
-        ai_mode = title_screen()
+        player_name = player_name_screen()
+    ai_mode = title_screen()
         if ai_mode is None:
             break
         main_game(ai_mode)
