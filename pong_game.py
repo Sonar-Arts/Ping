@@ -1,7 +1,6 @@
 import pygame
 import random
 import time
-import winsound
 import threading
 from sys import exit
 
@@ -14,6 +13,7 @@ The game includes a title screen with options to play against another player or 
 
 # Initialize PyGame
 pygame.init()
+pygame.mixer.init()
 
 # Constants
 WINDOW_WIDTH = 800
@@ -34,6 +34,14 @@ BLACK = (0, 0, 0)
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Pong")
 clock = pygame.time.Clock()
+
+# Load sounds
+paddle_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Paddle.wav")
+score_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Score.wav")
+
+# Set volume to 75%
+paddle_sound.set_volume(0.5)
+score_sound.set_volume(0.5)
 
 def random_color():
     """Generate a random color."""
@@ -92,9 +100,9 @@ def title_screen():
         pygame.display.flip()
         clock.tick(60)
 
-def play_sound(sound_file):
+def play_sound(sound):
     """Play sound asynchronously."""
-    threading.Thread(target=winsound.PlaySound, args=(sound_file, winsound.SND_FILENAME)).start()
+    threading.Thread(target=sound.play).start()
 
 def main_game(ai_mode):
     """Main game loop."""
@@ -192,17 +200,17 @@ def main_game(ai_mode):
             # Ball collision with paddles
             if ball.colliderect(paddle_a) or ball.colliderect(paddle_b):
                 ball_dx *= -1
-                play_sound("Ping_Sounds/Ping_FX/Paddle.wav")
+                play_sound(paddle_sound)
             
             # Score points
             if ball.left <= 0:
                 score_b += 1
-                play_sound("Ping_Sounds/Ping_FX/Score.wav")
+                play_sound(score_sound)
                 ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
                 ball_dx *= -1
             elif ball.right >= WINDOW_WIDTH:
                 score_a += 1
-                play_sound("Ping_Sounds/Ping_FX/Score.wav")
+                play_sound(score_sound)
                 ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
                 ball_dx *= -1
             
