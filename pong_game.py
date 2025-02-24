@@ -39,6 +39,58 @@ clock = pygame.time.Clock()
 paddle_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Paddle.wav")
 score_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Score.wav")
 
+def settings_screen():
+    """Display the settings screen with volume control and back option."""
+    option_font = pygame.font.Font(None, 48)
+    volume = paddle_sound.get_volume()  # Get current volume
+
+    # Create rectangles for clickable areas
+    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 100, 300, 50)
+    volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 140, 50)
+    volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 160, WINDOW_HEIGHT//2 - 30, 140, 50)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if back_rect.collidepoint(mouse_pos):
+                    return  # Go back to the main menu
+                elif volume_up_rect.collidepoint(mouse_pos):
+                    volume = min(volume + 0.1, 1.0)  # Increase volume
+                    paddle_sound.set_volume(volume)
+                    score_sound.set_volume(volume)
+                elif volume_down_rect.collidepoint(mouse_pos):
+                    volume = max(volume - 0.1, 0.0)  # Decrease volume
+                    paddle_sound.set_volume(volume)
+                    score_sound.set_volume(volume)
+
+        screen.fill(BLACK)
+
+        # Draw title
+        title_text = option_font.render("Settings", True, WHITE)
+        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
+
+        # Draw volume controls
+        pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
+        pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
+        pygame.draw.rect(screen, WHITE, back_rect, 2)
+
+        volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
+        volume_up_text = option_font.render("+", True, WHITE)
+        volume_down_text = option_font.render("-", True, WHITE)
+        back_text = option_font.render("Back", True, WHITE)
+
+        screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
+        screen.blit(volume_up_text, (WINDOW_WIDTH//2 + 90, WINDOW_HEIGHT//2 - 20))
+        screen.blit(volume_down_text, (WINDOW_WIDTH//2 - 90, WINDOW_HEIGHT//2 - 20))
+        screen.blit(back_text, (WINDOW_WIDTH//2 - back_text.get_width()//2, WINDOW_HEIGHT//2 + 110))
+
+        pygame.display.flip()
+        clock.tick(60)
+
 # Set volume to 50%
 paddle_sound.set_volume(0.5)
 score_sound.set_volume(0.5)
@@ -243,7 +295,15 @@ def pause_menu():
         pygame.display.flip()
         clock.tick(60)
 
-def main_game(ai_mode):
+def move_paddle(paddle, up, down):
+    """Move paddle based on input flags."""
+    paddle_movement = PADDLE_SPEED * FRAME_TIME
+    if up and paddle.top > 0:
+        paddle.y -= paddle_movement
+    if down and paddle.bottom < WINDOW_HEIGHT:
+        paddle.y += paddle_movement
+
+def main_game(ai_mode, player_name):
     """Main game loop."""
     # Game objects
     paddle_a = pygame.Rect(50, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
@@ -321,10 +381,7 @@ def main_game(ai_mode):
             
             # Move paddles
             paddle_movement = PADDLE_SPEED * FRAME_TIME
-            if paddle_a_up and paddle_a.top > 0:
-                paddle_a.y -= paddle_movement
-            if paddle_a_down and paddle_a.bottom < WINDOW_HEIGHT:
-                paddle_a.y += paddle_movement
+            move_paddle(paddle_a, paddle_a_up, paddle_a_down)
                 
             if ai_mode:
                 # AI movement with hesitation
@@ -334,10 +391,7 @@ def main_game(ai_mode):
                     elif ball.centery < paddle_b.centery and paddle_b.top > 0:
                         paddle_b.y -= paddle_movement
             else:
-                if paddle_b_up and paddle_b.top > 0:
-                    paddle_b.y -= paddle_movement
-                if paddle_b_down and paddle_b.bottom < WINDOW_HEIGHT:
-                    paddle_b.y += paddle_movement
+                move_paddle(paddle_b, paddle_b_up, paddle_b_down)
             
             # Ball collision with top and bottom
             if ball.top <= 0 or ball.bottom >= WINDOW_HEIGHT:
@@ -370,6 +424,7 @@ def main_game(ai_mode):
         
         # Draw score
         score_text = font.render(f"{player_name}: {score_a}  Player B: {score_b}", True, WHITE)
+        # Display the score at the top center of the screen
         screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 20))
         
         pygame.display.flip()
@@ -378,7 +433,7 @@ def main_game(ai_mode):
 if __name__ == "__main__":
     while True:
         player_name = player_name_screen()
-    ai_mode = title_screen()
+        ai_mode = title_screen()
         if ai_mode is None:
             break
-        main_game(ai_mode)
+        main_game(ai_mode, player_name)
