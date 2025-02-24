@@ -48,6 +48,7 @@ def settings_screen():
     back_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 100, 300, 50)
     volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 140, 50)
     volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 160, WINDOW_HEIGHT//2 - 30, 140, 50)
+    change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 180, 300, 50)
 
     while True:
         for event in pygame.event.get():
@@ -66,6 +67,12 @@ def settings_screen():
                     volume = max(volume - 0.1, 0.0)  # Decrease volume
                     paddle_sound.set_volume(volume)
                     score_sound.set_volume(volume)
+                elif change_name_rect.collidepoint(mouse_pos):
+                    new_name = player_name_screen()
+                    if new_name:
+                        with open("player_name.txt", "w") as file:
+                            file.write(new_name)
+                        return ("name_change", new_name)
 
         screen.fill(BLACK)
 
@@ -77,16 +84,19 @@ def settings_screen():
         pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
         pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
         pygame.draw.rect(screen, WHITE, back_rect, 2)
+        pygame.draw.rect(screen, WHITE, change_name_rect, 2)
 
         volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
         volume_up_text = option_font.render("+", True, WHITE)
         volume_down_text = option_font.render("-", True, WHITE)
         back_text = option_font.render("Back", True, WHITE)
+        change_name_text = option_font.render("Change Name", True, WHITE)
 
         screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
         screen.blit(volume_up_text, (WINDOW_WIDTH//2 + 90, WINDOW_HEIGHT//2 - 20))
         screen.blit(volume_down_text, (WINDOW_WIDTH//2 - 90, WINDOW_HEIGHT//2 - 20))
         screen.blit(back_text, (WINDOW_WIDTH//2 - back_text.get_width()//2, WINDOW_HEIGHT//2 + 110))
+        screen.blit(change_name_text, (WINDOW_WIDTH//2 - change_name_text.get_width()//2, WINDOW_HEIGHT//2 + 190))
 
         pygame.display.flip()
         clock.tick(60)
@@ -221,7 +231,10 @@ def title_screen():
                 elif ai_rect.collidepoint(mouse_pos):
                     return True   # AI mode
                 elif settings_rect.collidepoint(mouse_pos):
-                    settings_screen()  # Open settings screen
+                    settings_result = settings_screen()  # Open settings screen
+                    if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
+                        return ("settings", settings_result[1])  # Return settings and new name
+                    continue  # Stay in title screen after settings
 
         screen.fill(BLACK)
 
@@ -242,6 +255,7 @@ def title_screen():
         # Render options
         pygame.draw.rect(screen, WHITE, pvp_rect, 2)
         pygame.draw.rect(screen, WHITE, ai_rect, 2)
+        pygame.draw.rect(screen, WHITE, settings_rect, 2)
         
         pvp_text = option_font.render("Player vs Player", True, WHITE)
         ai_text = option_font.render("Player vs AI", True, WHITE)
@@ -370,9 +384,11 @@ def main_game(ai_mode, player_name):
                 if event.key == pygame.K_ESCAPE:
                     menu_result = pause_menu()
                     if menu_result == "title":
-                        return title_screen()
+                        return "title"
                     elif menu_result == "settings":
-                        settings_screen()
+                        settings_result = settings_screen()
+                        if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
+                            player_name = settings_result[1]  # Update name immediately
                         
         while accumulated_time >= FRAME_TIME:
             # Move ball
@@ -430,10 +446,98 @@ def main_game(ai_mode, player_name):
         pygame.display.flip()
         clock.tick(FRAME_RATE)
 
-if __name__ == "__main__":
+def get_player_name():
+    """Prompt the player for their name if not already saved."""
+    try:
+        with open("player_name.txt", "r") as file:
+            player_name = file.read().strip()
+            if player_name:
+                return player_name
+    except FileNotFoundError:
+        pass
+
+    player_name = player_name_screen()
+    with open("player_name.txt", "w") as file:
+        file.write(player_name)
+    return player_name
+
+def settings_screen():
+    """Display the settings screen with volume control and back option."""
+    option_font = pygame.font.Font(None, 48)
+    volume = paddle_sound.get_volume()  # Get current volume
+
+    # Create rectangles for clickable areas
+    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 100, 300, 50)
+    volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 140, 50)
+    volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 160, WINDOW_HEIGHT//2 - 30, 140, 50)
+    change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 180, 300, 50)
+
     while True:
-        player_name = player_name_screen()
-        ai_mode = title_screen()
-        if ai_mode is None:
-            break
-        main_game(ai_mode, player_name)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if back_rect.collidepoint(mouse_pos):
+                    return None
+                elif volume_up_rect.collidepoint(mouse_pos):
+                    volume = min(volume + 0.1, 1.0)  # Increase volume
+                    paddle_sound.set_volume(volume)
+                    score_sound.set_volume(volume)
+                elif volume_down_rect.collidepoint(mouse_pos):
+                    volume = max(volume - 0.1, 0.0)  # Decrease volume
+                    paddle_sound.set_volume(volume)
+                    score_sound.set_volume(volume)
+                elif change_name_rect.collidepoint(mouse_pos):
+                    new_name = player_name_screen()
+                    with open("player_name.txt", "w") as file:
+                        file.write(new_name)
+                    return ("name_change", new_name)
+
+        screen.fill(BLACK)
+        # Draw title
+        title_text = option_font.render("Settings", True, WHITE)
+        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
+
+        # Draw volume controls
+        pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
+        pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
+        pygame.draw.rect(screen, WHITE, back_rect, 2)
+        pygame.draw.rect(screen, WHITE, change_name_rect, 2)
+
+        volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
+        volume_up_text = option_font.render("+", True, WHITE)
+        volume_down_text = option_font.render("-", True, WHITE)
+        back_text = option_font.render("Back", True, WHITE)
+        change_name_text = option_font.render("Change Name", True, WHITE)
+
+        screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
+        screen.blit(volume_up_text, (WINDOW_WIDTH//2 + 90, WINDOW_HEIGHT//2 - 20))
+        screen.blit(volume_down_text, (WINDOW_WIDTH//2 - 90, WINDOW_HEIGHT//2 - 20))
+        screen.blit(back_text, (WINDOW_WIDTH//2 - back_text.get_width()//2, WINDOW_HEIGHT//2 + 110))
+        screen.blit(change_name_text, (WINDOW_WIDTH//2 - change_name_text.get_width()//2, WINDOW_HEIGHT//2 + 190))
+        pygame.display.flip()
+        clock.tick(60)
+
+if __name__ == "__main__":
+    running = True
+    while running:
+        player_name = get_player_name()
+        while True:
+            game_mode = title_screen()
+            if isinstance(game_mode, tuple) and game_mode[0] == "settings":
+                # Handle name change from settings
+                player_name = game_mode[1]
+                continue
+            elif game_mode is None:
+                running = False
+                break
+            
+            game_result = main_game(game_mode, player_name)
+            if game_result == "title":
+                break  # Go back to title screen
+            elif game_result == "settings":
+                settings_result = settings_screen()
+                if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
+                    player_name = settings_result[1]  # Update player name immediately
