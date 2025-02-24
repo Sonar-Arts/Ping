@@ -1,325 +1,226 @@
-import turtle
-import time
+import pygame
 import random
+import time
 import winsound
+import threading
+from sys import exit
 
-# Set up the screen
-win = turtle.Screen()
-win.title("Pong")
-win.bgcolor("black")
-win.setup(width=800, height=600)
-win.tracer(0)
+"""
+Pong Game
+---------
+This is an implementation of the classic Pong game using PyGame.
+The game includes a title screen with options to play against another player or an AI.
+"""
 
-# Game state
-game_state = "main_menu"
+# Initialize PyGame
+pygame.init()
+
+# Constants
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
+PADDLE_WIDTH = 20
+PADDLE_HEIGHT = 120
+BALL_SIZE = 20
+FRAME_RATE = 60
+FRAME_TIME = 1.0 / FRAME_RATE
+BALL_SPEED = 400
+PADDLE_SPEED = 400
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+# Create the window
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("Pong")
+clock = pygame.time.Clock()
+
+def random_color():
+    """Generate a random color."""
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
 def title_screen():
-    """
-    Displays the title screen with game options.
-    - Creates and configures turtle objects to display the game title and options.
-    - Listens for key presses to start the game.
-    """
-    global title_updating
-    title_updating = True
-
-    global game_state
-    game_state = "main_menu"
-
-    def random_color():
-        return f"#{random.randint(0, 0xFFFFFF):06x}"
-
-    letters = []
-    positions = [-60, -20, 20, 60]
-    for i, char in enumerate("Ping"):
-        letter = turtle.Turtle()
-        letter.speed(0)
-        letter.color("white")
-        letter.penup()
-        letter.hideturtle()
-        letter.goto(positions[i], 100)
-        letter.write(char, align="center", font=("Courier", 36, "normal"))
-        letter._char = char  # Store the character
-        letters.append(letter)
-
-    def update_title_colors():
-        if not title_updating:
-            clear_title()
-            return
-        for letter in letters:
-            letter.clear()
-            letter.color(random_color())
-            letter.write(letter._char, align="center", font=("Courier", 36, "normal"))
-        win.ontimer(update_title_colors, 3000)
-
-    update_title_colors()
-
-    option1 = turtle.Turtle()
-    option1.speed(0)
-    option1.color("white")
-    option1.penup()
-    option1.hideturtle()
-    option1.goto(0, 0)
-    option1.write("1. Player vs Player", align="center", font=("Courier", 24, "normal"))
-
-    option2 = turtle.Turtle()
-    option2.speed(0)
-    option2.color("white")
-    option2.penup()
-    option2.hideturtle()
-    option2.goto(0, -50)
-    option2.write("2. Player vs AI", align="center", font=("Courier", 24, "normal"))
-
-    win.listen()
-    def clear_title():
-        for letter in letters:
-            letter.clear()
-        option1.clear()
-        option2.clear()
-
-    win.onkeypress(lambda: clear_title() or start_game(False), "1")
-    win.onkeypress(lambda: clear_title() or start_game(True), "2")
-
-def start_game(ai_mode):
-    """
-    Clears the title screen and starts the main game.
-    - Clears the screen and reinitializes the game window.
-    - Calls main_game() to start the main game.
-    """
-    global title_updating
-    title_updating = False
+    """Display the title screen with game options."""
+    title_font = pygame.font.Font(None, 74)
+    option_font = pygame.font.Font(None, 48)
     
-    win.clearscreen()
-    win.title("Pong")
-    win.bgcolor("black")
-    win.setup(width=800, height=600)
-    win.tracer(0)
-    main_game(ai_mode)
+    title_letters = list("Ping")
+    title_colors = [WHITE] * len(title_letters)
+    last_color_change = time.time()
+    
+    # Create rectangles for clickable areas
+    pvp_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 - 30, 300, 50)
+    ai_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 50, 300, 50)
+    
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if pvp_rect.collidepoint(mouse_pos):
+                    return False  # PvP mode
+                elif ai_rect.collidepoint(mouse_pos):
+                    return True   # AI mode
 
-# Main game function
+        screen.fill(BLACK)
+        
+        # Update colors every 3 seconds
+        current_time = time.time()
+        if current_time - last_color_change >= 3:
+            title_colors = [random_color() for _ in title_letters]
+            last_color_change = current_time
+        
+        # Render title
+        x_offset = -90
+        for letter, color in zip(title_letters, title_colors):
+            text = title_font.render(letter, True, color)
+            screen.blit(text, (WINDOW_WIDTH//2 + x_offset, WINDOW_HEIGHT//4))
+            x_offset += 60
+        
+        # Render options
+        pygame.draw.rect(screen, WHITE, pvp_rect, 2)
+        pygame.draw.rect(screen, WHITE, ai_rect, 2)
+        
+        pvp_text = option_font.render("1. Player vs Player", True, WHITE)
+        ai_text = option_font.render("2. Player vs AI", True, WHITE)
+        
+        screen.blit(pvp_text, (WINDOW_WIDTH//2 - pvp_text.get_width()//2, WINDOW_HEIGHT//2 - 20))
+        screen.blit(ai_text, (WINDOW_WIDTH//2 - ai_text.get_width()//2, WINDOW_HEIGHT//2 + 60))
+        
+        pygame.display.flip()
+        clock.tick(60)
+
+def play_sound(sound_file):
+    """Play sound asynchronously."""
+    threading.Thread(target=winsound.PlaySound, args=(sound_file, winsound.SND_FILENAME)).start()
+
 def main_game(ai_mode):
-    """
-    Sets up and runs the main game loop.
-    - Initializes paddles, ball, and score display.
-    - Defines functions to handle paddle movements and score updates.
-    - Sets up keyboard bindings for paddle controls.
-    - Contains the main game loop that updates the game state, moves the ball and paddles, checks for collisions, and updates the score.
-    """
-    # Game constants
-    FRAME_RATE = 60
-    FRAME_TIME = 1.0 / FRAME_RATE
-    BALL_SPEED = 400  # pixels per second
-    PADDLE_SPEED = 400  # pixels per second
-
-    # Paddle A
-    paddle_a = turtle.Turtle()
-    paddle_a.speed(0)
-    paddle_a.shape("square")
-    paddle_a.color("white")
-    paddle_a.shapesize(stretch_wid=6, stretch_len=1)
-    paddle_a.penup()
-    paddle_a.goto(-350, 0)
-
-    # Paddle B
-    paddle_b = turtle.Turtle()
-    paddle_b.speed(0)
-    paddle_b.shape("square")
-    paddle_b.color("white")
-    paddle_b.shapesize(stretch_wid=6, stretch_len=1)
-    paddle_b.penup()
-    paddle_b.goto(350, 0)
-
-    # Ball
-    ball = turtle.Turtle()
-    ball.speed(0)
-    ball.shape("square")
-    ball.color("white")
-    ball.penup()
-    ball.goto(0, 0)
-    ball.dx = BALL_SPEED
-    ball.dy = -BALL_SPEED
-
-    # Movement flags
-    paddle_a_up_flag = False
-    paddle_a_down_flag = False
-    paddle_b_up_flag = False
-    paddle_b_down_flag = False
-
-    # AI mode flag
-    ai_mode = ai_mode
-
-    def paddle_a_up():
-        nonlocal paddle_a_up_flag
-        paddle_a_up_flag = True
-
-    def paddle_a_down():
-        nonlocal paddle_a_down_flag
-        paddle_a_down_flag = True
-
-    def paddle_b_up():
-        nonlocal paddle_b_up_flag
-        paddle_b_up_flag = True
-
-    def paddle_b_down():
-        nonlocal paddle_b_down_flag
-        paddle_b_down_flag = True
-
-    def paddle_a_up_release():
-        nonlocal paddle_a_up_flag
-        paddle_a_up_flag = False
-
-    def paddle_a_down_release():
-        nonlocal paddle_a_down_flag
-        paddle_a_down_flag = False
-
-    def paddle_b_up_release():
-        nonlocal paddle_b_up_flag
-        paddle_b_up_flag = False
-
-    def paddle_b_down_release():
-        nonlocal paddle_b_down_flag
-        paddle_b_down_flag = False
-
-    # Keyboard bindings
-    win.listen()
-    win.onkeypress(paddle_a_up, "w")
-    win.onkeyrelease(paddle_a_up_release, "w")
-    win.onkeypress(paddle_a_down, "s")
-    win.onkeyrelease(paddle_a_down_release, "s")
-    if not ai_mode:
-        win.onkeypress(paddle_b_up, "Up")
-        win.onkeyrelease(paddle_b_up_release, "Up")
-        win.onkeypress(paddle_b_down, "Down")
-        win.onkeyrelease(paddle_b_down_release, "Down")
-
-    # Score variables
+    """Main game loop."""
+    # Game objects
+    paddle_a = pygame.Rect(50, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
+    paddle_b = pygame.Rect(WINDOW_WIDTH - 70, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
+    ball = pygame.Rect(WINDOW_WIDTH//2 - BALL_SIZE//2, WINDOW_HEIGHT//2 - BALL_SIZE//2, BALL_SIZE, BALL_SIZE)
+    
+    ball_dx = BALL_SPEED
+    ball_dy = -BALL_SPEED
+    
+    # Score
     score_a = 0
     score_b = 0
-
-    # Score display
-    score_display = turtle.Turtle()
-    score_display.speed(0)
-    score_display.color("white")
-    score_display.penup()
-    score_display.hideturtle()
-    score_display.goto(0, 260)
-    score_display.write("Player A: 0  Player B: 0", align="center", font=("Courier", 24, "normal"))
-
-    def update_score():
-        """
-        Updates the score display.
-        - Clears the previous score and writes the updated score on the screen.
-        """
-        score_display.clear()
-        score_display.write(f"Player A: {score_a}  Player B: {score_b}", align="center", font=("Courier", 24, "normal"))
-
-    # Countdown before the game starts
-    countdown_display = turtle.Turtle()
-    countdown_display.speed(0)
-    countdown_display.color("white")
-    countdown_display.penup()
-    countdown_display.hideturtle()
-    countdown_display.goto(0, 0)
-
+    font = pygame.font.Font(None, 48)
+    
+    # Movement flags
+    paddle_a_up = False
+    paddle_a_down = False
+    paddle_b_up = False
+    paddle_b_down = False
+    
+    # Countdown
     for i in range(3, 0, -1):
-        countdown_display.clear()
-        countdown_display.write(i, align="center", font=("Courier", 48, "normal"))
-        win.update()
+        screen.fill(BLACK)
+        countdown_text = font.render(str(i), True, WHITE)
+        screen.blit(countdown_text, (WINDOW_WIDTH//2 - countdown_text.get_width()//2, 
+                                   WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
+        pygame.display.flip()
         time.sleep(1)
-
-    countdown_display.clear()
-
-    # Initialize timing variables
+    
     last_frame_time = time.time()
     accumulated_time = 0
-
+    
     while True:
-        """
-        Continuously updates the game state.
-        - Implements frame rate control using time-based movement
-        - Moves the ball and paddles based on their respective flags.
-        - Checks for collisions with the borders and paddles.
-        - Updates the score when the ball crosses the left or right border.
-        """
         current_time = time.time()
         delta_time = current_time - last_frame_time
         last_frame_time = current_time
-
-        # Accumulate time and check if we should process the frame
         accumulated_time += delta_time
-        if accumulated_time < FRAME_TIME:
-            continue
-
-        # Process as many frames as we've accumulated (usually just one)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w:
+                    paddle_a_up = True
+                if event.key == pygame.K_s:
+                    paddle_a_down = True
+                if not ai_mode:
+                    if event.key == pygame.K_UP:
+                        paddle_b_up = True
+                    if event.key == pygame.K_DOWN:
+                        paddle_b_down = True
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_w:
+                    paddle_a_up = False
+                if event.key == pygame.K_s:
+                    paddle_a_down = False
+                if not ai_mode:
+                    if event.key == pygame.K_UP:
+                        paddle_b_up = False
+                    if event.key == pygame.K_DOWN:
+                        paddle_b_down = False
+        
         while accumulated_time >= FRAME_TIME:
-            # Move the ball using delta time
-            movement_x = (ball.dx * FRAME_TIME)
-            movement_y = (ball.dy * FRAME_TIME)
-            ball.setx(ball.xcor() + movement_x)
-            ball.sety(ball.ycor() + movement_y)
-
-            # Move paddles based on flags or AI
+            # Move ball
+            ball.x += ball_dx * FRAME_TIME
+            ball.y += ball_dy * FRAME_TIME
+            
+            # Move paddles
             paddle_movement = PADDLE_SPEED * FRAME_TIME
-
-            # AI hesitation chance
-            AI_HESITATION_CHANCE = 0.1  # 10% chance to hesitate
-
+            if paddle_a_up and paddle_a.top > 0:
+                paddle_a.y -= paddle_movement
+            if paddle_a_down and paddle_a.bottom < WINDOW_HEIGHT:
+                paddle_a.y += paddle_movement
+                
             if ai_mode:
-                if random.random() > AI_HESITATION_CHANCE:
-                    if ball.ycor() > paddle_b.ycor() and paddle_b.ycor() < 250:
-                        paddle_b.sety(paddle_b.ycor() + paddle_movement)
-                    elif ball.ycor() < paddle_b.ycor() and paddle_b.ycor() > -240:
-                        paddle_b.sety(paddle_b.ycor() - paddle_movement)
-
-            if paddle_a_up_flag and paddle_a.ycor() < 250:
-                paddle_a.sety(paddle_a.ycor() + paddle_movement)
-            if paddle_a_down_flag and paddle_a.ycor() > -240:
-                paddle_a.sety(paddle_a.ycor() - paddle_movement)
-            if not ai_mode:
-                if paddle_b_up_flag and paddle_b.ycor() < 250:
-                    paddle_b.sety(paddle_b.ycor() + paddle_movement)
-                if paddle_b_down_flag and paddle_b.ycor() > -240:
-                    paddle_b.sety(paddle_b.ycor() - paddle_movement)
-
-            # Border checking
-            if ball.ycor() > 290:
-                ball.sety(290)
-                ball.dy *= -1
-
-            if ball.ycor() < -290:
-                ball.sety(-290)
-                ball.dy *= -1
-
-            if ball.xcor() > 390:
-                score_a += 1
-                update_score()
-                winsound.PlaySound("Ping_Sounds/Ping_FX/Score.wav", winsound.SND_FILENAME)
-                ball.goto(0, 0)
-                ball.dx *= -1
-
-            if ball.xcor() < -390:
+                # AI movement with hesitation
+                if random.random() > 0.1:  # 90% chance to move
+                    if ball.centery > paddle_b.centery and paddle_b.bottom < WINDOW_HEIGHT:
+                        paddle_b.y += paddle_movement
+                    elif ball.centery < paddle_b.centery and paddle_b.top > 0:
+                        paddle_b.y -= paddle_movement
+            else:
+                if paddle_b_up and paddle_b.top > 0:
+                    paddle_b.y -= paddle_movement
+                if paddle_b_down and paddle_b.bottom < WINDOW_HEIGHT:
+                    paddle_b.y += paddle_movement
+            
+            # Ball collision with top and bottom
+            if ball.top <= 0 or ball.bottom >= WINDOW_HEIGHT:
+                ball_dy *= -1
+            
+            # Ball collision with paddles
+            if ball.colliderect(paddle_a) or ball.colliderect(paddle_b):
+                ball_dx *= -1
+                play_sound("Ping_Sounds/Ping_FX/Paddle.wav")
+            
+            # Score points
+            if ball.left <= 0:
                 score_b += 1
-                update_score()
-                winsound.PlaySound("Ping_Sounds/Ping_FX/Score.wav", winsound.SND_FILENAME)
-                ball.goto(0, 0)
-                ball.dx *= -1
-
-            # Paddle and ball collisions
-            if (ball.dx > 0 and ball.xcor() > 340 and ball.xcor() < 350 and
-                    ball.ycor() < paddle_b.ycor() + 50 and ball.ycor() > paddle_b.ycor() - 50):
-                ball.setx(340)
-                ball.dx *= -1
-
-            if (ball.dx < 0 and ball.xcor() < -340 and ball.xcor() > -350 and
-                    ball.ycor() < paddle_a.ycor() + 50 and ball.ycor() > paddle_a.ycor() - 50):
-                ball.setx(-340)
-                ball.dx *= -1
-
+                play_sound("Ping_Sounds/Ping_FX/Score.wav")
+                ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
+                ball_dx *= -1
+            elif ball.right >= WINDOW_WIDTH:
+                score_a += 1
+                play_sound("Ping_Sounds/Ping_FX/Score.wav")
+                ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
+                ball_dx *= -1
+            
             accumulated_time -= FRAME_TIME
+        
+        # Draw everything
+        screen.fill(BLACK)
+        pygame.draw.rect(screen, WHITE, paddle_a)
+        pygame.draw.rect(screen, WHITE, paddle_b)
+        pygame.draw.rect(screen, WHITE, ball)
+        
+        # Draw score
+        score_text = font.render(f"Player A: {score_a}  Player B: {score_b}", True, WHITE)
+        screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 20))
+        
+        pygame.display.flip()
+        clock.tick(FRAME_RATE)
 
-        win.update()
-
-# Start the title screen
-title_screen()
-
-# Keep the window open
-turtle.mainloop()
+if __name__ == "__main__":
+    ai_mode = title_screen()
+    main_game(ai_mode)
