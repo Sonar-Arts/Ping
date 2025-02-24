@@ -18,3 +18,6 @@ Ideas to Flesh out:
 
 Implemented Features:
 - Pause Menu
+    - Fixed Settings Menu Initializiation
+- Settings Menu
+    - Added Change Name function
