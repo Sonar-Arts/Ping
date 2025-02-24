@@ -47,6 +47,58 @@ def random_color():
     """Generate a random color."""
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
+def settings_screen():
+    """Display the settings screen with volume control and back option."""
+    option_font = pygame.font.Font(None, 48)
+    volume = paddle_sound.get_volume()  # Get current volume
+
+    # Create rectangles for clickable areas
+    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 100, 300, 50)
+    volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 140, 50)
+    volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 160, WINDOW_HEIGHT//2 - 30, 140, 50)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if back_rect.collidepoint(mouse_pos):
+                    return  # Go back to the main menu
+                elif volume_up_rect.collidepoint(mouse_pos):
+                    volume = min(volume + 0.1, 1.0)  # Increase volume
+                    paddle_sound.set_volume(volume)
+                    score_sound.set_volume(volume)
+                elif volume_down_rect.collidepoint(mouse_pos):
+                    volume = max(volume - 0.1, 0.0)  # Decrease volume
+                    paddle_sound.set_volume(volume)
+                    score_sound.set_volume(volume)
+
+        screen.fill(BLACK)
+
+        # Draw title
+        title_text = option_font.render("Settings", True, WHITE)
+        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
+
+        # Draw volume controls
+        pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
+        pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
+        pygame.draw.rect(screen, WHITE, back_rect, 2)
+
+        volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
+        volume_up_text = option_font.render("+", True, WHITE)
+        volume_down_text = option_font.render("-", True, WHITE)
+        back_text = option_font.render("Back", True, WHITE)
+
+        screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
+        screen.blit(volume_up_text, (WINDOW_WIDTH//2 + 90, WINDOW_HEIGHT//2 - 20))
+        screen.blit(volume_down_text, (WINDOW_WIDTH//2 - 90, WINDOW_HEIGHT//2 - 20))
+        screen.blit(back_text, (WINDOW_WIDTH//2 - back_text.get_width()//2, WINDOW_HEIGHT//2 + 110))
+
+        pygame.display.flip()
+        clock.tick(60)
+
 def title_screen():
     """Display the title screen with game options."""
     title_font = pygame.font.Font(None, 74)
@@ -59,7 +111,8 @@ def title_screen():
     # Create rectangles for clickable areas
     pvp_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 - 30, 300, 50)
     ai_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 50, 300, 50)
-    
+    settings_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 130, 300, 50)
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -71,15 +124,17 @@ def title_screen():
                     return False  # PvP mode
                 elif ai_rect.collidepoint(mouse_pos):
                     return True   # AI mode
+                elif settings_rect.collidepoint(mouse_pos):
+                    settings_screen()  # Open settings screen
 
         screen.fill(BLACK)
-        
+
         # Update colors every 3 seconds
         current_time = time.time()
         if current_time - last_color_change >= 3:
             title_colors = [random_color() for _ in title_letters]
             last_color_change = current_time
-        
+
         # Render title
         title_width = sum(title_font.render(letter, True, title_colors[i]).get_width() for i, letter in enumerate(title_letters)) + (len(title_letters) - 1) * 5
         x_offset = (WINDOW_WIDTH - title_width) // 2
@@ -97,7 +152,8 @@ def title_screen():
         
         screen.blit(pvp_text, (WINDOW_WIDTH//2 - pvp_text.get_width()//2, WINDOW_HEIGHT//2 - 20))
         screen.blit(ai_text, (WINDOW_WIDTH//2 - ai_text.get_width()//2, WINDOW_HEIGHT//2 + 60))
-        
+        screen.blit(settings_text, (WINDOW_WIDTH//2 - settings_text.get_width()//2, WINDOW_HEIGHT//2 + 140))
+
         pygame.display.flip()
         clock.tick(60)
 
@@ -131,7 +187,7 @@ def main_game(ai_mode):
         screen.fill(BLACK)
         countdown_text = font.render(str(i), True, WHITE)
         screen.blit(countdown_text, (WINDOW_WIDTH//2 - countdown_text.get_width()//2, 
-                                   WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
+                                    WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
         pygame.display.flip()
         time.sleep(1)
     
