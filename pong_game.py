@@ -106,6 +106,7 @@ def title_screen():
     
     title_letters = list("Ping")
     title_colors = [WHITE] * len(title_letters)
+    settings_text = option_font.render("Settings", True, WHITE)
     last_color_change = time.time()
     
     # Create rectangles for clickable areas
@@ -161,6 +162,44 @@ def play_sound(sound):
     """Play sound asynchronously."""
     threading.Thread(target=sound.play).start()
 
+def pause_menu():
+    """Display the pause menu with options to go back to the title screen or settings menu."""
+    option_font = pygame.font.Font(None, 48)
+
+    # Create rectangles for clickable areas
+    title_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 - 30, 300, 50)
+    settings_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 50, 300, 50)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if title_rect.collidepoint(mouse_pos):
+                    return "title"
+                elif settings_rect.collidepoint(mouse_pos):
+                    return "settings"
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return None  # Resume game
+
+        screen.fill(BLACK)
+
+        # Render options
+        pygame.draw.rect(screen, WHITE, title_rect, 2)
+        pygame.draw.rect(screen, WHITE, settings_rect, 2)
+
+        title_text = option_font.render("Back to Title", True, WHITE)
+        settings_text = option_font.render("Settings", True, WHITE)
+
+        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//2 - 20))
+        screen.blit(settings_text, (WINDOW_WIDTH//2 - settings_text.get_width()//2, WINDOW_HEIGHT//2 + 60))
+
+        pygame.display.flip()
+        clock.tick(60)
+
 def main_game(ai_mode):
     """Main game loop."""
     # Game objects
@@ -186,7 +225,7 @@ def main_game(ai_mode):
     for i in range(3, 0, -1):
         screen.fill(BLACK)
         countdown_text = font.render(str(i), True, WHITE)
-        screen.blit(countdown_text, (WINDOW_WIDTH//2 - countdown_text.get_width()//2, 
+        screen.blit(countdown_text, (WINDOW_WIDTH//2 - countdown_text.get_width()//2,
                                     WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
         pygame.display.flip()
         time.sleep(1)
@@ -224,7 +263,14 @@ def main_game(ai_mode):
                         paddle_b_up = False
                     if event.key == pygame.K_DOWN:
                         paddle_b_down = False
-        
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    menu_result = pause_menu()
+                    if menu_result == "title":
+                        return title_screen()
+                    elif menu_result == "settings":
+                        settings_screen()
+                        
         while accumulated_time >= FRAME_TIME:
             # Move ball
             ball.x += ball_dx * FRAME_TIME
@@ -287,5 +333,8 @@ def main_game(ai_mode):
         clock.tick(FRAME_RATE)
 
 if __name__ == "__main__":
-    ai_mode = title_screen()
-    main_game(ai_mode)
+    while True:
+        ai_mode = title_screen()
+        if ai_mode is None:
+            break
+        main_game(ai_mode)
