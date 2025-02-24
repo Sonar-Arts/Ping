@@ -21,10 +21,10 @@ WINDOW_HEIGHT = 600
 PADDLE_WIDTH = 20
 PADDLE_HEIGHT = 120
 BALL_SIZE = 20
-FRAME_RATE = 60
-FRAME_TIME = 1.0 / FRAME_RATE
-BALL_SPEED = 400
-PADDLE_SPEED = 400
+FRAME_TIME = 1.0 / 60.0  # Target 60 FPS
+MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
+BALL_SPEED = 300  # Reduced from 400 for better gameplay
+PADDLE_SPEED = 300  # Reduced from 400 for better control
 
 # Colors
 WHITE = (255, 255, 255)
@@ -361,6 +361,8 @@ def main_game(ai_mode, player_name):
     last_frame_time = time.time()
     accumulated_time = 0
     
+    paused = False
+    
     while True:
         current_time = time.time()
         delta_time = current_time - last_frame_time
@@ -393,57 +395,71 @@ def main_game(ai_mode, player_name):
                         paddle_b_down = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    menu_result = pause_menu()
-                    if menu_result == "title":
-                        return "title"
-                    elif menu_result == "settings":
-                        settings_result = settings_screen()
-                        if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
-                            player_name = settings_result[1]  # Update name immediately
+                    if paused:  # If already paused, unpause
+                        paused = False
+                        last_frame_time = time.time()
+                        accumulated_time = 0
+                    else:  # If not paused, show pause menu
+                        paused = True
+                        menu_result = pause_menu()
+                        if menu_result == "title":
+                            return "title"
+                        elif menu_result == "settings":
+                            settings_result = settings_screen()
+                            if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
+                                player_name = settings_result[1]
+                        # Unpause after menu interactions or if escape was pressed in pause menu
+                        if menu_result is None or menu_result == "settings":
+                            paused = False
+                            last_frame_time = time.time()
+                            accumulated_time = 0
                         
-        while accumulated_time >= FRAME_TIME:
-            # Move ball
-            ball.x += ball_dx * FRAME_TIME
-            ball.y += ball_dy * FRAME_TIME
-            
-            # Move paddles
-            paddle_movement = PADDLE_SPEED * FRAME_TIME
-            move_paddle(paddle_a, paddle_a_up, paddle_a_down)
+        if not paused:
+            while accumulated_time >= FRAME_TIME:
+                # Move ball
+                ball.x += ball_dx * FRAME_TIME
+                ball.y += ball_dy * FRAME_TIME
                 
-            if ai_mode:
-                # AI movement with hesitation
-                if random.random() > 0.3:  # 70% chance to move
-                    if ball.centery > paddle_b.centery and paddle_b.bottom < WINDOW_HEIGHT:
-                        paddle_b.y += paddle_movement
-                    elif ball.centery < paddle_b.centery and paddle_b.top > 0:
-                        paddle_b.y -= paddle_movement
-            else:
-                move_paddle(paddle_b, paddle_b_up, paddle_b_down)
-            
-            # Ball collision with top and bottom
-            if ball.top <= 0 or ball.bottom >= WINDOW_HEIGHT:
-                ball_dy *= -1
-            
-            # Ball collision with paddles
-            if ball.colliderect(paddle_a) or ball.colliderect(paddle_b):
-                ball_dx *= -1
-                play_sound(paddle_sound)
-            
-            # Score points
-            if ball.left <= 0:
-                score_b += 1
-                play_sound(score_sound)
-                ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
-                ball_dx *= -1
-            elif ball.right >= WINDOW_WIDTH:
-                score_a += 1
-                play_sound(score_sound)
-                ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
-                ball_dx *= -1
-            
-            accumulated_time -= FRAME_TIME
+                # Move paddles
+                paddle_movement = PADDLE_SPEED * FRAME_TIME
+                move_paddle(paddle_a, paddle_a_up, paddle_a_down)
+                    
+                if ai_mode:
+                    # AI movement with hesitation
+                    if random.random() > 0.3:  # 70% chance to move
+                        if ball.centery > paddle_b.centery and paddle_b.bottom < WINDOW_HEIGHT:
+                            paddle_b.y += paddle_movement
+                        elif ball.centery < paddle_b.centery and paddle_b.top > 0:
+                            paddle_b.y -= paddle_movement
+                else:
+                    move_paddle(paddle_b, paddle_b_up, paddle_b_down)
+                
+                # Ball collision with top and bottom
+                if ball.top <= 0 or ball.bottom >= WINDOW_HEIGHT:
+                    ball_dy *= -1
+                
+                # Ball collision with paddles
+                if ball.colliderect(paddle_a) or ball.colliderect(paddle_b):
+                    ball_dx *= -1
+                    play_sound(paddle_sound)
+                
+                # Score points
+                if ball.left <= 0:
+                    score_b += 1
+                    play_sound(score_sound)
+                    ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
+                    ball_dx *= -1
+                elif ball.right >= WINDOW_WIDTH:
+                    score_a += 1
+                    play_sound(score_sound)
+                    ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
+                    ball_dx *= -1
+                
+                accumulated_time -= FRAME_TIME
+            # Cap the accumulated time to prevent spiral of death
+            accumulated_time = min(accumulated_time, FRAME_TIME * 4)
         
-        # Draw everything
+        # Draw game state
         screen.fill(BLACK)
         pygame.draw.rect(screen, WHITE, paddle_a)
         pygame.draw.rect(screen, WHITE, paddle_b)
@@ -451,11 +467,21 @@ def main_game(ai_mode, player_name):
         
         # Draw score
         score_text = font.render(f"{player_name}: {score_a}  {player_b_name}: {score_b}", True, WHITE)
-        # Display the score at the top center of the screen
         screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 20))
         
+        # If game is paused, draw semi-transparent overlay and pause text
+        if paused:
+            # Create semi-transparent overlay
+            overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+            overlay.fill(BLACK)
+            overlay.set_alpha(128)  # 50% transparency
+            screen.blit(overlay, (0, 0))
+            
+            # Draw pause text
+            pause_text = font.render("Paused", True, WHITE)
+            screen.blit(pause_text, (WINDOW_WIDTH//2 - pause_text.get_width()//2, WINDOW_HEIGHT//2 - pause_text.get_height()//2))
+        
         pygame.display.flip()
-        clock.tick(FRAME_RATE)
 
 def get_player_name():
     """Prompt the player for their name if not already saved."""
