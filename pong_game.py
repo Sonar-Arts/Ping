@@ -11,7 +11,7 @@ This is an implementation of the classic Pong game using PyGame.
 The game includes a title screen with options to play against another player or an AI.
 """
 
-# Initialize PyGame
+# Initialize PyGame and the mixer for sound effects
 pygame.init()
 pygame.mixer.init()
 
