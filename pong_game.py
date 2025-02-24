@@ -39,7 +39,7 @@ clock = pygame.time.Clock()
 paddle_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Paddle.wav")
 score_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Score.wav")
 
-# Set volume to 75%
+# Set volume to 50%
 paddle_sound.set_volume(0.5)
 score_sound.set_volume(0.5)
 
@@ -81,18 +81,19 @@ def title_screen():
             last_color_change = current_time
         
         # Render title
-        x_offset = -90
-        for letter, color in zip(title_letters, title_colors):
-            text = title_font.render(letter, True, color)
-            screen.blit(text, (WINDOW_WIDTH//2 + x_offset, WINDOW_HEIGHT//4))
-            x_offset += 60
+        title_width = sum(title_font.render(letter, True, title_colors[i]).get_width() for i, letter in enumerate(title_letters)) + (len(title_letters) - 1) * 5
+        x_offset = (WINDOW_WIDTH - title_width) // 2
+        for i, letter in enumerate(title_letters):
+            text = title_font.render(letter, True, title_colors[i])
+            screen.blit(text, (x_offset, WINDOW_HEIGHT//4))
+            x_offset += text.get_width() + 5
         
         # Render options
         pygame.draw.rect(screen, WHITE, pvp_rect, 2)
         pygame.draw.rect(screen, WHITE, ai_rect, 2)
         
-        pvp_text = option_font.render("1. Player vs Player", True, WHITE)
-        ai_text = option_font.render("2. Player vs AI", True, WHITE)
+        pvp_text = option_font.render("Player vs Player", True, WHITE)
+        ai_text = option_font.render("Player vs AI", True, WHITE)
         
         screen.blit(pvp_text, (WINDOW_WIDTH//2 - pvp_text.get_width()//2, WINDOW_HEIGHT//2 - 20))
         screen.blit(ai_text, (WINDOW_WIDTH//2 - ai_text.get_width()//2, WINDOW_HEIGHT//2 + 60))
