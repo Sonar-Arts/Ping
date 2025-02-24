@@ -317,7 +317,18 @@ def move_paddle(paddle, up, down):
     if down and paddle.bottom < WINDOW_HEIGHT:
         paddle.y += paddle_movement
 
+def generate_random_name():
+    """Generate a random name from First_Names.txt and Last_Name.txt."""
+    with open("First_Names.txt") as f:
+        first_names = f.read().splitlines()
+    with open("Last_Name.txt") as f:
+        last_names = f.read().splitlines()
+    first_name = random.choice(first_names)
+    last_name = random.choice(last_names)
+    return f"{first_name} {last_name}"
+
 def main_game(ai_mode, player_name):
+    player_b_name = generate_random_name() if ai_mode else "Player B"
     """Main game loop."""
     # Game objects
     paddle_a = pygame.Rect(50, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
@@ -401,7 +412,7 @@ def main_game(ai_mode, player_name):
                 
             if ai_mode:
                 # AI movement with hesitation
-                if random.random() > 0.1:  # 90% chance to move
+                if random.random() > 0.3:  # 70% chance to move
                     if ball.centery > paddle_b.centery and paddle_b.bottom < WINDOW_HEIGHT:
                         paddle_b.y += paddle_movement
                     elif ball.centery < paddle_b.centery and paddle_b.top > 0:
@@ -439,7 +450,7 @@ def main_game(ai_mode, player_name):
         pygame.draw.rect(screen, WHITE, ball)
         
         # Draw score
-        score_text = font.render(f"{player_name}: {score_a}  Player B: {score_b}", True, WHITE)
+        score_text = font.render(f"{player_name}: {score_a}  {player_b_name}: {score_b}", True, WHITE)
         # Display the score at the top center of the screen
         screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 20))
         
