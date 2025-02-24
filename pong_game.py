@@ -328,10 +328,7 @@ def generate_random_name():
     return f"{first_name} {last_name}"
 
 def main_game(ai_mode, player_name):
-    if ai_mode:
-        player_b_name = generate_random_name()
-    else:
-        player_b_name = "Player B"
+    player_b_name = generate_random_name() if ai_mode else "Player B"
     """Main game loop."""
     # Game objects
     paddle_a = pygame.Rect(50, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
