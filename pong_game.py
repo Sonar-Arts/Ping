@@ -15,9 +15,17 @@ The game includes a title screen with options to play against another player or 
 pygame.init()
 pygame.mixer.init()
 
-# Screen size variable
-screen_size = (800, 600)
+# Standard arena size
+ARENA_WIDTH = 800
+ARENA_HEIGHT = 600
+
+# Screen size variable (can be changed, but game logic uses arena size)
+screen_size = (ARENA_WIDTH, ARENA_HEIGHT)
 WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
+
+# Scale factors for rendering
+scale_x = 1.0
+scale_y = 1.0
 PADDLE_WIDTH = 20
 PADDLE_HEIGHT = 120
 BALL_SIZE = 20
@@ -30,8 +38,8 @@ PADDLE_SPEED = 300  # Reduced from 400 for better control
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
-# Create the window
-screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+# Create the window with SCALED flag to maintain aspect ratio
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SCALED | pygame.RESIZABLE)
 pygame.display.set_caption("Pong")
 clock = pygame.time.Clock()
 
@@ -41,11 +49,10 @@ score_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Score.wav")
 
 def settings_screen():
     """Display the settings screen with volume control and screen size options."""
-    global screen_size, WINDOW_WIDTH, WINDOW_HEIGHT, screen
-    global option_font  # Add font to globals since we modify it during resize
+    global screen_size, screen, option_font, WINDOW_WIDTH, WINDOW_HEIGHT
     option_font = pygame.font.Font(None, 36)  # Reduced font size for better fit
     volume = paddle_sound.get_volume()  # Get current volume
-    screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1366, 768), (1920, 1080)]
+    screen_sizes = [(800, 600), (1024, 768), (1280, 720),(1920, 1080)]
     try:
         current_size_index = screen_sizes.index((WINDOW_WIDTH, WINDOW_HEIGHT))
     except ValueError:
@@ -70,7 +77,10 @@ def settings_screen():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            # Ignore mouse wheel events
+            if event.type == pygame.MOUSEWHEEL:
+                continue
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                 mouse_pos = pygame.mouse.get_pos()
                 # Handle clicks based on dropdown state
                 if dropdown_open:
@@ -92,11 +102,12 @@ def settings_screen():
                                 try:
                                     current_size_index = clicked_index
                                     screen_size = screen_sizes[current_size_index]
+                                    # Update window size variables
                                     WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
                                     # Store old surface contents
                                     old_surface = screen.copy()
-                                    # Set new display mode
-                                    screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+                                    # Set new display mode with SCALED flag to maintain aspect ratio
+                                    screen = pygame.display.set_mode(screen_size, pygame.SCALED | pygame.RESIZABLE)
                                     # Clear the new screen
                                     screen.fill(BLACK)
                                     try:
@@ -141,8 +152,8 @@ def settings_screen():
         hover_color = (100, 100, 100)  # More visible gray
         
         if volume_up_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
             pygame.draw.rect(screen, hover_color, volume_up_rect)
+        pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
         
         if volume_down_rect.collidepoint(mouse_pos):
             pygame.draw.rect(screen, hover_color, volume_down_rect)
@@ -154,8 +165,6 @@ def settings_screen():
         if not dropdown_open:
             pygame.draw.rect(screen, WHITE, back_rect, 2)
         
-        if change_name_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, hover_color, change_name_rect)
 
         # Prepare all text elements
         title_text = option_font.render("Settings", True, WHITE)
@@ -257,7 +266,7 @@ def settings_screen():
             print(f"Display error: {e}")
             # Try to recover by resetting the display
             try:
-                screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+                screen = pygame.display.set_mode(screen_size, pygame.SCALED | pygame.RESIZABLE)
                 pygame.display.flip()
             except pygame.error:
                 # If we can't recover, return to the main menu
@@ -458,10 +467,15 @@ def pause_menu():
 def move_paddle(paddle, up, down):
     """Move paddle based on input flags."""
     paddle_movement = PADDLE_SPEED * FRAME_TIME
-    if up and paddle.top > 50:
-        paddle.y -= paddle_movement
-    if down and paddle.bottom < WINDOW_HEIGHT:
-        paddle.y += paddle_movement
+    # Use arena height for boundaries instead of window height
+    if up and paddle.top > 50:  # Keep 50px space for scoreboard
+        new_y = paddle.y - paddle_movement
+        # Don't let paddle go above scoreboard
+        paddle.y = max(50, new_y)
+    if down and paddle.bottom < ARENA_HEIGHT:
+        new_y = paddle.y + paddle_movement
+        # Don't let paddle go below arena height
+        paddle.y = min(new_y, ARENA_HEIGHT - PADDLE_HEIGHT)
 
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
@@ -477,19 +491,20 @@ def main_game(ai_mode, player_name):
     player_b_name = generate_random_name() if ai_mode else "Player B"
     """Main game loop."""
     def update_game_objects():
-        """Update game object positions based on current window size"""
+        """Update game object positions based on standard arena size"""
         nonlocal paddle_a, paddle_b, ball
-        paddle_a.x = 50
-        paddle_a.y = WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2
-        paddle_b.x = WINDOW_WIDTH - 70
-        paddle_b.y = WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2
-        ball.x = WINDOW_WIDTH//2 - BALL_SIZE//2
-        ball.y = WINDOW_HEIGHT//2 - BALL_SIZE//2
+        # Fixed positions based on standard arena size
+        paddle_a.x = 50  # Left paddle 50px from left
+        paddle_a.y = (ARENA_HEIGHT//2) - (PADDLE_HEIGHT//2)  # Vertically centered
+        paddle_b.x = ARENA_WIDTH - 70  # Right paddle 70px from right
+        paddle_b.y = (ARENA_HEIGHT//2) - (PADDLE_HEIGHT//2)  # Vertically centered
+        ball.x = (ARENA_WIDTH//2) - (BALL_SIZE//2)  # Horizontally centered
+        ball.y = (ARENA_HEIGHT//2) - (BALL_SIZE//2)  # Vertically centered
 
-    # Game objects
-    paddle_a = pygame.Rect(50, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
-    paddle_b = pygame.Rect(WINDOW_WIDTH - 70, WINDOW_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
-    ball = pygame.Rect(WINDOW_WIDTH//2 - BALL_SIZE//2, WINDOW_HEIGHT//2 - BALL_SIZE//2, BALL_SIZE, BALL_SIZE)
+    # Game objects using standard arena dimensions
+    paddle_a = pygame.Rect(50, ARENA_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
+    paddle_b = pygame.Rect(ARENA_WIDTH - 70, ARENA_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
+    ball = pygame.Rect(ARENA_WIDTH//2 - BALL_SIZE//2, ARENA_HEIGHT//2 - BALL_SIZE//2, BALL_SIZE, BALL_SIZE)
     
     ball_dx = BALL_SPEED
     ball_dy = -BALL_SPEED
@@ -574,6 +589,8 @@ def main_game(ai_mode, player_name):
                             settings_result = settings_screen()
                             if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
                                 player_name = settings_result[1]
+                            # After returning from settings, update game objects for new screen size
+                            update_game_objects()
                         # Unpause after menu interactions or if escape was pressed in pause menu
                         if menu_result is None or menu_result == "settings":
                             paused = False
@@ -591,17 +608,19 @@ def main_game(ai_mode, player_name):
                 move_paddle(paddle_a, paddle_a_up, paddle_a_down)
                     
                 if ai_mode:
-                    # AI movement with hesitation
+                    # AI movement with hesitation, using arena boundaries
                     if random.random() > 0.3:  # 70% chance to move
-                        if ball.centery > paddle_b.centery and paddle_b.bottom < WINDOW_HEIGHT:
-                            paddle_b.y += paddle_movement
-                        elif ball.centery < paddle_b.centery and paddle_b.top > 0:
-                            paddle_b.y -= paddle_movement
+                        if ball.centery > paddle_b.centery and paddle_b.bottom < ARENA_HEIGHT:
+                            new_y = paddle_b.y + paddle_movement
+                            paddle_b.y = min(new_y, ARENA_HEIGHT - PADDLE_HEIGHT)
+                        elif ball.centery < paddle_b.centery and paddle_b.top > 50:  # 50px for scoreboard
+                            new_y = paddle_b.y - paddle_movement
+                            paddle_b.y = max(50, new_y)
                 else:
                     move_paddle(paddle_b, paddle_b_up, paddle_b_down)
                 
-                # Ball collision with top, bottom, and scoreboard
-                if ball.top <= 50 or ball.bottom >= WINDOW_HEIGHT:
+                # Ball collision with top, bottom, and scoreboard using arena dimensions
+                if ball.top <= 50 or ball.bottom >= ARENA_HEIGHT:
                     ball_dy *= -1
                 
                 # Ball collision with paddles
@@ -609,16 +628,16 @@ def main_game(ai_mode, player_name):
                     ball_dx *= -1
                     play_sound(paddle_sound)
                 
-                # Score points
+                # Score points using arena dimensions
                 if ball.left <= 0:
                     score_b += 1
                     play_sound(score_sound)
-                    ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
+                    ball.center = (ARENA_WIDTH//2, ARENA_HEIGHT//2)
                     ball_dx *= -1
-                elif ball.right >= WINDOW_WIDTH:
+                elif ball.right >= ARENA_WIDTH:
                     score_a += 1
                     play_sound(score_sound)
-                    ball.center = (WINDOW_WIDTH//2, WINDOW_HEIGHT//2)
+                    ball.center = (ARENA_WIDTH//2, ARENA_HEIGHT//2)
                     ball_dx *= -1
                 
                 accumulated_time -= FRAME_TIME
@@ -628,18 +647,47 @@ def main_game(ai_mode, player_name):
         # Draw game state
         screen.fill(BLACK)
         
-        # Draw center line boxes
-        box_width = 10
-        box_height = 20
-        box_spacing = 10
-        num_boxes = WINDOW_HEIGHT // (box_height + box_spacing)
+        # Calculate scale factors based on current window size vs arena size
+        scale_x = WINDOW_WIDTH / ARENA_WIDTH
+        scale_y = WINDOW_HEIGHT / ARENA_HEIGHT
+
+        # Draw center line boxes with scaling
+        box_width = 10 * scale_x
+        box_height = 20 * scale_y
+        box_spacing = 10 * scale_y
+        num_boxes = int(ARENA_HEIGHT // (20 + 10))  # Use arena height for consistent number of boxes
         for i in range(num_boxes):
             box_y = i * (box_height + box_spacing)
-            pygame.draw.rect(screen, WHITE, (WINDOW_WIDTH//2 - box_width//2, box_y, box_width, box_height))
+            pygame.draw.rect(screen, WHITE, (
+                WINDOW_WIDTH//2 - box_width//2,
+                box_y,
+                box_width,
+                box_height
+            ))
         
-        pygame.draw.rect(screen, WHITE, paddle_a)
-        pygame.draw.rect(screen, WHITE, paddle_b)
-        pygame.draw.rect(screen, WHITE, ball)
+        # Draw game objects with scaling
+        scaled_paddle_a = pygame.Rect(
+            paddle_a.x * scale_x,
+            paddle_a.y * scale_y,
+            PADDLE_WIDTH * scale_x,
+            PADDLE_HEIGHT * scale_y
+        )
+        scaled_paddle_b = pygame.Rect(
+            paddle_b.x * scale_x,
+            paddle_b.y * scale_y,
+            PADDLE_WIDTH * scale_x,
+            PADDLE_HEIGHT * scale_y
+        )
+        scaled_ball = pygame.Rect(
+            ball.x * scale_x,
+            ball.y * scale_y,
+            BALL_SIZE * scale_x,
+            BALL_SIZE * scale_y
+        )
+        
+        pygame.draw.rect(screen, WHITE, scaled_paddle_a)
+        pygame.draw.rect(screen, WHITE, scaled_paddle_b)
+        pygame.draw.rect(screen, WHITE, scaled_ball)
         
         # Draw scoreboard background
         scoreboard_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 50)
@@ -680,82 +728,6 @@ def get_player_name():
         file.write(player_name)
     return player_name
 
-def settings_screen():
-    """Display the settings screen with volume control and back option."""
-    option_font = pygame.font.Font(None, 48)
-    volume = paddle_sound.get_volume()  # Get current volume
-
-    # Create rectangles for clickable areas
-    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 100, 300, 50)
-    volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 140, 50)
-    volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 160, WINDOW_HEIGHT//2 - 30, 140, 50)
-    change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 180, 300, 50)
-
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = pygame.mouse.get_pos()
-                if back_rect.collidepoint(mouse_pos):
-                    return None
-                elif volume_up_rect.collidepoint(mouse_pos):
-                    volume = min(volume + 0.1, 1.0)  # Increase volume
-                    paddle_sound.set_volume(volume)
-                    score_sound.set_volume(volume)
-                elif volume_down_rect.collidepoint(mouse_pos):
-                    volume = max(volume - 0.1, 0.0)  # Decrease volume
-                    paddle_sound.set_volume(volume)
-                    score_sound.set_volume(volume)
-                elif change_name_rect.collidepoint(mouse_pos):
-                    new_name = player_name_screen()
-                    with open("player_name.txt", "w") as file:
-                        file.write(new_name)
-                    return ("name_change", new_name)
-
-        screen.fill(BLACK)
-        # Draw title
-        title_text = option_font.render("Settings", True, WHITE)
-        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
-
-        # Draw controls with hover effect
-        hover_color = (100, 100, 100)  # More visible gray
-        mouse_pos = pygame.mouse.get_pos()
-        
-        # Volume up button
-        if volume_up_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, hover_color, volume_up_rect)
-        pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
-        
-        # Volume down button
-        if volume_down_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, hover_color, volume_down_rect)
-        pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
-        
-        # Back button
-        if back_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, hover_color, back_rect)
-        pygame.draw.rect(screen, WHITE, back_rect, 2)
-        
-        # Change name button
-        if change_name_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, hover_color, change_name_rect)
-        pygame.draw.rect(screen, WHITE, change_name_rect, 2)
-
-        volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
-        volume_up_text = option_font.render("+", True, WHITE)
-        volume_down_text = option_font.render("-", True, WHITE)
-        back_text = option_font.render("Back", True, WHITE)
-        change_name_text = option_font.render("Change Name", True, WHITE)
-
-        screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
-        screen.blit(volume_up_text, (WINDOW_WIDTH//2 + 90, WINDOW_HEIGHT//2 - 20))
-        screen.blit(volume_down_text, (WINDOW_WIDTH//2 - 90, WINDOW_HEIGHT//2 - 20))
-        screen.blit(back_text, (WINDOW_WIDTH//2 - back_text.get_width()//2, WINDOW_HEIGHT//2 + 110))
-        screen.blit(change_name_text, (WINDOW_WIDTH//2 - change_name_text.get_width()//2, WINDOW_HEIGHT//2 + 190))
-        pygame.display.flip()
-        clock.tick(60)
 
 if __name__ == "__main__":
     running = True
