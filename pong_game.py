@@ -509,10 +509,38 @@ def main_game(ai_mode, player_name):
     ball_dx = BALL_SPEED
     ball_dy = -BALL_SPEED
     
+    # Obstacle class
+    class Obstacle:
+        def __init__(self):
+            # Calculate middle third boundaries
+            third_width = ARENA_WIDTH // 3
+            min_x = third_width
+            max_x = third_width * 2
+            
+            # Random position within middle third
+            self.width = 20
+            self.height = 60
+            self.x = random.randint(min_x, max_x - self.width)
+            self.y = random.randint(50, ARENA_HEIGHT - self.height)  # 50px from top for scoreboard
+            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+            
+        def draw(self, screen, scale_x, scale_y):
+            """Draw the obstacle with proper scaling"""
+            scaled_rect = pygame.Rect(
+                self.rect.x * scale_x,
+                self.rect.y * scale_y,
+                self.width * scale_x,
+                self.height * scale_y
+            )
+            pygame.draw.rect(screen, WHITE, scaled_rect)
+    
     # Score
     score_a = 0
     score_b = 0
     font = pygame.font.Font(None, 48)
+    
+    # Create initial obstacle
+    obstacle = Obstacle()
     
     # Movement flags
     paddle_a_up = False
@@ -627,6 +655,13 @@ def main_game(ai_mode, player_name):
                 if ball.colliderect(paddle_a) or ball.colliderect(paddle_b):
                     ball_dx *= -1
                     play_sound(paddle_sound)
+
+                # Ball collision with obstacle
+                if ball.colliderect(obstacle.rect):
+                    ball_dx *= -1
+                    play_sound(paddle_sound)
+                    # Create new obstacle after collision
+                    obstacle = Obstacle()
                 
                 # Score points using arena dimensions
                 if ball.left <= 0:
@@ -688,6 +723,9 @@ def main_game(ai_mode, player_name):
         pygame.draw.rect(screen, WHITE, scaled_paddle_a)
         pygame.draw.rect(screen, WHITE, scaled_paddle_b)
         pygame.draw.rect(screen, WHITE, scaled_ball)
+        
+        # Draw obstacle
+        obstacle.draw(screen, scale_x, scale_y)
         
         # Draw scoreboard background
         scoreboard_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 50)
