@@ -81,9 +81,24 @@ def settings_screen():
         screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
 
         # Draw volume controls
-        pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
+        # Check for hover and fill with very opaque gray if hovered
+        mouse_pos = pygame.mouse.get_pos()
+        hover_color = (100, 100, 100)  # More visible gray
+        
+        if volume_up_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
+            pygame.draw.rect(screen, hover_color, volume_up_rect)
+        
+        if volume_down_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, volume_down_rect)
         pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
+        
+        if back_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, back_rect)
         pygame.draw.rect(screen, WHITE, back_rect, 2)
+        
+        if change_name_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, change_name_rect)
         pygame.draw.rect(screen, WHITE, change_name_rect, 2)
 
         volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
@@ -252,9 +267,23 @@ def title_screen():
             screen.blit(text, (x_offset, WINDOW_HEIGHT//4))
             x_offset += text.get_width() + 5
         
-        # Render options
+        # Render options with hover effect
+        hover_color = (100, 100, 100)  # More visible gray
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # PvP button
+        if pvp_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, pvp_rect)
         pygame.draw.rect(screen, WHITE, pvp_rect, 2)
+        
+        # AI button
+        if ai_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, ai_rect)
         pygame.draw.rect(screen, WHITE, ai_rect, 2)
+        
+        # Settings button
+        if settings_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, settings_rect)
         pygame.draw.rect(screen, WHITE, settings_rect, 2)
         
         pvp_text = option_font.render("Player vs Player", True, WHITE)
@@ -296,8 +325,18 @@ def pause_menu():
 
         screen.fill(BLACK)
 
-        # Render options
+        # Render options with hover effect
+        hover_color = (100, 100, 100)  # More visible gray
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Title button
+        if title_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, title_rect)
         pygame.draw.rect(screen, WHITE, title_rect, 2)
+        
+        # Settings button
+        if settings_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, settings_rect)
         pygame.draw.rect(screen, WHITE, settings_rect, 2)
 
         title_text = option_font.render("Back to Title", True, WHITE)
@@ -312,7 +351,7 @@ def pause_menu():
 def move_paddle(paddle, up, down):
     """Move paddle based on input flags."""
     paddle_movement = PADDLE_SPEED * FRAME_TIME
-    if up and paddle.top > 0:
+    if up and paddle.top > 50:
         paddle.y -= paddle_movement
     if down and paddle.bottom < WINDOW_HEIGHT:
         paddle.y += paddle_movement
@@ -434,8 +473,8 @@ def main_game(ai_mode, player_name):
                 else:
                     move_paddle(paddle_b, paddle_b_up, paddle_b_down)
                 
-                # Ball collision with top and bottom
-                if ball.top <= 0 or ball.bottom >= WINDOW_HEIGHT:
+                # Ball collision with top, bottom, and scoreboard
+                if ball.top <= 50 or ball.bottom >= WINDOW_HEIGHT:
                     ball_dy *= -1
                 
                 # Ball collision with paddles
@@ -461,13 +500,29 @@ def main_game(ai_mode, player_name):
         
         # Draw game state
         screen.fill(BLACK)
+        
+        # Draw center line boxes
+        box_width = 10
+        box_height = 20
+        box_spacing = 10
+        num_boxes = WINDOW_HEIGHT // (box_height + box_spacing)
+        for i in range(num_boxes):
+            box_y = i * (box_height + box_spacing)
+            pygame.draw.rect(screen, WHITE, (WINDOW_WIDTH//2 - box_width//2, box_y, box_width, box_height))
+        
         pygame.draw.rect(screen, WHITE, paddle_a)
         pygame.draw.rect(screen, WHITE, paddle_b)
         pygame.draw.rect(screen, WHITE, ball)
         
-        # Draw score
+        # Draw scoreboard background
+        scoreboard_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 50)
+        dark_brown = (101, 67, 33)
+        pygame.draw.rect(screen, dark_brown, scoreboard_rect)
+        pygame.draw.rect(screen, WHITE, scoreboard_rect, 2)
+        
+        # Draw score on top of the scoreboard background
         score_text = font.render(f"{player_name}: {score_a}  {player_b_name}: {score_b}", True, WHITE)
-        screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 20))
+        screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 15))
         
         # If game is paused, draw semi-transparent overlay and pause text
         if paused:
@@ -537,10 +592,28 @@ def settings_screen():
         title_text = option_font.render("Settings", True, WHITE)
         screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
 
-        # Draw volume controls
+        # Draw controls with hover effect
+        hover_color = (100, 100, 100)  # More visible gray
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Volume up button
+        if volume_up_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, volume_up_rect)
         pygame.draw.rect(screen, WHITE, volume_up_rect, 2)
+        
+        # Volume down button
+        if volume_down_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, volume_down_rect)
         pygame.draw.rect(screen, WHITE, volume_down_rect, 2)
+        
+        # Back button
+        if back_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, back_rect)
         pygame.draw.rect(screen, WHITE, back_rect, 2)
+        
+        # Change name button
+        if change_name_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, change_name_rect)
         pygame.draw.rect(screen, WHITE, change_name_rect, 2)
 
         volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, WHITE)
