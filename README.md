@@ -1,3 +1,3 @@
 # Ping
-A repository for Ping, a roguelike Pong clone.
+The repository for Ping, a project to build a roguelike with a pong mechanics.
 
