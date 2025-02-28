@@ -64,13 +64,15 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
                                 screen_size = screen_sizes[current_size_index]
                                 WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
                                 old_surface = screen.copy()
-                                screen = pygame.display.set_mode(screen_size, pygame.SCALED | pygame.RESIZABLE)
-                                screen.fill(BLACK)
                                 try:
+                                    screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+                                    screen.fill(BLACK)
                                     scaled_surface = pygame.transform.scale(old_surface, screen_size)
                                     screen.blit(scaled_surface, (0, 0))
-                                except pygame.error:
-                                    pass
+                                except pygame.error as e:
+                                    print(f"Failed to create renderer: {e}")
+                                    screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+                                    screen.fill(BLACK)
                                 pygame.display.flip()
                                 pygame.time.wait(100)
                                 option_font = pygame.font.Font(None, 36)
