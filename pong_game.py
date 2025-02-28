@@ -21,9 +21,9 @@ pygame.mixer.init()
 ARENA_WIDTH = 800
 ARENA_HEIGHT = 600
 
-# Screen size variable (can be changed, but game logic uses arena size)
-screen_size = (ARENA_WIDTH, ARENA_HEIGHT)
-WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
+# Create the window using init_display from Ping_UI
+screen = init_display(ARENA_WIDTH, ARENA_HEIGHT)
+WINDOW_WIDTH, WINDOW_HEIGHT = screen.get_size()
 
 # Scale factors for rendering
 scale_x = 1.0
@@ -39,9 +39,6 @@ PADDLE_SPEED = 300  # Reduced from 400 for better control
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-
-# Create the window with SCALED flag to maintain aspect ratio
-screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SCALED | pygame.RESIZABLE)
 pygame.display.set_caption("Pong")
 clock = pygame.time.Clock()
 

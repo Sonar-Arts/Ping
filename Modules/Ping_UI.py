@@ -7,9 +7,13 @@ import random
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
-def init_display(width, height):
+# Default window dimensions
+DEFAULT_WIDTH = 800
+DEFAULT_HEIGHT = 600
+
+def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     """Initialize the display with the given dimensions."""
-    screen = pygame.display.set_mode((width, height), pygame.SCALED | pygame.RESIZABLE)
+    screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
     pygame.display.set_caption("Ping")
     return screen
 
@@ -73,6 +77,12 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
                                     print(f"Failed to create renderer: {e}")
                                     screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
                                     screen.fill(BLACK)
+                                # Update UI elements positions and sizes
+                                back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 180, 240, 40)
+                                volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
+                                volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
+                                size_rect_height = 40 if not dropdown_open else 120
+                                size_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 50, 240, size_rect_height)
                                 pygame.display.flip()
                                 pygame.time.wait(100)
                                 option_font = pygame.font.Font(None, 36)
