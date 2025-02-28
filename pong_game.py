@@ -3,8 +3,8 @@ import random
 import time
 import threading
 from sys import exit
-from Ping_AI import PaddleAI
-from Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu
+from Modules.Ping_AI import PaddleAI
+from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu
 
 """
 Pong Game
