@@ -2,6 +2,7 @@ import pygame
 import random
 import time
 import threading
+import math
 from sys import exit
 from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu
@@ -32,8 +33,18 @@ PADDLE_HEIGHT = 120
 BALL_SIZE = 20
 FRAME_TIME = 1.0 / 60.0  # Target 60 FPS
 MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
-BALL_SPEED = 300  # Reduced from 400 for better gameplay
+BALL_SPEED = 300  # Base ball speed
+MAX_BALL_SPEED = 600  # Maximum ball speed after paddle hits
 PADDLE_SPEED = 300  # Reduced from 400 for better control
+
+# Helper function to cap ball velocity
+def cap_ball_velocity(dx, dy):
+    """Cap the ball's velocity to prevent it from moving too fast."""
+    speed = math.sqrt(dx * dx + dy * dy)
+    if speed > MAX_BALL_SPEED:
+        scale = MAX_BALL_SPEED / speed
+        return dx * scale, dy * scale
+    return dx, dy
 
 pygame.display.set_caption("Ping")
 clock = pygame.time.Clock()
@@ -77,7 +88,7 @@ def main_game(ai_mode, player_name):
     """Main game loop."""
     player_b_name = generate_random_name() if ai_mode else "Player B"
     # Initialize AI if in AI mode
-    paddle_ai = PaddleAI(arena.height) if ai_mode else None
+    paddle_ai = PaddleAI(arena) if ai_mode else None
     
     def update_game_objects():
         """Update game object positions based on arena dimensions"""
@@ -239,8 +250,12 @@ def main_game(ai_mode, player_name):
                 move_paddle(paddle_a, paddle_a_up, paddle_a_down)
                     
                 if ai_mode:
-                    # Use AI to move paddle
-                    paddle_b.y = paddle_ai.move_paddle(ball.centery, paddle_b.y, paddle_movement)
+                    # Use AI to move paddle with ball trajectory information
+                    paddle_b.y = paddle_ai.move_paddle(
+                        ball.x, ball.y,  # Current ball position
+                        ball_dx, ball_dy,  # Ball velocity
+                        paddle_b.y, paddle_movement
+                    )
                 else:
                     move_paddle(paddle_b, paddle_b_up, paddle_b_down)
                 
@@ -249,8 +264,35 @@ def main_game(ai_mode, player_name):
                     ball_dy *= -1
                 
                 # Ball collision with paddles
-                if ball.colliderect(paddle_a) or ball.colliderect(paddle_b):
-                    ball_dx *= -1
+                if ball.colliderect(paddle_a):
+                    # Collision with left paddle
+                    ball.left = paddle_a.right  # Place ball outside paddle
+                    ball_dx = abs(ball_dx)  # Ensure ball moves right
+                    
+                    # Calculate relative intersection point (0-1) on paddle
+                    relative_intersect = (ball.centery - paddle_a.top) / paddle_a.height
+                    # Convert to angle (-45 to 45 degrees)
+                    angle = (relative_intersect - 0.5) * 90
+                    # Adjust ball's vertical velocity based on hit angle
+                    new_dy = ball_dx * -math.tan(math.radians(angle))
+                    # Cap the ball's velocity
+                    ball_dx, ball_dy = cap_ball_velocity(ball_dx, new_dy)
+                    
+                    play_sound(paddle_sound)
+                elif ball.colliderect(paddle_b):
+                    # Collision with right paddle
+                    ball.right = paddle_b.left  # Place ball outside paddle
+                    ball_dx = -abs(ball_dx)  # Ensure ball moves left
+                    
+                    # Calculate relative intersection point (0-1) on paddle
+                    relative_intersect = (ball.centery - paddle_b.top) / paddle_b.height
+                    # Convert to angle (-45 to 45 degrees)
+                    angle = (relative_intersect - 0.5) * 90
+                    # Adjust ball's vertical velocity based on hit angle
+                    new_dy = -ball_dx * -math.tan(math.radians(angle))
+                    # Cap the ball's velocity
+                    ball_dx, ball_dy = cap_ball_velocity(ball_dx, new_dy)
+                    
                     play_sound(paddle_sound)
 
                 # Ball collision with obstacle
