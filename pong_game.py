@@ -363,9 +363,8 @@ if __name__ == "__main__":
         player_name = get_player_name()
         while True:
             game_mode = title_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
-            if isinstance(game_mode, tuple) and game_mode[0] == "settings":
-                # Handle name change from settings
-                player_name = game_mode[1]
+            if game_mode == "settings":
+                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT)
                 continue
             elif game_mode is None:
                 running = False
