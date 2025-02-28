@@ -22,6 +22,7 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
     option_font = pygame.font.Font(None, 36)  # Reduced font size for better fit
     volume = paddle_sound.get_volume()  # Get current volume
     screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
+    screen_size = (WINDOW_WIDTH, WINDOW_HEIGHT)  # Initialize screen_size with current window size
     try:
         current_size_index = screen_sizes.index((WINDOW_WIDTH, WINDOW_HEIGHT))
     except ValueError:
