@@ -7,27 +7,26 @@ from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu
 
 """
-Pong Game
+Ping Base Code
+This is the base code for the Ping game, which includes the main game loop, event handling, and rendering.
 ---------
-This is an implementation of the classic Pong game using PyGame.
-The game includes a title screen with options to play against another player or an AI.
+This will serve as our base code skeleton for Ping. It is where all the upper tier modules will interact with each other to run the game.
 """
 
 # Initialize PyGame and the mixer for sound effects
 pygame.init()
 pygame.mixer.init()
 
-# Standard arena size
-ARENA_WIDTH = 800
-ARENA_HEIGHT = 600
+from Modules.Ping_Arena import Arena, DEFAULT_WIDTH, DEFAULT_HEIGHT
+
+# Create arena instance
+arena = Arena(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
 # Create the window using init_display from Ping_UI
-screen = init_display(ARENA_WIDTH, ARENA_HEIGHT)
+screen = init_display(arena.width, arena.height)
 WINDOW_WIDTH, WINDOW_HEIGHT = screen.get_size()
 
-# Scale factors for rendering
-scale_x = 1.0
-scale_y = 1.0
+# Game constants
 PADDLE_WIDTH = 20
 PADDLE_HEIGHT = 120
 BALL_SIZE = 20
@@ -36,10 +35,7 @@ MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
 BALL_SPEED = 300  # Reduced from 400 for better gameplay
 PADDLE_SPEED = 300  # Reduced from 400 for better control
 
-# Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-pygame.display.set_caption("Pong")
+pygame.display.set_caption("Ping")
 clock = pygame.time.Clock()
 
 # Load sounds
@@ -58,15 +54,14 @@ def play_sound(sound):
 def move_paddle(paddle, up, down):
     """Move paddle based on input flags."""
     paddle_movement = PADDLE_SPEED * FRAME_TIME
-    # Use arena height for boundaries instead of window height
-    if up and paddle.top > 50:  # Keep 50px space for scoreboard
+    if up and paddle.top > arena.scoreboard_height:
         new_y = paddle.y - paddle_movement
         # Don't let paddle go above scoreboard
-        paddle.y = max(50, new_y)
-    if down and paddle.bottom < ARENA_HEIGHT:
+        paddle.y = max(arena.scoreboard_height, new_y)
+    if down and paddle.bottom < arena.height:
         new_y = paddle.y + paddle_movement
         # Don't let paddle go below arena height
-        paddle.y = min(new_y, ARENA_HEIGHT - PADDLE_HEIGHT)
+        paddle.y = min(new_y, arena.height - PADDLE_HEIGHT)
 
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
@@ -82,22 +77,32 @@ def main_game(ai_mode, player_name):
     """Main game loop."""
     player_b_name = generate_random_name() if ai_mode else "Player B"
     # Initialize AI if in AI mode
-    paddle_ai = PaddleAI(ARENA_HEIGHT) if ai_mode else None
+    paddle_ai = PaddleAI(arena.height) if ai_mode else None
+    
     def update_game_objects():
-        """Update game object positions based on standard arena size"""
+        """Update game object positions based on arena dimensions"""
         nonlocal paddle_a, paddle_b, ball
-        # Fixed positions based on standard arena size
-        paddle_a.x = 50  # Left paddle 50px from left
-        paddle_a.y = (ARENA_HEIGHT//2) - (PADDLE_HEIGHT//2)  # Vertically centered
-        paddle_b.x = ARENA_WIDTH - 70  # Right paddle 70px from right
-        paddle_b.y = (ARENA_HEIGHT//2) - (PADDLE_HEIGHT//2)  # Vertically centered
-        ball.x = (ARENA_WIDTH//2) - (BALL_SIZE//2)  # Horizontally centered
-        ball.y = (ARENA_HEIGHT//2) - (BALL_SIZE//2)  # Vertically centered
+        paddle_positions = arena.get_paddle_positions()
+        ball_position = arena.get_ball_position(BALL_SIZE)
+        
+        # Update paddle positions
+        paddle_a.x = paddle_positions['left_x']
+        paddle_a.y = paddle_positions['y']
+        paddle_b.x = paddle_positions['right_x']
+        paddle_b.y = paddle_positions['y']
+        
+        # Update ball position
+        ball.x, ball.y = ball_position
 
-    # Game objects using standard arena dimensions
-    paddle_a = pygame.Rect(50, ARENA_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
-    paddle_b = pygame.Rect(ARENA_WIDTH - 70, ARENA_HEIGHT//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
-    ball = pygame.Rect(ARENA_WIDTH//2 - BALL_SIZE//2, ARENA_HEIGHT//2 - BALL_SIZE//2, BALL_SIZE, BALL_SIZE)
+    # Create game objects using arena dimensions
+    paddle_positions = arena.get_paddle_positions()
+    ball_position = arena.get_ball_position(BALL_SIZE)
+    
+    paddle_a = pygame.Rect(paddle_positions['left_x'], paddle_positions['y'],
+                          PADDLE_WIDTH, PADDLE_HEIGHT)
+    paddle_b = pygame.Rect(paddle_positions['right_x'], paddle_positions['y'],
+                          PADDLE_WIDTH, PADDLE_HEIGHT)
+    ball = pygame.Rect(ball_position[0], ball_position[1], BALL_SIZE, BALL_SIZE)
     
     ball_dx = BALL_SPEED
     ball_dy = -BALL_SPEED
@@ -106,7 +111,7 @@ def main_game(ai_mode, player_name):
     class Obstacle:
         def __init__(self):
             # Calculate middle third boundaries
-            third_width = ARENA_WIDTH // 3
+            third_width = arena.width // 3
             min_x = third_width
             max_x = third_width * 2
             
@@ -114,23 +119,25 @@ def main_game(ai_mode, player_name):
             self.width = 20
             self.height = 60
             self.x = random.randint(min_x, max_x - self.width)
-            self.y = random.randint(50, ARENA_HEIGHT - self.height)  # 50px from top for scoreboard
+            self.y = random.randint(arena.scoreboard_height, arena.height - self.height)
             self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
             
-        def draw(self, screen, scale_x, scale_y):
-            """Draw the obstacle with proper scaling"""
+        def draw(self, screen, scale, offset_x, offset_y):
+            """Draw the obstacle with proper scaling and centering"""
             scaled_rect = pygame.Rect(
-                self.rect.x * scale_x,
-                self.rect.y * scale_y,
-                self.width * scale_x,
-                self.height * scale_y
+                (self.rect.x * scale) + offset_x,
+                (self.rect.y * scale) + offset_y,
+                self.width * scale,
+                self.height * scale
             )
-            pygame.draw.rect(screen, WHITE, scaled_rect)
+            pygame.draw.rect(screen, arena.WHITE, scaled_rect)
     
     # Score
     score_a = 0
     score_b = 0
-    font = pygame.font.Font(None, 48)
+    scale_x = WINDOW_WIDTH / arena.width
+    scale_y = WINDOW_HEIGHT / arena.height
+    font = pygame.font.Font(None, max(12, int(48 * scale_y)))
     
     # Create initial obstacle
     obstacle = Obstacle()
@@ -143,10 +150,13 @@ def main_game(ai_mode, player_name):
     
     # Countdown
     for i in range(3, 0, -1):
-        screen.fill(BLACK)
-        countdown_text = font.render(str(i), True, WHITE)
+        screen.fill(arena.BLACK)
+        scale_x = WINDOW_WIDTH / arena.width
+        scale_y = WINDOW_HEIGHT / arena.height
+        scaled_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+        countdown_text = scaled_font.render(str(i), True, arena.WHITE)
         screen.blit(countdown_text, (WINDOW_WIDTH//2 - countdown_text.get_width()//2,
-                                    WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
+                                   WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
         pygame.display.flip()
         time.sleep(1)
     
@@ -234,8 +244,8 @@ def main_game(ai_mode, player_name):
                 else:
                     move_paddle(paddle_b, paddle_b_up, paddle_b_down)
                 
-                # Ball collision with top, bottom, and scoreboard using arena dimensions
-                if ball.top <= 50 or ball.bottom >= ARENA_HEIGHT:
+                # Ball collision with top, bottom, and scoreboard
+                if ball.top <= arena.scoreboard_height or ball.bottom >= arena.height:
                     ball_dy *= -1
                 
                 # Ball collision with paddles
@@ -250,16 +260,18 @@ def main_game(ai_mode, player_name):
                     # Create new obstacle after collision
                     obstacle = Obstacle()
                 
-                # Score points using arena dimensions
+                # Score points
                 if ball.left <= 0:
                     score_b += 1
                     play_sound(score_sound)
-                    ball.center = (ARENA_WIDTH//2, ARENA_HEIGHT//2)
+                    ball_pos = arena.get_ball_position(BALL_SIZE)
+                    ball.x, ball.y = ball_pos
                     ball_dx *= -1
-                elif ball.right >= ARENA_WIDTH:
+                elif ball.right >= arena.width:
                     score_a += 1
                     play_sound(score_sound)
-                    ball.center = (ARENA_WIDTH//2, ARENA_HEIGHT//2)
+                    ball_pos = arena.get_ball_position(BALL_SIZE)
+                    ball.x, ball.y = ball_pos
                     ball_dx *= -1
                 
                 accumulated_time -= FRAME_TIME
@@ -267,74 +279,33 @@ def main_game(ai_mode, player_name):
             accumulated_time = min(accumulated_time, FRAME_TIME * 4)
         
         # Draw game state
-        screen.fill(BLACK)
+        screen.fill(arena.BLACK)
         
-        # Calculate scale factors based on current window size vs arena size
-        scale_x = WINDOW_WIDTH / ARENA_WIDTH
-        scale_y = WINDOW_HEIGHT / ARENA_HEIGHT
-
-        # Draw center line boxes with scaling
-        box_width = 10 * scale_x
-        box_height = 20 * scale_y
-        box_spacing = 10 * scale_y
-        num_boxes = int(ARENA_HEIGHT // (20 + 10))  # Use arena height for consistent number of boxes
-        for i in range(num_boxes):
-            box_y = i * (box_height + box_spacing)
-            pygame.draw.rect(screen, WHITE, (
-                WINDOW_WIDTH//2 - box_width//2,
-                box_y,
-                box_width,
-                box_height
-            ))
+        # Update arena scaling based on window size
+        arena.update_scaling(WINDOW_WIDTH, WINDOW_HEIGHT)
         
-        # Draw game objects with scaling
-        scaled_paddle_a = pygame.Rect(
-            paddle_a.x * scale_x,
-            paddle_a.y * scale_y,
-            PADDLE_WIDTH * scale_x,
-            PADDLE_HEIGHT * scale_y
-        )
-        scaled_paddle_b = pygame.Rect(
-            paddle_b.x * scale_x,
-            paddle_b.y * scale_y,
-            PADDLE_WIDTH * scale_x,
-            PADDLE_HEIGHT * scale_y
-        )
-        scaled_ball = pygame.Rect(
-            ball.x * scale_x,
-            ball.y * scale_y,
-            BALL_SIZE * scale_x,
-            BALL_SIZE * scale_y
-        )
+        # Draw center line using arena method
+        arena.draw_center_line(screen)
         
-        pygame.draw.rect(screen, WHITE, scaled_paddle_a)
-        pygame.draw.rect(screen, WHITE, scaled_paddle_b)
-        pygame.draw.rect(screen, WHITE, scaled_ball)
+        # Draw game objects with arena scaling
+        scaled_paddle_a = arena.scale_rect(paddle_a)
+        scaled_paddle_b = arena.scale_rect(paddle_b)
+        scaled_ball = arena.scale_rect(ball)
         
-        # Draw obstacle
-        obstacle.draw(screen, scale_x, scale_y)
+        pygame.draw.rect(screen, arena.WHITE, scaled_paddle_a)
+        pygame.draw.rect(screen, arena.WHITE, scaled_paddle_b)
+        pygame.draw.rect(screen, arena.WHITE, scaled_ball)
         
-        # Draw scoreboard background
-        scoreboard_rect = pygame.Rect(0, 0, WINDOW_WIDTH, 50)
-        dark_brown = (101, 67, 33)
-        pygame.draw.rect(screen, dark_brown, scoreboard_rect)
-        pygame.draw.rect(screen, WHITE, scoreboard_rect, 2)
+        # Draw obstacle using arena scaling
+        obstacle.draw(screen, arena.scale, arena.offset_x, arena.offset_y)
         
-        # Draw score on top of the scoreboard background
-        score_text = font.render(f"{player_name}: {score_a}  {player_b_name}: {score_b}", True, WHITE)
-        screen.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, 15))
+        # Draw scoreboard using arena method
+        scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
+        arena.draw_scoreboard(screen, player_name, score_a, player_b_name, score_b, scaled_font)
         
-        # If game is paused, draw semi-transparent overlay and pause text
+        # Draw pause overlay if paused
         if paused:
-            # Create semi-transparent overlay
-            overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-            overlay.fill(BLACK)
-            overlay.set_alpha(128)  # 50% transparency
-            screen.blit(overlay, (0, 0))
-            
-            # Draw pause text
-            pause_text = font.render("Paused", True, WHITE)
-            screen.blit(pause_text, (WINDOW_WIDTH//2 - pause_text.get_width()//2, WINDOW_HEIGHT//2 - pause_text.get_height()//2))
+            arena.draw_pause_overlay(screen, scaled_font)
         
         pygame.display.flip()
 

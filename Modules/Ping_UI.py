@@ -23,7 +23,10 @@ def random_color():
 
 def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the settings screen with volume control and screen size options."""
-    option_font = pygame.font.Font(None, 36)  # Reduced font size for better fit
+    # Scale font size based on window height
+    scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
+    font_size = max(12, int(36 * scale_y))  # Scale while maintaining minimum readable size
+    option_font = pygame.font.Font(None, font_size)
     volume = paddle_sound.get_volume()  # Get current volume
     screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
     screen_size = (WINDOW_WIDTH, WINDOW_HEIGHT)  # Initialize screen_size with current window size
@@ -171,7 +174,9 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
 
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the player name input screen."""
-    font = pygame.font.Font(None, 48)
+    scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
+    font_size = max(12, int(48 * scale_y))
+    font = pygame.font.Font(None, font_size)
     input_box = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 - 30, 300, 50)
     color_inactive = pygame.Color('lightskyblue3')
     color_active = pygame.Color('dodgerblue2')
@@ -214,8 +219,9 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
 
 def title_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the title screen with game options."""
-    title_font = pygame.font.Font(None, 74)
-    option_font = pygame.font.Font(None, 48)
+    scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
+    title_font = pygame.font.Font(None, max(12, int(74 * scale_y)))
+    option_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
     
     title_letters = list("Ping")
     title_colors = [WHITE] * len(title_letters)
