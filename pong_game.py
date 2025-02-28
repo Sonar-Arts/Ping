@@ -3,6 +3,7 @@ import random
 import time
 import threading
 from sys import exit
+from Ping_AI import PaddleAI
 
 """
 Pong Game
@@ -488,8 +489,10 @@ def generate_random_name():
     return f"{first_name} {last_name}"
 
 def main_game(ai_mode, player_name):
-    player_b_name = generate_random_name() if ai_mode else "Player B"
     """Main game loop."""
+    player_b_name = generate_random_name() if ai_mode else "Player B"
+    # Initialize AI if in AI mode
+    paddle_ai = PaddleAI(ARENA_HEIGHT) if ai_mode else None
     def update_game_objects():
         """Update game object positions based on standard arena size"""
         nonlocal paddle_a, paddle_b, ball
@@ -636,14 +639,8 @@ def main_game(ai_mode, player_name):
                 move_paddle(paddle_a, paddle_a_up, paddle_a_down)
                     
                 if ai_mode:
-                    # AI movement with hesitation, using arena boundaries
-                    if random.random() > 0.3:  # 70% chance to move
-                        if ball.centery > paddle_b.centery and paddle_b.bottom < ARENA_HEIGHT:
-                            new_y = paddle_b.y + paddle_movement
-                            paddle_b.y = min(new_y, ARENA_HEIGHT - PADDLE_HEIGHT)
-                        elif ball.centery < paddle_b.centery and paddle_b.top > 50:  # 50px for scoreboard
-                            new_y = paddle_b.y - paddle_movement
-                            paddle_b.y = max(50, new_y)
+                    # Use AI to move paddle
+                    paddle_b.y = paddle_ai.move_paddle(ball.centery, paddle_b.y, paddle_movement)
                 else:
                     move_paddle(paddle_b, paddle_b_up, paddle_b_down)
                 
