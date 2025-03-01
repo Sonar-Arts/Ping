@@ -4,7 +4,7 @@ import time
 import threading
 from sys import exit
 from Modules.Ping_AI import PaddleAI
-from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu, win_screen
+from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_menu, win_screen
 from Modules.Ping_GameObjects import Paddle, Ball
 
 """
@@ -334,7 +334,8 @@ if __name__ == "__main__":
     while running:
         player_name = get_player_name()
         while True:
-            game_mode = title_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+            title_screen_instance = TitleScreen()
+            game_mode = title_screen_instance.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
             if game_mode == "settings":
                 settings_result = settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT)
                 continue
