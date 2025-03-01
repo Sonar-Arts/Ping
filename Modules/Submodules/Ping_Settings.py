@@ -32,7 +32,11 @@ class SettingsScreen:
             back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 180, 240, 40)
             volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
             volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
-            size_rect_height = 40 if not dropdown_open else 120
+            # Calculate proper height for dropdown
+            option_height = 35
+            total_options = len(self.screen_sizes)
+            dropdown_height = total_options * option_height + 10  # Add padding
+            size_rect_height = 40 if not dropdown_open else dropdown_height
             size_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 50, 240, size_rect_height)
 
             for event in pygame.event.get():
@@ -44,15 +48,35 @@ class SettingsScreen:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mouse_pos = pygame.mouse.get_pos()
                     if dropdown_open:
-                        if size_rect.collidepoint(mouse_pos):
-                            mouse_y = mouse_pos[1]
-                            option_height = 35
-                            first_option_y = WINDOW_HEIGHT//2 + 52
-                            clicked_index = int((mouse_y - first_option_y) // option_height)
-                            
-                            if 0 <= clicked_index < len(self.screen_sizes):
+                        # Calculate dropdown dimensions for click detection
+                        option_height = 35
+                        dropdown_y = WINDOW_HEIGHT//2 + 52
+                        dropdown_height = (len(self.screen_sizes) * option_height) + 10
+                        
+                        # Check if click is on the close arrow
+                        arrow_y = dropdown_y + dropdown_height + 5
+                        arrow_rect = pygame.Rect(WINDOW_WIDTH//2 - 20, arrow_y, 40, 20)
+                        
+                        if arrow_rect.collidepoint(mouse_pos):
+                            dropdown_open = False
+                        elif size_rect.collidepoint(mouse_pos):
+                            # Ensure click is within valid option area
+                            relative_y = mouse_pos[1] - dropdown_y
+                            if 0 <= relative_y < dropdown_height:  # Only within actual options area
+                                clicked_index = int(relative_y // option_height)
+                                if 0 <= clicked_index < len(self.screen_sizes):
+                                    option_y = dropdown_y + (clicked_index * option_height) + 5
+                                    option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118,
+                                                          option_y,
+                                                          236, 30)
+                                    if option_rect.collidepoint(mouse_pos):
+                                        current_size_index = clicked_index
+                                        screen_size = self.screen_sizes[current_size_index]
+                                        WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
+                                        old_surface = screen.copy()
+                                option_y = dropdown_y + (clicked_index * option_height) + 5
                                 option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118,
-                                                       first_option_y + clicked_index * option_height,
+                                                       option_y,
                                                        236, 30)
                                 if option_rect.collidepoint(mouse_pos):
                                     current_size_index = clicked_index
@@ -142,6 +166,11 @@ class SettingsScreen:
             self._draw_dropdown(screen, current_size_index, WINDOW_WIDTH, WINDOW_HEIGHT, option_font, title_text, size_label, size_rect)
         else:
             current_size = self.screen_sizes[current_size_index]
+            # Render size and arrow separately for better control
+            size_text = option_font.render(f"{current_size[0]}x{current_size[1]}", True, self.WHITE)
+            arrow_text = option_font.render("▼", True, self.WHITE)
+            
+            current_size = self.screen_sizes[current_size_index]
             size_text = option_font.render(f"{current_size[0]}x{current_size[1]} ▼", True, self.WHITE)
             text_x = WINDOW_WIDTH//2 - size_text.get_width()//2
             text_y = WINDOW_HEIGHT//2 + 60
@@ -158,16 +187,49 @@ class SettingsScreen:
         screen.blit(size_label, (WINDOW_WIDTH//2 - size_label.get_width()//2, WINDOW_HEIGHT//2 + 20))
         pygame.draw.rect(screen, self.WHITE, size_rect, 2)
 
-        dropdown_background = pygame.Surface((236, 116))
+        # Draw dropdown background to fit all options
+        option_height = 35
+        total_options = len(self.screen_sizes)
+        dropdown_height = (total_options * option_height)  # Remove extra padding
+        dropdown_background = pygame.Surface((236, dropdown_height))
         dropdown_background.fill((40, 40, 40))
-        screen.blit(dropdown_background, (WINDOW_WIDTH//2 - 118, WINDOW_HEIGHT//2 + 52))
+        dropdown_y = WINDOW_HEIGHT//2 + 52
+        screen.blit(dropdown_background, (WINDOW_WIDTH//2 - 118, dropdown_y))
         
+        mouse_pos = pygame.mouse.get_pos()
+        hover_color = (100, 100, 100)
+        
+        # Draw each option
         for i, size in enumerate(self.screen_sizes):
-            option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118, WINDOW_HEIGHT//2 + 52 + i * 35, 236, 30)
-            pygame.draw.rect(screen, self.WHITE, option_rect, 1)
+            option_y = dropdown_y + (i * option_height) + 5  # Add 5px padding from top
+            option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118, option_y, 236, 30)
+            
+            # Highlight selected option or hovered option
             if i == current_size_index:
                 pygame.draw.rect(screen, (80, 80, 80), option_rect)
+            elif option_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, hover_color, option_rect)
+            
+            # Draw option border
+            pygame.draw.rect(screen, self.WHITE, option_rect, 1)
+            
+            # Draw option text
             size_option_text = option_font.render(f"{size[0]}x{size[1]}", True, self.WHITE)
             text_x = WINDOW_WIDTH//2 - size_option_text.get_width()//2
-            text_y = WINDOW_HEIGHT//2 + 57 + i * 35
+            text_y = option_y + (option_height - size_option_text.get_height())//2
             screen.blit(size_option_text, (text_x, text_y))
+        
+        # Draw close arrow at the bottom of dropdown
+        arrow_y = dropdown_y + dropdown_height + 15  # Increased padding to 15px
+        arrow_rect = pygame.Rect(WINDOW_WIDTH//2 - 118, arrow_y, 236, 30)
+        
+        # Draw arrow background and border
+        if arrow_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, arrow_rect)
+        pygame.draw.rect(screen, self.WHITE, arrow_rect, 1)
+        
+        # Draw the arrow text
+        arrow_text = option_font.render("^", True, self.WHITE)
+        arrow_x = WINDOW_WIDTH//2 - arrow_text.get_width()//2
+        arrow_text_y = arrow_y + (30 - arrow_text.get_height())//2  # Center vertically in rect
+        screen.blit(arrow_text, (arrow_x, arrow_text_y))
