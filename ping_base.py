@@ -4,7 +4,7 @@ import time
 import threading
 from sys import exit
 from Modules.Ping_AI import PaddleAI
-from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu
+from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu, win_screen
 from Modules.Ping_GameObjects import Paddle, Ball
 
 """
@@ -33,6 +33,7 @@ PADDLE_HEIGHT = 120
 BALL_SIZE = 20
 FRAME_TIME = 1.0 / 60.0  # Target 60 FPS
 MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
+MAX_SCORE = 10  # Score needed to win the game
 
 pygame.display.set_caption("Ping")
 clock = pygame.time.Clock()
@@ -271,6 +272,13 @@ def main_game(ai_mode, player_name):
                     else:
                         score_a += 1
                     play_sound(score_sound)
+                    
+                    # Check for win condition
+                    if score_a >= MAX_SCORE:
+                        return win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, player_name)
+                    elif score_b >= MAX_SCORE:
+                        return win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, player_b_name)
+                    
                     # Reset ball to center position
                     ball.reset_position()
                 

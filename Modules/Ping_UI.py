@@ -299,6 +299,45 @@ def title_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
         pygame.display.flip()
         clock.tick(60)
 
+def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
+    """Display the win screen with the winner's name."""
+    scale_y = WINDOW_HEIGHT / 600
+    font_size = max(12, int(74 * scale_y))
+    title_font = pygame.font.Font(None, font_size)
+    option_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+    
+    continue_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 50, 300, 50)
+    
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if continue_rect.collidepoint(event.pos):
+                    return "title"
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                    return "title"
+        
+        screen.fill(BLACK)
+        
+        # Draw winner text
+        winner_text = title_font.render(f"{winner_name} Wins!", True, WHITE)
+        screen.blit(winner_text, (WINDOW_WIDTH//2 - winner_text.get_width()//2, WINDOW_HEIGHT//3))
+        
+        # Draw continue button
+        hover_color = (100, 100, 100)
+        if continue_rect.collidepoint(pygame.mouse.get_pos()):
+            pygame.draw.rect(screen, hover_color, continue_rect)
+        pygame.draw.rect(screen, WHITE, continue_rect, 2)
+        
+        continue_text = option_font.render("Continue", True, WHITE)
+        screen.blit(continue_text, (WINDOW_WIDTH//2 - continue_text.get_width()//2, WINDOW_HEIGHT//2 + 60))
+        
+        pygame.display.flip()
+        clock.tick(60)
+
 def pause_menu(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the pause menu with options to resume, go to title screen, or settings."""
     option_font = pygame.font.Font(None, 48)
