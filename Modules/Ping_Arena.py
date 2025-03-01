@@ -26,8 +26,8 @@ class Arena:
         self.offset_y = 0
         
         # Center line properties
-        self.center_line_box_width = 10
-        self.center_line_box_height = 20
+        self.center_line_box_width = 5
+        self.center_line_box_height = 10
         self.center_line_box_spacing = 10
         
         # Initialize obstacle
