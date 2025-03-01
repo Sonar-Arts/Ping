@@ -1,3 +1,8 @@
 # Ping
-The repository for Ping, a project to build a roguelike with a pong mechanics.
+
+A project to reimagine the classic pong game with a roguelike twist.
+
+
+
+
 

@@ -2,10 +2,10 @@ import pygame
 import random
 import time
 import threading
-import math
 from sys import exit
 from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, title_screen, pause_menu
+from Modules.Ping_GameObjects import Paddle, Ball
 
 """
 Ping Base Code
@@ -33,18 +33,6 @@ PADDLE_HEIGHT = 120
 BALL_SIZE = 20
 FRAME_TIME = 1.0 / 60.0  # Target 60 FPS
 MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
-BALL_SPEED = 300  # Base ball speed
-MAX_BALL_SPEED = 600  # Maximum ball speed after paddle hits
-PADDLE_SPEED = 300  # Reduced from 400 for better control
-
-# Helper function to cap ball velocity
-def cap_ball_velocity(dx, dy):
-    """Cap the ball's velocity to prevent it from moving too fast."""
-    speed = math.sqrt(dx * dx + dy * dy)
-    if speed > MAX_BALL_SPEED:
-        scale = MAX_BALL_SPEED / speed
-        return dx * scale, dy * scale
-    return dx, dy
 
 pygame.display.set_caption("Ping")
 clock = pygame.time.Clock()
@@ -61,18 +49,6 @@ score_sound.set_volume(0.5)
 def play_sound(sound):
     """Play sound asynchronously."""
     threading.Thread(target=sound.play).start()
-
-def move_paddle(paddle, up, down):
-    """Move paddle based on input flags."""
-    paddle_movement = PADDLE_SPEED * FRAME_TIME
-    if up and paddle.top > arena.scoreboard_height:
-        new_y = paddle.y - paddle_movement
-        # Don't let paddle go above scoreboard
-        paddle.y = max(arena.scoreboard_height, new_y)
-    if down and paddle.bottom < arena.height:
-        new_y = paddle.y + paddle_movement
-        # Don't let paddle go below arena height
-        paddle.y = min(new_y, arena.height - PADDLE_HEIGHT)
 
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
@@ -93,55 +69,67 @@ def main_game(ai_mode, player_name):
     def update_game_objects():
         """Update game object positions based on arena dimensions"""
         nonlocal paddle_a, paddle_b, ball
-        paddle_positions = arena.get_paddle_positions()
-        ball_position = arena.get_ball_position(BALL_SIZE)
-        
-        # Update paddle positions
-        paddle_a.x = paddle_positions['left_x']
-        paddle_a.y = paddle_positions['y']
-        paddle_b.x = paddle_positions['right_x']
-        paddle_b.y = paddle_positions['y']
-        
-        # Update ball position
-        ball.x, ball.y = ball_position
+        # Recreate game objects with new dimensions
+        paddle_a = Paddle(
+            x=50,
+            y=(arena.height - PADDLE_HEIGHT) // 2,
+            width=PADDLE_WIDTH,
+            height=PADDLE_HEIGHT,
+            arena_width=arena.width,
+            arena_height=arena.height,
+            scoreboard_height=arena.scoreboard_height,
+            scale_rect=arena.scale_rect,
+            is_left_paddle=True
+        )
+        paddle_b = Paddle(
+            x=arena.width - 70,
+            y=(arena.height - PADDLE_HEIGHT) // 2,
+            width=PADDLE_WIDTH,
+            height=PADDLE_HEIGHT,
+            arena_width=arena.width,
+            arena_height=arena.height,
+            scoreboard_height=arena.scoreboard_height,
+            scale_rect=arena.scale_rect,
+            is_left_paddle=False
+        )
+        ball = Ball(
+            arena_width=arena.width,
+            arena_height=arena.height,
+            scoreboard_height=arena.scoreboard_height,
+            scale_rect=arena.scale_rect,
+            size=BALL_SIZE
+        )
 
-    # Create game objects using arena dimensions
-    paddle_positions = arena.get_paddle_positions()
-    ball_position = arena.get_ball_position(BALL_SIZE)
-    
-    paddle_a = pygame.Rect(paddle_positions['left_x'], paddle_positions['y'],
-                          PADDLE_WIDTH, PADDLE_HEIGHT)
-    paddle_b = pygame.Rect(paddle_positions['right_x'], paddle_positions['y'],
-                          PADDLE_WIDTH, PADDLE_HEIGHT)
-    ball = pygame.Rect(ball_position[0], ball_position[1], BALL_SIZE, BALL_SIZE)
-    
-    ball_dx = BALL_SPEED
-    ball_dy = -BALL_SPEED
-    
-    # Obstacle class
-    class Obstacle:
-        def __init__(self):
-            # Calculate middle third boundaries
-            third_width = arena.width // 3
-            min_x = third_width
-            max_x = third_width * 2
-            
-            # Random position within middle third
-            self.width = 20
-            self.height = 60
-            self.x = random.randint(min_x, max_x - self.width)
-            self.y = random.randint(arena.scoreboard_height, arena.height - self.height)
-            self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
-            
-        def draw(self, screen, scale, offset_x, offset_y):
-            """Draw the obstacle with proper scaling and centering"""
-            scaled_rect = pygame.Rect(
-                (self.rect.x * scale) + offset_x,
-                (self.rect.y * scale) + offset_y,
-                self.width * scale,
-                self.height * scale
-            )
-            pygame.draw.rect(screen, arena.WHITE, scaled_rect)
+    # Create game objects with proper params
+    paddle_a = Paddle(
+        x=50,
+        y=(arena.height - PADDLE_HEIGHT) // 2,
+        width=PADDLE_WIDTH,
+        height=PADDLE_HEIGHT,
+        arena_width=arena.width,
+        arena_height=arena.height,
+        scoreboard_height=arena.scoreboard_height,
+        scale_rect=arena.scale_rect,
+        is_left_paddle=True
+    )
+    paddle_b = Paddle(
+        x=arena.width - 70,
+        y=(arena.height - PADDLE_HEIGHT) // 2,
+        width=PADDLE_WIDTH,
+        height=PADDLE_HEIGHT,
+        arena_width=arena.width,
+        arena_height=arena.height,
+        scoreboard_height=arena.scoreboard_height,
+        scale_rect=arena.scale_rect,
+        is_left_paddle=False
+    )
+    ball = Ball(
+        arena_width=arena.width,
+        arena_height=arena.height,
+        scoreboard_height=arena.scoreboard_height,
+        scale_rect=arena.scale_rect,
+        size=BALL_SIZE
+    )
     
     # Score
     score_a = 0
@@ -149,9 +137,6 @@ def main_game(ai_mode, player_name):
     scale_x = WINDOW_WIDTH / arena.width
     scale_y = WINDOW_HEIGHT / arena.height
     font = pygame.font.Font(None, max(12, int(48 * scale_y)))
-    
-    # Create initial obstacle
-    obstacle = Obstacle()
     
     # Movement flags
     paddle_a_up = False
@@ -241,80 +226,53 @@ def main_game(ai_mode, player_name):
                         
         if not paused:
             while accumulated_time >= FRAME_TIME:
-                # Move ball
-                ball.x += ball_dx * FRAME_TIME
-                ball.y += ball_dy * FRAME_TIME
-                
+                # Update paddle movement flags
+                paddle_a.moving_up = paddle_a_up
+                paddle_a.moving_down = paddle_a_down
+                paddle_b.moving_up = paddle_b_up
+                paddle_b.moving_down = paddle_b_down
+
                 # Move paddles
-                paddle_movement = PADDLE_SPEED * FRAME_TIME
-                move_paddle(paddle_a, paddle_a_up, paddle_a_down)
-                    
+                paddle_a.move(FRAME_TIME)
                 if ai_mode:
                     # Use AI to move paddle with ball trajectory information
-                    paddle_b.y = paddle_ai.move_paddle(
-                        ball.x, ball.y,  # Current ball position
-                        ball_dx, ball_dy,  # Ball velocity
-                        paddle_b.y, paddle_movement
+                    paddle_b.rect.y = paddle_ai.move_paddle(
+                        ball.rect.x, ball.rect.y,  # Current ball position
+                        ball.velocity_x, ball.velocity_y,  # Ball velocity
+                        paddle_b.rect.y, paddle_b.speed * FRAME_TIME
                     )
+                    # Make sure paddle stays within bounds
+                    paddle_b.rect.y = max(arena.scoreboard_height,
+                                        min(paddle_b.rect.y, arena.height - paddle_b.rect.height))
                 else:
-                    move_paddle(paddle_b, paddle_b_up, paddle_b_down)
-                
-                # Ball collision with top, bottom, and scoreboard
-                if ball.top <= arena.scoreboard_height or ball.bottom >= arena.height:
-                    ball_dy *= -1
-                
-                # Ball collision with paddles
-                if ball.colliderect(paddle_a):
-                    # Collision with left paddle
-                    ball.left = paddle_a.right  # Place ball outside paddle
-                    ball_dx = abs(ball_dx)  # Ensure ball moves right
-                    
-                    # Calculate relative intersection point (0-1) on paddle
-                    relative_intersect = (ball.centery - paddle_a.top) / paddle_a.height
-                    # Convert to angle (-45 to 45 degrees)
-                    angle = (relative_intersect - 0.5) * 90
-                    # Adjust ball's vertical velocity based on hit angle
-                    new_dy = ball_dx * -math.tan(math.radians(angle))
-                    # Cap the ball's velocity
-                    ball_dx, ball_dy = cap_ball_velocity(ball_dx, new_dy)
-                    
+                    paddle_b.move(FRAME_TIME)
+
+                # Move ball
+                ball.move(FRAME_TIME)
+
+                # Handle collisions
+                if ball.handle_wall_collision():
                     play_sound(paddle_sound)
-                elif ball.colliderect(paddle_b):
-                    # Collision with right paddle
-                    ball.right = paddle_b.left  # Place ball outside paddle
-                    ball_dx = -abs(ball_dx)  # Ensure ball moves left
-                    
-                    # Calculate relative intersection point (0-1) on paddle
-                    relative_intersect = (ball.centery - paddle_b.top) / paddle_b.height
-                    # Convert to angle (-45 to 45 degrees)
-                    angle = (relative_intersect - 0.5) * 90
-                    # Adjust ball's vertical velocity based on hit angle
-                    new_dy = -ball_dx * -math.tan(math.radians(angle))
-                    # Cap the ball's velocity
-                    ball_dx, ball_dy = cap_ball_velocity(ball_dx, new_dy)
-                    
+
+                if ball.handle_paddle_collision(paddle_a) or ball.handle_paddle_collision(paddle_b):
                     play_sound(paddle_sound)
 
                 # Ball collision with obstacle
-                if ball.colliderect(obstacle.rect):
-                    ball_dx *= -1
+                if arena.obstacle.handle_collision(ball):
                     play_sound(paddle_sound)
                     # Create new obstacle after collision
-                    obstacle = Obstacle()
+                    arena.reset_obstacle()
                 
-                # Score points
-                if ball.left <= 0:
-                    score_b += 1
+                # Check for scoring
+                scored = ball.handle_scoring()
+                if scored:
+                    if scored == "right":
+                        score_b += 1
+                    else:
+                        score_a += 1
                     play_sound(score_sound)
-                    ball_pos = arena.get_ball_position(BALL_SIZE)
-                    ball.x, ball.y = ball_pos
-                    ball_dx *= -1
-                elif ball.right >= arena.width:
-                    score_a += 1
-                    play_sound(score_sound)
-                    ball_pos = arena.get_ball_position(BALL_SIZE)
-                    ball.x, ball.y = ball_pos
-                    ball_dx *= -1
+                    # Reset ball to center position
+                    ball.reset_position()
                 
                 accumulated_time -= FRAME_TIME
             # Cap the accumulated time to prevent spiral of death
@@ -329,17 +287,13 @@ def main_game(ai_mode, player_name):
         # Draw center line using arena method
         arena.draw_center_line(screen)
         
-        # Draw game objects with arena scaling
-        scaled_paddle_a = arena.scale_rect(paddle_a)
-        scaled_paddle_b = arena.scale_rect(paddle_b)
-        scaled_ball = arena.scale_rect(ball)
+        # Draw game objects
+        paddle_a.draw(screen, arena.WHITE)
+        paddle_b.draw(screen, arena.WHITE)
+        ball.draw(screen, arena.WHITE)
         
-        pygame.draw.rect(screen, arena.WHITE, scaled_paddle_a)
-        pygame.draw.rect(screen, arena.WHITE, scaled_paddle_b)
-        pygame.draw.rect(screen, arena.WHITE, scaled_ball)
-        
-        # Draw obstacle using arena scaling
-        obstacle.draw(screen, arena.scale, arena.offset_x, arena.offset_y)
+        # Draw obstacle
+        arena.obstacle.draw(screen, arena.WHITE)
         
         # Draw scoreboard using arena method
         scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))

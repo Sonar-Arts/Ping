@@ -1,4 +1,5 @@
 import pygame
+from Modules.Ping_GameObjects import Obstacle
 
 # Default arena dimensions that can be imported
 DEFAULT_WIDTH = 800
@@ -6,7 +7,6 @@ DEFAULT_HEIGHT = 600
 
 class Arena:
     """Represents the game arena where the Ping game takes place."""
-    
     def __init__(self, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
         """Initialize the arena with standard dimensions."""
         self.width = width
@@ -29,6 +29,22 @@ class Arena:
         self.center_line_box_width = 10
         self.center_line_box_height = 20
         self.center_line_box_spacing = 10
+        
+        # Initialize obstacle
+        self.obstacle = self.create_obstacle()
+    
+    def create_obstacle(self):
+        """Create a new obstacle in the arena."""
+        return Obstacle(
+            self.width,
+            self.height,
+            self.scoreboard_height,
+            self.scale_rect
+        )
+    
+    def reset_obstacle(self):
+        """Create a new obstacle after collision."""
+        self.obstacle = self.create_obstacle()
     
     def update_scaling(self, window_width, window_height):
         """Update scaling factors based on window dimensions."""
