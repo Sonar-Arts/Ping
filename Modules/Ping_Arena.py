@@ -1,22 +1,24 @@
 import pygame
 from Modules.Ping_GameObjects import ObstacleObject
-
-# Default arena dimensions that can be imported
-DEFAULT_WIDTH = 800
-DEFAULT_HEIGHT = 600
+from Modules.Submodules.Ping_Levels import DebugLevel
 
 class Arena:
     """Represents the game arena where the Ping game takes place."""
-    def __init__(self, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
-        """Initialize the arena with standard dimensions."""
-        self.width = width
-        self.height = height
-        self.scoreboard_height = 50
+    def __init__(self, level=None):
+        """Initialize the arena with parameters from a level configuration."""
+        # Load level parameters (use DebugLevel as default if none provided)
+        level = level if level else DebugLevel()
+        params = level.get_parameters()
         
-        # Colors
-        self.WHITE = (255, 255, 255)
-        self.BLACK = (0, 0, 0)
-        self.DARK_BROWN = (101, 67, 33)
+        # Set dimensions
+        self.width = params['dimensions']['width']
+        self.height = params['dimensions']['height']
+        self.scoreboard_height = params['dimensions']['scoreboard_height']
+        
+        # Set colors
+        self.WHITE = params['colors']['WHITE']
+        self.BLACK = params['colors']['BLACK']
+        self.DARK_BROWN = params['colors']['DARK_BROWN']
         
         # Calculate scaling factors
         self.scale_x = 1.0
@@ -25,10 +27,13 @@ class Arena:
         self.offset_x = 0
         self.offset_y = 0
         
-        # Center line properties
-        self.center_line_box_width = 5
-        self.center_line_box_height = 10
-        self.center_line_box_spacing = 10
+        # Set center line properties
+        self.center_line_box_width = params['center_line']['box_width']
+        self.center_line_box_height = params['center_line']['box_height']
+        self.center_line_box_spacing = params['center_line']['box_spacing']
+        
+        # Store paddle positions
+        self.paddle_positions = params['paddle_positions']
         
         # Initialize obstacle
         self.obstacle = self.create_obstacle()
@@ -117,12 +122,8 @@ class Arena:
             ))
     
     def get_paddle_positions(self):
-        """Get the initial paddle positions relative to arena dimensions."""
-        return {
-            'left_x': 50,  # Left paddle 50px from left
-            'right_x': self.width - 70,  # Right paddle 70px from right
-            'y': (self.height - 120) // 2  # Vertically centered (120 is paddle height)
-        }
+        """Get the paddle positions from the loaded level configuration."""
+        return self.paddle_positions
     
     def get_ball_position(self, ball_size):
         """Get the initial ball position (centered)."""
@@ -143,3 +144,25 @@ class Arena:
             screen.get_width()//2 - pause_text.get_width()//2,
             screen.get_height()//2 - pause_text.get_height()//2
         ))
+
+    def draw(self, screen, game_objects, font, player_name, score_a, opponent_name, score_b, respawn_timer=None, paused=False):
+        """Draw the complete game state."""
+        # Fill background
+        screen.fill(self.BLACK)
+        
+        # Draw center line
+        self.draw_center_line(screen)
+        
+        # Draw game objects
+        for obj in game_objects:
+            obj.draw(screen, self.WHITE)
+        
+        # Draw obstacle
+        self.obstacle.draw(screen, self.WHITE)
+        
+        # Draw scoreboard
+        self.draw_scoreboard(screen, player_name, score_a, opponent_name, score_b, font, respawn_timer)
+        
+        # Draw pause overlay if paused
+        if paused:
+            self.draw_pause_overlay(screen, font)

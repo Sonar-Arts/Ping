@@ -18,14 +18,14 @@ This will serve as our base code skeleton for Ping. It is where all the upper ti
 pygame.init()
 pygame.mixer.init()
 
-from Modules.Ping_Arena import Arena, DEFAULT_WIDTH, DEFAULT_HEIGHT
+from Modules.Ping_Arena import Arena
 
-# Create arena instance
-arena = Arena(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+# Set default window dimensions
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
 
 # Create the window using init_display from Ping_UI
-screen = init_display(arena.width, arena.height)
-WINDOW_WIDTH, WINDOW_HEIGHT = screen.get_size()
+screen = init_display(WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # Game constants
 PADDLE_WIDTH = 20
@@ -63,6 +63,12 @@ def generate_random_name():
 
 def main_game(ai_mode, player_name):
     """Main game loop."""
+    global screen
+    # Create arena instance with default level
+    arena = Arena()
+    # Update arena with current window dimensions
+    arena.update_scaling(WINDOW_WIDTH, WINDOW_HEIGHT)
+    
     player_b_name = generate_random_name() if ai_mode else "Player B"
     # Initialize AI if in AI mode
     paddle_ai = PaddleAI(arena) if ai_mode else None
@@ -190,7 +196,11 @@ def main_game(ai_mode, player_name):
                         return "title"
                     elif menu_result == "settings":
                         settings_result = settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT)
-                        # After returning from settings, update game objects for new screen size
+                        # After returning from settings, update window dimensions and game objects
+                        screen = init_display(WINDOW_WIDTH, WINDOW_HEIGHT)
+                        # Update arena dimensions
+                        arena.update_scaling(WINDOW_WIDTH, WINDOW_HEIGHT)
+                        # Update game objects for new screen size
                         update_game_objects()
                         if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
                             player_name = settings_result[1]  # Update name immediately
@@ -219,7 +229,11 @@ def main_game(ai_mode, player_name):
                             settings_result = settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT)
                             if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
                                 player_name = settings_result[1]
-                            # After returning from settings, update game objects for new screen size
+                            # After returning from settings, update window dimensions and game objects
+                            screen = init_display(WINDOW_WIDTH, WINDOW_HEIGHT)
+                            # Update arena dimensions
+                            arena.update_scaling(WINDOW_WIDTH, WINDOW_HEIGHT)
+                            # Update game objects for new screen size
                             update_game_objects()
                         # Unpause after menu interactions or if escape was pressed in pause menu
                         if menu_result is None or menu_result == "settings":
@@ -301,30 +315,15 @@ def main_game(ai_mode, player_name):
             # Cap the accumulated time to prevent spiral of death
             accumulated_time = min(accumulated_time, FRAME_TIME * 4)
         
-        # Draw game state
-        screen.fill(arena.BLACK)
-        
         # Update arena scaling based on window size
         arena.update_scaling(WINDOW_WIDTH, WINDOW_HEIGHT)
-        
-        # Draw center line using arena method
-        arena.draw_center_line(screen)
-        
-        # Draw game objects
-        paddle_a.draw(screen, arena.WHITE)
-        paddle_b.draw(screen, arena.WHITE)
-        ball.draw(screen, arena.WHITE)
-        
-        # Draw obstacle
-        arena.obstacle.draw(screen, arena.WHITE)
-        
-        # Draw scoreboard using arena method with respawn timer
+
+        # Create or update scaled font
         scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
-        arena.draw_scoreboard(screen, player_name, score_a, player_b_name, score_b, scaled_font, respawn_timer)
         
-        # Draw pause overlay if paused
-        if paused:
-            arena.draw_pause_overlay(screen, scaled_font)
+        # Draw complete game state using arena
+        game_objects = [paddle_a, paddle_b, ball]
+        arena.draw(screen, game_objects, scaled_font, player_name, score_a, player_b_name, score_b, respawn_timer, paused)
         
         pygame.display.flip()
 
