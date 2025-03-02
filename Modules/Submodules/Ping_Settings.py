@@ -2,13 +2,31 @@ import pygame
 from sys import exit
 
 class SettingsScreen:
-    """A class to handle the settings screen functionality."""
+    """A class to handle the settings screen functionality and game settings."""
+    
+    # Class level variables for window dimensions
+    WINDOW_WIDTH = 800  # Default value
+    WINDOW_HEIGHT = 600  # Default value
     
     def __init__(self):
         # Colors
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
+        
+    @classmethod
+    def update_dimensions(cls, width, height):
+        """Update window dimensions and save to settings file."""
+        cls.WINDOW_WIDTH = width
+        cls.WINDOW_HEIGHT = height
+        # Save to settings file
+        with open("Game Parameters/settings.txt", "w") as f:
+            f.write(f"WINDOW_WIDTH={width}\nWINDOW_HEIGHT={height}")
+        
+    @classmethod
+    def get_dimensions(cls):
+        """Get current window dimensions."""
+        return cls.WINDOW_WIDTH, cls.WINDOW_HEIGHT
     
     def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Display the settings screen with volume control and screen size options."""
@@ -67,23 +85,15 @@ class SettingsScreen:
                                 if 0 <= clicked_index < len(self.screen_sizes):
                                     option_y = dropdown_y + (clicked_index * option_height) + 5
                                     option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118,
-                                                          option_y,
-                                                          236, 30)
+                                                        option_y,
+                                                        236, 30)
                                     if option_rect.collidepoint(mouse_pos):
                                         current_size_index = clicked_index
                                         screen_size = self.screen_sizes[current_size_index]
                                         WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
                                         old_surface = screen.copy()
-                                option_y = dropdown_y + (clicked_index * option_height) + 5
-                                option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118,
-                                                       option_y,
-                                                       236, 30)
-                                if option_rect.collidepoint(mouse_pos):
-                                    current_size_index = clicked_index
-                                    screen_size = self.screen_sizes[current_size_index]
-                                    WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
-                                    old_surface = screen.copy()
                                     try:
+                                        # Set new screen size
                                         screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
                                         screen.fill(self.BLACK)
                                         scaled_surface = pygame.transform.scale(old_surface, screen_size)
@@ -106,7 +116,8 @@ class SettingsScreen:
                             dropdown_open = False
                     else:
                         if back_rect.collidepoint(mouse_pos):
-                            return screen_size
+                            # Return current screen size when backing out
+                            return (WINDOW_WIDTH, WINDOW_HEIGHT)
                         elif volume_up_rect.collidepoint(mouse_pos):
                             volume = min(volume + 0.1, 1.0)
                             paddle_sound.set_volume(volume)
