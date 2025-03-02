@@ -3,6 +3,7 @@ import math
 import random
 from .Submodules.Ping_Ball import Ball
 from .Submodules.Ping_Paddle import Paddle
+from .Submodules.Ping_Obstacles import Obstacle
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -96,50 +97,26 @@ class BallObject(ArenaObject):
         """Check if ball has scored and return score information."""
         return self.ball.handle_scoring(self.arena_width)
 
-class Obstacle(ArenaObject):
-    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect):
-        """Initialize an obstacle with position in the middle third of the arena."""
+class ObstacleObject(ArenaObject):
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, width=20, height=60):
+        """Initialize an obstacle with arena properties."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
-        self.width = 20
-        self.height = 60
-        
         # Calculate middle third boundaries
         third_width = self.arena_width // 3
         min_x = third_width
         max_x = third_width * 2
         
         # Random position within middle third
-        self.x = random.randint(min_x, max_x - self.width)
-        self.y = random.randint(self.scoreboard_height, self.arena_height - self.height)
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        x = random.randint(min_x, max_x - width)
+        y = random.randint(self.scoreboard_height, self.arena_height - height)
+        
+        # Create core obstacle
+        self.obstacle = Obstacle(x, y, width, height)
     
+    @property
+    def rect(self):
+        return self.obstacle.rect
+
     def handle_collision(self, ball):
         """Handle collision between obstacle and ball."""
-        if ball.rect.colliderect(self.rect):
-            # Determine collision side and adjust ball direction
-            collision_left = abs(ball.rect.right - self.rect.left)
-            collision_right = abs(ball.rect.left - self.rect.right)
-            collision_top = abs(ball.rect.bottom - self.rect.top)
-            collision_bottom = abs(ball.rect.top - self.rect.bottom)
-            
-            min_collision = min(collision_left, collision_right, collision_top, collision_bottom)
-            
-            if min_collision in (collision_left, collision_right):
-                ball.ball.dx *= -1  # Reverse horizontal direction
-                ball.ball.velocity_x = ball.ball.speed * ball.ball.dx
-            else:
-                ball.ball.dy *= -1  # Reverse vertical direction
-                ball.ball.velocity_y = ball.ball.speed * ball.ball.dy
-            
-            # Ensure ball doesn't get stuck in obstacle
-            if min_collision == collision_left:
-                ball.rect.right = self.rect.left
-            elif min_collision == collision_right:
-                ball.rect.left = self.rect.right
-            elif min_collision == collision_top:
-                ball.rect.bottom = self.rect.top
-            else:
-                ball.rect.top = self.rect.bottom
-                
-            return True
-        return False
+        return self.obstacle.handle_collision(ball)

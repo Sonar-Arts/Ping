@@ -1,5 +1,5 @@
 import pygame
-from Modules.Ping_GameObjects import Obstacle
+from Modules.Ping_GameObjects import ObstacleObject
 
 # Default arena dimensions that can be imported
 DEFAULT_WIDTH = 800
@@ -35,11 +35,11 @@ class Arena:
     
     def create_obstacle(self):
         """Create a new obstacle in the arena."""
-        return Obstacle(
-            self.width,
-            self.height,
-            self.scoreboard_height,
-            self.scale_rect
+        return ObstacleObject(
+            arena_width=self.width,
+            arena_height=self.height,
+            scoreboard_height=self.scoreboard_height,
+            scale_rect=self.scale_rect
         )
     
     def reset_obstacle(self):
