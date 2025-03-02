@@ -4,8 +4,8 @@ import time
 import threading
 from sys import exit
 from Modules.Ping_AI import PaddleAI
-from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_menu, win_screen
-from Modules.Ping_GameObjects import Paddle, Ball
+from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen
+from Modules.Ping_GameObjects import Paddle, BallObject
 
 """
 Ping Base Code
@@ -93,7 +93,7 @@ def main_game(ai_mode, player_name):
             scale_rect=arena.scale_rect,
             is_left_paddle=False
         )
-        ball = Ball(
+        ball = BallObject(
             arena_width=arena.width,
             arena_height=arena.height,
             scoreboard_height=arena.scoreboard_height,
@@ -124,7 +124,7 @@ def main_game(ai_mode, player_name):
         scale_rect=arena.scale_rect,
         is_left_paddle=False
     )
-    ball = Ball(
+    ball = BallObject(
         arena_width=arena.width,
         arena_height=arena.height,
         scoreboard_height=arena.scoreboard_height,
@@ -183,7 +183,7 @@ def main_game(ai_mode, player_name):
                     if event.key == pygame.K_DOWN:
                         paddle_b_down = True
                 if event.key == pygame.K_ESCAPE:
-                    menu_result = pause_menu(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+                    menu_result = pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
                     if menu_result == "title":
                         return "title"
                     elif menu_result == "settings":
@@ -210,7 +210,7 @@ def main_game(ai_mode, player_name):
                         accumulated_time = 0
                     else:  # If not paused, show pause menu
                         paused = True
-                        menu_result = pause_menu(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+                        menu_result = pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
                         if menu_result == "title":
                             return "title"
                         elif menu_result == "settings":
@@ -239,7 +239,7 @@ def main_game(ai_mode, player_name):
                     # Use AI to move paddle with ball trajectory information
                     paddle_b.rect.y = paddle_ai.move_paddle(
                         ball.rect.x, ball.rect.y,  # Current ball position
-                        ball.velocity_x, ball.velocity_y,  # Ball velocity
+                        ball.ball.velocity_x, ball.ball.velocity_y,  # Ball velocity
                         paddle_b.rect.y, paddle_b.speed * FRAME_TIME
                     )
                     # Make sure paddle stays within bounds

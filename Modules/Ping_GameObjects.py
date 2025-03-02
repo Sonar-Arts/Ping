@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+from .Submodules.Ping_Ball import Ball
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -43,81 +44,40 @@ class Paddle(ArenaObject):
         else:
             self.rect.x = self.arena_width - 70  # Right paddle 70px from right
 
-class Ball(ArenaObject):
+class BallObject(ArenaObject):
     def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, size=20):
-        """Initialize a ball object."""
+        """Initialize a ball object with arena properties."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
-        self.size = size
-        self.rect = pygame.Rect(0, 0, size, size)
-        self.speed = 300  # Base ball speed
-        self.max_speed = 600  # Maximum ball speed
-        self.dx = 1  # Direction multiplier
-        self.dy = -1  # Direction multiplier
-        self.velocity_x = self.speed * self.dx  # Actual velocity
-        self.velocity_y = self.speed * self.dy  # Actual velocity
+        self.ball = Ball(size)
         self.reset_position()
-    
+
+    @property
+    def rect(self):
+        return self.ball.rect
+
+    def draw(self, screen, color):
+        """Override draw method to use ball's circular drawing."""
+        self.ball.draw(screen, color, self.scale_rect)
+
     def move(self, delta_time):
         """Move the ball based on its velocity and time delta."""
-        self.rect.x += self.velocity_x * delta_time
-        self.rect.y += self.velocity_y * delta_time
+        self.ball.move(delta_time)
 
     def reset_position(self):
         """Reset ball to center position."""
-        self.rect.x = (self.arena_width - self.size) // 2
-        self.rect.y = (self.arena_height - self.size) // 2
-        # Randomize initial vertical direction
-        self.dy = 1 if random.random() < 0.5 else -1
-        self.velocity_x = self.speed * self.dx
-        self.velocity_y = self.speed * self.dy
+        self.ball.reset_position(self.arena_width, self.arena_height)
 
     def handle_paddle_collision(self, paddle):
         """Handle collision with a paddle."""
-        if not self.rect.colliderect(paddle.rect):
-            return False
-            
-        if paddle.is_left_paddle:
-            self.rect.left = paddle.rect.right  # Place ball outside paddle
-            self.dx = 1  # Ensure ball moves right
-        else:
-            self.rect.right = paddle.rect.left  # Place ball outside paddle
-            self.dx = -1  # Ensure ball moves left
-        
-        # Calculate angle based on where ball hits the paddle
-        relative_intersect = (self.rect.centery - paddle.rect.top) / paddle.rect.height
-        angle = (relative_intersect - 0.5) * 90
-        # Adjust ball's vertical velocity based on hit angle
-        if paddle.is_left_paddle:
-            self.dy = -math.tan(math.radians(angle))
-        else:
-            self.dy = math.tan(math.radians(angle))
-            
-        # Update velocities based on direction and speed
-        speed = self.speed
-        total_velocity = math.sqrt(1 + self.dy * self.dy) # dx is 1 or -1
-        if total_velocity * speed > self.max_speed:
-            speed = self.max_speed / total_velocity
-        
-        self.velocity_x = speed * self.dx
-        self.velocity_y = speed * self.dy
-            
-        return True
+        return self.ball.handle_paddle_collision(paddle)
     
     def handle_wall_collision(self):
         """Handle collision with walls and scoreboard."""
-        if self.rect.top <= self.scoreboard_height or self.rect.bottom >= self.arena_height:
-            self.dy *= -1
-            self.velocity_y = self.speed * self.dy
-            return True
-        return False
+        return self.ball.handle_wall_collision(self.scoreboard_height, self.arena_height)
     
     def handle_scoring(self):
         """Check if ball has scored and return score information."""
-        if self.rect.left <= 0:
-            return "right"  # Right player scores
-        elif self.rect.right >= self.arena_width:
-            return "left"  # Left player scores
-        return None
+        return self.ball.handle_scoring(self.arena_width)
 
 class Obstacle(ArenaObject):
     def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect):
@@ -148,11 +108,11 @@ class Obstacle(ArenaObject):
             min_collision = min(collision_left, collision_right, collision_top, collision_bottom)
             
             if min_collision in (collision_left, collision_right):
-                ball.dx *= -1  # Reverse horizontal direction
-                ball.velocity_x = ball.speed * ball.dx
+                ball.ball.dx *= -1  # Reverse horizontal direction
+                ball.ball.velocity_x = ball.ball.speed * ball.ball.dx
             else:
-                ball.dy *= -1  # Reverse vertical direction
-                ball.velocity_y = ball.speed * ball.dy
+                ball.ball.dy *= -1  # Reverse vertical direction
+                ball.ball.velocity_y = ball.ball.speed * ball.ball.dy
             
             # Ensure ball doesn't get stuck in obstacle
             if min_collision == collision_left:
