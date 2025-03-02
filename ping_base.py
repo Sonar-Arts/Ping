@@ -139,13 +139,15 @@ def main_game(ai_mode, player_name):
     scale_y = WINDOW_HEIGHT / arena.height
     font = pygame.font.Font(None, max(12, int(48 * scale_y)))
     
-    # Movement flags
+    # Game state flags
     paddle_a_up = False
     paddle_a_down = False
     paddle_b_up = False
     paddle_b_down = False
+    ball_frozen = False
+    respawn_timer = None
     
-    # Countdown
+    # Initial countdown
     for i in range(3, 0, -1):
         screen.fill(arena.BLACK)
         scale_x = WINDOW_WIDTH / arena.width
@@ -248,12 +250,20 @@ def main_game(ai_mode, player_name):
                 else:
                     paddle_b.move(FRAME_TIME)
 
-                # Move ball
-                ball.move(FRAME_TIME)
+                # Update respawn timer if active
+                if respawn_timer is not None:
+                    respawn_timer -= FRAME_TIME
+                    if respawn_timer <= 0:
+                        respawn_timer = None
+                        ball_frozen = False
 
-                # Handle collisions
-                if ball.handle_wall_collision():
-                    play_sound(paddle_sound)
+                # Move ball if not frozen
+                if not ball_frozen:
+                    ball.move(FRAME_TIME)
+
+                    # Handle collisions
+                    if ball.handle_wall_collision():
+                        play_sound(paddle_sound)
 
                 if ball.handle_paddle_collision(paddle_a) or ball.handle_paddle_collision(paddle_b):
                     play_sound(paddle_sound)
@@ -279,8 +289,13 @@ def main_game(ai_mode, player_name):
                     elif score_b >= MAX_SCORE:
                         return win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, player_b_name)
                     
-                    # Reset ball to center position
+                    # Reset ball to center position and start respawn timer
                     ball.reset_position()
+                    respawn_timer = 2.0  # 2 second respawn delay
+                    accumulated_time = 0  # Reset accumulated time for accurate timing
+                    ball_frozen = True
+                    last_frame_time = time.time()  # Reset frame time for accurate timing
+                    continue  # Skip the rest of this frame's updates
                 
                 accumulated_time -= FRAME_TIME
             # Cap the accumulated time to prevent spiral of death
@@ -303,9 +318,9 @@ def main_game(ai_mode, player_name):
         # Draw obstacle
         arena.obstacle.draw(screen, arena.WHITE)
         
-        # Draw scoreboard using arena method
+        # Draw scoreboard using arena method with respawn timer
         scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
-        arena.draw_scoreboard(screen, player_name, score_a, player_b_name, score_b, scaled_font)
+        arena.draw_scoreboard(screen, player_name, score_a, player_b_name, score_b, scaled_font, respawn_timer)
         
         # Draw pause overlay if paused
         if paused:
