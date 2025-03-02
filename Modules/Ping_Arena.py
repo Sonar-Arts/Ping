@@ -1,6 +1,7 @@
 import pygame
 from Modules.Ping_GameObjects import ObstacleObject
 from Modules.Submodules.Ping_Levels import DebugLevel
+from Modules.Submodules.Ping_Scoreboard import Scoreboard
 
 class Arena:
     """Represents the game arena where the Ping game takes place."""
@@ -19,6 +20,16 @@ class Arena:
         self.WHITE = params['colors']['WHITE']
         self.BLACK = params['colors']['BLACK']
         self.DARK_BROWN = params['colors']['DARK_BROWN']
+        
+        # Initialize scoreboard
+        self.scoreboard = Scoreboard(
+            height=self.scoreboard_height,
+            scale_y=1.0,  # Will be updated when scaling changes
+            colors={
+                'WHITE': self.WHITE,
+                'DARK_BROWN': self.DARK_BROWN
+            }
+        )
         
         # Calculate scaling factors
         self.scale_x = 1.0
@@ -60,6 +71,9 @@ class Arena:
         # Calculate centering offsets
         self.offset_x = (window_width - (self.width * self.scale)) / 2
         self.offset_y = (window_height - (self.height * self.scale)) / 2
+        
+        # Update scoreboard scaling
+        self.scoreboard.scale_y = self.scale_y
     
     def scale_rect(self, rect):
         """Scale a rectangle according to current scaling factors."""
@@ -88,38 +102,7 @@ class Arena:
     
     def draw_scoreboard(self, screen, player_name, score_a, opponent_name, score_b, font, respawn_timer=None):
         """Draw the scoreboard at the top of the arena."""
-        scoreboard_height = int(self.scoreboard_height * self.scale_y)
-        scoreboard_rect = pygame.Rect(0, 0, screen.get_width(), scoreboard_height)
-        
-        # Draw scoreboard background
-        pygame.draw.rect(screen, self.DARK_BROWN, scoreboard_rect)
-        pygame.draw.rect(screen, self.WHITE, scoreboard_rect, 2)
-        
-        # Draw scores
-        score_text = font.render(f"{player_name}: {score_a}  {opponent_name}: {score_b}", True, self.WHITE)
-        screen.blit(score_text, (screen.get_width()//2 - score_text.get_width()//2, scoreboard_height//4))
-
-        # Draw respawn timer in center of arena if active
-        if respawn_timer is not None and respawn_timer > 0:
-            # Create timer box
-            timer_width = 80
-            timer_height = 40
-            timer_rect = pygame.Rect(
-                screen.get_width()//2 - timer_width//2,
-                screen.get_height()//2 - timer_height//2,
-                timer_width,
-                timer_height
-            )
-            # Draw red box with white border
-            pygame.draw.rect(screen, (255, 0, 0), timer_rect)
-            pygame.draw.rect(screen, self.WHITE, timer_rect, 2)
-            
-            # Draw timer text in white
-            timer_text = font.render(f"{int(respawn_timer)}", True, self.WHITE)
-            screen.blit(timer_text, (
-                screen.get_width()//2 - timer_text.get_width()//2,
-                screen.get_height()//2 - timer_text.get_height()//2
-            ))
+        self.scoreboard.draw(screen, player_name, score_a, opponent_name, score_b, font, respawn_timer)
     
     def get_paddle_positions(self):
         """Get the paddle positions from the loaded level configuration."""
