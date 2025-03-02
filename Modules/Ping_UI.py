@@ -4,6 +4,7 @@ from sys import exit
 from .Submodules.Ping_Settings import SettingsScreen
 from .Submodules.Ping_MainMenu import MainMenu
 from .Submodules.Ping_Pause import PauseMenu
+from .Submodules.Ping_LevelSelect import LevelSelect
 
 # Colors
 WHITE = (255, 255, 255)
@@ -120,3 +121,8 @@ def pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the pause menu with options to resume, go to title screen, or settings."""
     pause_menu = PauseMenu()
     return pause_menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+def level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
+    """Display the level selection screen."""
+    level_select = LevelSelect()
+    return level_select.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)

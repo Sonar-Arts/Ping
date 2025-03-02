@@ -4,7 +4,7 @@ import time
 import threading
 from sys import exit
 from Modules.Ping_AI import PaddleAI
-from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen
+from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
 from Modules.Ping_GameObjects import PaddleObject, BallObject
 
 """
@@ -61,11 +61,11 @@ def generate_random_name():
     last_name = random.choice(last_names)
     return f"{first_name} {last_name}"
 
-def main_game(ai_mode, player_name):
+def main_game(ai_mode, player_name, level):
     """Main game loop."""
     global screen
-    # Create arena instance with default level
-    arena = Arena()
+    # Create arena instance with selected level
+    arena = Arena(level)
     # Update arena with current window dimensions
     arena.update_scaling(WINDOW_WIDTH, WINDOW_HEIGHT)
     
@@ -357,7 +357,12 @@ if __name__ == "__main__":
                 running = False
                 break
             
-            game_result = main_game(game_mode, player_name)
+            # Show level selection screen
+            level = level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+            if level == "back":
+                continue  # Go back to title screen
+            
+            game_result = main_game(game_mode, player_name, level)
             if game_result == "title":
                 break  # Go back to title screen
             elif game_result == "settings":
