@@ -1,7 +1,7 @@
 import random
 import math
 from Modules.Ping_Arena import Arena
-from Modules.Ping_GameObjects import Paddle
+from Modules.Ping_GameObjects import PaddleObject
 
 class PaddleAI:
     def __init__(self, arena):
@@ -13,7 +13,7 @@ class PaddleAI:
         """
         self.arena = arena
         # Create a dummy paddle to get standard dimensions and positions
-        dummy_paddle = Paddle(
+        dummy_paddle = PaddleObject(
             x=0,
             y=0,
             width=20,

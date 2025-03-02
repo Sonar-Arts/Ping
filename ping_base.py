@@ -5,7 +5,7 @@ import threading
 from sys import exit
 from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen
-from Modules.Ping_GameObjects import Paddle, BallObject
+from Modules.Ping_GameObjects import PaddleObject, BallObject
 
 """
 Ping Base Code
@@ -71,7 +71,7 @@ def main_game(ai_mode, player_name):
         """Update game object positions based on arena dimensions"""
         nonlocal paddle_a, paddle_b, ball
         # Recreate game objects with new dimensions
-        paddle_a = Paddle(
+        paddle_a = PaddleObject(
             x=50,
             y=(arena.height - PADDLE_HEIGHT) // 2,
             width=PADDLE_WIDTH,
@@ -82,7 +82,7 @@ def main_game(ai_mode, player_name):
             scale_rect=arena.scale_rect,
             is_left_paddle=True
         )
-        paddle_b = Paddle(
+        paddle_b = PaddleObject(
             x=arena.width - 70,
             y=(arena.height - PADDLE_HEIGHT) // 2,
             width=PADDLE_WIDTH,
@@ -102,7 +102,7 @@ def main_game(ai_mode, player_name):
         )
 
     # Create game objects with proper params
-    paddle_a = Paddle(
+    paddle_a = PaddleObject(
         x=50,
         y=(arena.height - PADDLE_HEIGHT) // 2,
         width=PADDLE_WIDTH,
@@ -113,7 +113,7 @@ def main_game(ai_mode, player_name):
         scale_rect=arena.scale_rect,
         is_left_paddle=True
     )
-    paddle_b = Paddle(
+    paddle_b = PaddleObject(
         x=arena.width - 70,
         y=(arena.height - PADDLE_HEIGHT) // 2,
         width=PADDLE_WIDTH,

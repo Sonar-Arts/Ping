@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 from .Submodules.Ping_Ball import Ball
+from .Submodules.Ping_Paddle import Paddle
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -16,33 +17,49 @@ class ArenaObject:
         scaled_rect = self.scale_rect(self.rect)
         pygame.draw.rect(screen, color, scaled_rect)
 
-class Paddle(ArenaObject):
+class PaddleObject(ArenaObject):
     def __init__(self, x, y, width, height, arena_width, arena_height, scoreboard_height, scale_rect, is_left_paddle=True):
-        """Initialize a paddle object."""
+        """Initialize a paddle object with arena properties."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
-        self.rect = pygame.Rect(x, y, width, height)
-        self.is_left_paddle = is_left_paddle
-        self.speed = 300  # Standard paddle speed
-        self.moving_up = False
-        self.moving_down = False
-    
+        # Initialize core paddle with just paddle properties, not arena properties
+        self.paddle = Paddle(x, y, width, height, is_left_paddle)
+        self.reset_position()
+
+    @property
+    def rect(self):
+        return self.paddle.rect
+
+    @property
+    def is_left_paddle(self):
+        return self.paddle.is_left_paddle
+
+    @property
+    def speed(self):
+        return self.paddle.speed
+
+    @property
+    def moving_up(self):
+        return self.paddle.moving_up
+
+    @moving_up.setter
+    def moving_up(self, value):
+        self.paddle.moving_up = value
+
+    @property
+    def moving_down(self):
+        return self.paddle.moving_down
+
+    @moving_down.setter
+    def moving_down(self, value):
+        self.paddle.moving_down = value
+
     def move(self, delta_time):
         """Move the paddle based on input flags and time delta."""
-        movement = self.speed * delta_time
-        if self.moving_up and self.rect.top > self.scoreboard_height:
-            new_y = self.rect.y - movement
-            self.rect.y = max(self.scoreboard_height, new_y)
-        if self.moving_down and self.rect.bottom < self.arena_height:
-            new_y = self.rect.y + movement
-            self.rect.y = min(new_y, self.arena_height - self.rect.height)
+        self.paddle.move(delta_time, self.scoreboard_height, self.arena_height)
     
     def reset_position(self):
         """Reset paddle to starting position."""
-        self.rect.y = (self.arena_height - self.rect.height) // 2
-        if self.is_left_paddle:
-            self.rect.x = 50  # Left paddle 50px from left
-        else:
-            self.rect.x = self.arena_width - 70  # Right paddle 70px from right
+        self.paddle.reset_position(self.arena_width, self.arena_height)
 
 class BallObject(ArenaObject):
     def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, size=20):
