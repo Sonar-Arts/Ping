@@ -155,11 +155,11 @@ def main_game(ai_mode, player_name):
     
     # Initial countdown
     for i in range(3, 0, -1):
-        screen.fill(arena.BLACK)
+        screen.fill(arena.colors['BLACK'])
         scale_x = WINDOW_WIDTH / arena.width
         scale_y = WINDOW_HEIGHT / arena.height
         scaled_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
-        countdown_text = scaled_font.render(str(i), True, arena.WHITE)
+        countdown_text = scaled_font.render(str(i), True, arena.colors['WHITE'])
         screen.blit(countdown_text, (WINDOW_WIDTH//2 - countdown_text.get_width()//2,
                                    WINDOW_HEIGHT//2 - countdown_text.get_height()//2))
         pygame.display.flip()

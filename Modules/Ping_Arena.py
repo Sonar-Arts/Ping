@@ -16,18 +16,16 @@ class Arena:
         self.height = params['dimensions']['height']
         self.scoreboard_height = params['dimensions']['scoreboard_height']
         
-        # Set colors
-        self.WHITE = params['colors']['WHITE']
-        self.BLACK = params['colors']['BLACK']
-        self.DARK_BROWN = params['colors']['DARK_BROWN']
+        # Get colors from level configuration
+        self.colors = params['colors']
         
         # Initialize scoreboard
         self.scoreboard = Scoreboard(
             height=self.scoreboard_height,
             scale_y=1.0,  # Will be updated when scaling changes
             colors={
-                'WHITE': self.WHITE,
-                'DARK_BROWN': self.DARK_BROWN
+                'WHITE': self.colors['WHITE'],
+                'DARK_BROWN': self.colors['DARK_BROWN']
             }
         )
         
@@ -93,7 +91,7 @@ class Arena:
         
         for i in range(num_boxes):
             box_y = i * (box_height + box_spacing)
-            pygame.draw.rect(screen, self.WHITE, (
+            pygame.draw.rect(screen, self.colors['WHITE'], (
                 (self.width//2 - 5) * self.scale + self.offset_x,
                 box_y * self.scale + self.offset_y,
                 box_width,
@@ -118,11 +116,11 @@ class Arena:
     def draw_pause_overlay(self, screen, font):
         """Draw pause overlay and text."""
         overlay = pygame.Surface((screen.get_width(), screen.get_height()))
-        overlay.fill(self.BLACK)
+        overlay.fill(self.colors['BLACK'])
         overlay.set_alpha(128)
         screen.blit(overlay, (0, 0))
         
-        pause_text = font.render("Paused", True, self.WHITE)
+        pause_text = font.render("Paused", True, self.colors['WHITE'])
         screen.blit(pause_text, (
             screen.get_width()//2 - pause_text.get_width()//2,
             screen.get_height()//2 - pause_text.get_height()//2
@@ -131,17 +129,17 @@ class Arena:
     def draw(self, screen, game_objects, font, player_name, score_a, opponent_name, score_b, respawn_timer=None, paused=False):
         """Draw the complete game state."""
         # Fill background
-        screen.fill(self.BLACK)
+        screen.fill(self.colors['BLACK'])
         
         # Draw center line
         self.draw_center_line(screen)
         
         # Draw game objects
         for obj in game_objects:
-            obj.draw(screen, self.WHITE)
+            obj.draw(screen, self.colors['WHITE'])
         
         # Draw obstacle
-        self.obstacle.draw(screen, self.WHITE)
+        self.obstacle.draw(screen, self.colors['WHITE'])
         
         # Draw scoreboard
         self.draw_scoreboard(screen, player_name, score_a, opponent_name, score_b, font, respawn_timer)
