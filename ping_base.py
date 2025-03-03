@@ -88,6 +88,7 @@ def generate_random_name():
 def main_game(ai_mode, player_name, level, window_width, window_height):
     """Main game loop."""
     global screen
+    current_player_name = player_name  # Local variable to track current player name
     # Create arena instance with selected level
     arena = Arena(level)
     # Update arena with current window dimensions
@@ -235,7 +236,9 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                             settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=True)
                             if isinstance(settings_result, tuple):
                                 if settings_result[0] == "back_to_pause":
-                                    # Update dimensions and continue pause menu loop
+                                    # Update player name if it has changed
+                                    current_player_name = settings.get_player_name()
+                                    # Update dimensions and refresh display
                                     settings.update_dimensions(settings_result[1], settings_result[2])
                                     width, height = settings.get_dimensions()
                                     screen = init_display(width, height)
@@ -312,7 +315,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     # Check for win condition
                     if score_a >= MAX_SCORE:
                         width, height = settings.get_dimensions()
-                        return win_screen(screen, clock, width, height, player_name)
+                        return win_screen(screen, clock, width, height, current_player_name)
                     elif score_b >= MAX_SCORE:
                         width, height = settings.get_dimensions()
                         return win_screen(screen, clock, width, height, player_b_name)
@@ -338,7 +341,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
         
         # Draw complete game state using arena
         game_objects = [paddle_a, paddle_b, ball]
-        arena.draw(screen, game_objects, scaled_font, player_name, score_a, player_b_name, score_b, respawn_timer, paused)
+        arena.draw(screen, game_objects, scaled_font, current_player_name, score_a, player_b_name, score_b, respawn_timer, paused)
         
         pygame.display.flip()
 

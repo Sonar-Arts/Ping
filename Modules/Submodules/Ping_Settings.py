@@ -178,10 +178,14 @@ class SettingsScreen:
                             if new_name:
                                 self.PLAYER_NAME = new_name
                                 self._save_settings()
+                                # First update the player name
+                                self.update_player_name(new_name)
+                                # Then return to the appropriate screen
                                 if in_game:
                                     return ("back_to_pause", WINDOW_WIDTH, WINDOW_HEIGHT)
                                 else:
-                                    return ("name_change", new_name)
+                                    # Return current dimensions instead of name change tuple
+                                    return (WINDOW_WIDTH, WINDOW_HEIGHT)
                         elif size_rect.collidepoint(mouse_pos):
                             dropdown_open = True
 
