@@ -28,7 +28,7 @@ class SettingsScreen:
         """Get current window dimensions."""
         return cls.WINDOW_WIDTH, cls.WINDOW_HEIGHT
     
-    def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT):
+    def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False):
         """Display the settings screen with volume control and screen size options."""
         # Scale font size based on window height
         scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
@@ -116,8 +116,13 @@ class SettingsScreen:
                             dropdown_open = False
                     else:
                         if back_rect.collidepoint(mouse_pos):
-                            # Return current screen size when backing out
-                            return (WINDOW_WIDTH, WINDOW_HEIGHT)
+                            # Handle back button differently based on context
+                            if in_game:
+                                # When in game, return special value for pause menu
+                                return ("back_to_pause", WINDOW_WIDTH, WINDOW_HEIGHT)
+                            else:
+                                # Normal back behavior for title screen
+                                return (WINDOW_WIDTH, WINDOW_HEIGHT)
                         elif volume_up_rect.collidepoint(mouse_pos):
                             volume = min(volume + 0.1, 1.0)
                             paddle_sound.set_volume(volume)

@@ -20,10 +20,21 @@ def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     pygame.display.set_caption("Ping")
     return screen
 
-def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT):
-    """Display the settings screen with volume control and screen size options."""
+def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False):
+    """Display the settings screen with volume control and screen size options.
+    
+    Args:
+        screen: The pygame display surface
+        clock: The pygame clock object
+        paddle_sound: Sound effect for paddle hits
+        score_sound: Sound effect for scoring
+        WINDOW_WIDTH: Current window width
+        WINDOW_HEIGHT: Current window height
+        in_game (bool): Whether settings is being accessed from within a game.
+                       Controls whether back returns to pause menu or previous screen.
+    """
     settings = SettingsScreen()
-    return settings.display(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT)
+    return settings.display(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game)
 
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the player name input screen."""

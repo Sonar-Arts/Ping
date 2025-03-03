@@ -177,6 +177,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
     paddle_b_down = False
     ball_frozen = False
     respawn_timer = None
+    paused = False
     
     # Initial countdown
     for i in range(3, 0, -1):
@@ -187,14 +188,12 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
         scaled_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
         countdown_text = scaled_font.render(str(i), True, arena.colors['WHITE'])
         screen.blit(countdown_text, (width//2 - countdown_text.get_width()//2,
-                                   height//2 - countdown_text.get_height()//2))
+                                    height//2 - countdown_text.get_height()//2))
         pygame.display.flip()
         time.sleep(1)
     
     last_frame_time = time.time()
     accumulated_time = 0
-    
-    paused = False
     
     while True:
         current_time = time.time()
@@ -217,27 +216,31 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     if event.key == pygame.K_DOWN:
                         paddle_b_down = True
                 if event.key == pygame.K_ESCAPE:
-                    width, height = SettingsScreen.get_dimensions()
-                    menu_result = pause_screen(screen, clock, width, height)
-                    if menu_result == "title":
-                        return "title"
-                    elif menu_result == "settings":
-                        settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height)
-                        if isinstance(settings_result, tuple):
-                            if settings_result[0] == "name_change":
-                                player_name = settings_result[1]  # Update name immediately
-                            elif len(settings_result) == 2:
-                                # Update window dimensions in SettingsScreen
-                                SettingsScreen.update_dimensions(settings_result[0], settings_result[1])
-                        # After returning from settings, reinitialize game display and objects
+                    paused = True
+                    while paused:  # Keep pause menu active until explicitly resumed or exited
                         width, height = SettingsScreen.get_dimensions()
-                        screen = init_display(width, height)
-                        # Update arena dimensions and scaling factors
-                        arena.update_scaling(width, height)
-                        # Recreate game objects with new dimensions
-                        update_game_objects()
-                        # Update font scaling
-                        scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
+                        menu_result = pause_screen(screen, clock, width, height)
+                        
+                        if menu_result == "resume":
+                            # Resume game
+                            last_frame_time = time.time()
+                            accumulated_time = 0
+                            paused = False
+                        elif menu_result == "title":
+                            # Return to title screen
+                            return "title"
+                        elif menu_result == "settings":
+                            # Handle settings screen
+                            settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=True)
+                            if isinstance(settings_result, tuple):
+                                if settings_result[0] == "back_to_pause":
+                                    # Update dimensions and continue pause menu loop
+                                    SettingsScreen.update_dimensions(settings_result[1], settings_result[2])
+                                    width, height = SettingsScreen.get_dimensions()
+                                    screen = init_display(width, height)
+                                    arena.update_scaling(width, height)
+                                    update_game_objects()
+                                    scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_w:
                     paddle_a_up = False
@@ -248,40 +251,6 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                         paddle_b_up = False
                     if event.key == pygame.K_DOWN:
                         paddle_b_down = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    if paused:  # If already paused, unpause
-                        paused = False
-                        last_frame_time = time.time()
-                        accumulated_time = 0
-                    else:  # If not paused, show pause menu
-                        paused = True
-                        width, height = SettingsScreen.get_dimensions()
-                        menu_result = pause_screen(screen, clock, width, height)
-                        if menu_result == "title":
-                            return "title"
-                        elif menu_result == "settings":
-                            settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height)
-                            if isinstance(settings_result, tuple):
-                                if settings_result[0] == "name_change":
-                                    player_name = settings_result[1]
-                                elif len(settings_result) == 2:
-                                    # Update window dimensions in SettingsScreen
-                                    SettingsScreen.update_dimensions(settings_result[0], settings_result[1])
-                            # After returning from settings, reinitialize game display and objects
-                            width, height = SettingsScreen.get_dimensions()
-                            screen = init_display(width, height)
-                            # Update arena dimensions and scaling factors
-                            arena.update_scaling(width, height)
-                            # Recreate game objects with new dimensions
-                            update_game_objects()
-                            # Update font scaling
-                            scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
-                        # Unpause after menu interactions or if escape was pressed in pause menu
-                        if menu_result is None or menu_result == "settings":
-                            paused = False
-                            last_frame_time = time.time()
-                            accumulated_time = 0
                         
         if not paused:
             while accumulated_time >= FRAME_TIME:
@@ -398,8 +367,9 @@ if __name__ == "__main__":
             width, height = SettingsScreen.get_dimensions()
             game_mode = title_screen_instance.display(screen, clock, width, height)
             if game_mode == "settings":
-                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height)
+                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False)
                 if isinstance(settings_result, tuple) and len(settings_result) == 2:
+                    # Normal settings return from title screen - just update dimensions
                     SettingsScreen.update_dimensions(settings_result[0], settings_result[1])
                     screen = init_display(settings_result[0], settings_result[1])
                 continue
@@ -419,6 +389,12 @@ if __name__ == "__main__":
                 break  # Go back to title screen
             elif game_result == "settings":
                 width, height = SettingsScreen.get_dimensions()
-                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height)
-                if isinstance(settings_result, tuple) and settings_result[0] == "name_change":
-                    player_name = settings_result[1]  # Update player name immediately
+                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False)
+                if isinstance(settings_result, tuple):
+                    if settings_result[0] == "name_change":
+                        player_name = settings_result[1]  # Update player name immediately
+                    elif len(settings_result) == 2:
+                        SettingsScreen.update_dimensions(settings_result[0], settings_result[1])
+                        screen = init_display(settings_result[0], settings_result[1])
+                # After settings, return to title screen
+                break
