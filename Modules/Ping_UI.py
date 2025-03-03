@@ -38,6 +38,7 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
 
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the player name input screen."""
+    from .Submodules.Ping_Settings import SettingsScreen
     scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
     font_size = max(12, int(48 * scale_y))
     font = pygame.font.Font(None, font_size)
@@ -46,7 +47,8 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     color_active = pygame.Color('dodgerblue2')
     color = color_inactive
     active = False
-    text = ''
+    current_name = SettingsScreen.get_player_name()
+    text = current_name
 
     while True:
         for event in pygame.event.get():
@@ -62,14 +64,16 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
             if event.type == pygame.KEYDOWN:
                 if active:
                     if event.key == pygame.K_RETURN:
-                        return text
+                        if text:  # Only save if there's a name entered
+                            SettingsScreen.update_player_name(text)
+                            return text
                     elif event.key == pygame.K_BACKSPACE:
                         text = text[:-1]
                     else:
                         text += event.unicode
 
         screen.fill(BLACK)
-        txt_surface = font.render(text, True, color)
+        txt_surface = font.render(text if text else "Enter name", True, color)
         width = max(300, txt_surface.get_width()+10)
         input_box.w = width
         screen.blit(txt_surface, (input_box.x+5, input_box.y+5))

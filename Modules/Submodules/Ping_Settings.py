@@ -4,29 +4,69 @@ from sys import exit
 class SettingsScreen:
     """A class to handle the settings screen functionality and game settings."""
     
-    # Class level variables for window dimensions
+    # Class level variables for window dimensions and player name
     WINDOW_WIDTH = 800  # Default value
     WINDOW_HEIGHT = 600  # Default value
+    PLAYER_NAME = "Player"  # Default value
     
     def __init__(self):
         # Colors
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
-        
+        self._load_settings()
+
+    @classmethod
+    def _load_settings(cls):
+        """Load settings from the settings file."""
+        try:
+            with open("Game Parameters/settings.txt", "r") as f:
+                settings = {}
+                for line in f:
+                    key, value = line.strip().split('=')
+                    settings[key] = value
+                
+                # Update class variables with loaded values
+                if 'WINDOW_WIDTH' in settings:
+                    cls.WINDOW_WIDTH = int(settings['WINDOW_WIDTH'])
+                if 'WINDOW_HEIGHT' in settings:
+                    cls.WINDOW_HEIGHT = int(settings['WINDOW_HEIGHT'])
+                if 'PLAYER_NAME' in settings:
+                    cls.PLAYER_NAME = settings['PLAYER_NAME']
+        except (FileNotFoundError, ValueError):
+            # If file doesn't exist or is invalid, use defaults
+            pass
+
     @classmethod
     def update_dimensions(cls, width, height):
         """Update window dimensions and save to settings file."""
         cls.WINDOW_WIDTH = width
         cls.WINDOW_HEIGHT = height
-        # Save to settings file
-        with open("Game Parameters/settings.txt", "w") as f:
-            f.write(f"WINDOW_WIDTH={width}\nWINDOW_HEIGHT={height}")
-        
+        cls._save_settings()
+
     @classmethod
     def get_dimensions(cls):
         """Get current window dimensions."""
         return cls.WINDOW_WIDTH, cls.WINDOW_HEIGHT
+
+    @classmethod
+    def update_player_name(cls, name):
+        """Update player name and save to settings file."""
+        cls.PLAYER_NAME = name
+        cls._save_settings()
+
+    @classmethod
+    def get_player_name(cls):
+        """Get current player name."""
+        return cls.PLAYER_NAME
+
+    @classmethod
+    def _save_settings(cls):
+        """Save all settings to the settings file."""
+        with open("Game Parameters/settings.txt", "w") as f:
+            f.write(f"WINDOW_WIDTH={cls.WINDOW_WIDTH}\n")
+            f.write(f"WINDOW_HEIGHT={cls.WINDOW_HEIGHT}\n")
+            f.write(f"PLAYER_NAME={cls.PLAYER_NAME}")
     
     def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False):
         """Display the settings screen with volume control and screen size options."""
@@ -48,6 +88,7 @@ class SettingsScreen:
 
         while True:
             back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 180, 240, 40)
+            change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 120, 240, 40)
             volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
             volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
             # Calculate proper height for dropdown
@@ -131,19 +172,29 @@ class SettingsScreen:
                             volume = max(volume - 0.1, 0.0)
                             paddle_sound.set_volume(volume)
                             score_sound.set_volume(volume)
+                        elif change_name_rect.collidepoint(mouse_pos):
+                            from Modules.Ping_UI import player_name_screen
+                            new_name = player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+                            if new_name:
+                                self.PLAYER_NAME = new_name
+                                self._save_settings()
+                                if in_game:
+                                    return ("back_to_pause", WINDOW_WIDTH, WINDOW_HEIGHT)
+                                else:
+                                    return ("name_change", new_name)
                         elif size_rect.collidepoint(mouse_pos):
                             dropdown_open = True
 
-            self._draw_screen(screen, dropdown_open, current_size_index, volume, 
-                            WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect, 
-                            volume_down_rect, back_rect, size_rect)
+            self._draw_screen(screen, dropdown_open, current_size_index, volume,
+                            WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect,
+                            volume_down_rect, back_rect, size_rect, change_name_rect)
 
             pygame.display.flip()
             clock.tick(60)
 
-    def _draw_screen(self, screen, dropdown_open, current_size_index, volume, 
-                    WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect, 
-                    volume_down_rect, back_rect, size_rect):
+    def _draw_screen(self, screen, dropdown_open, current_size_index, volume,
+                    WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect,
+                    volume_down_rect, back_rect, size_rect, change_name_rect):
         """Helper method to handle screen drawing logic."""
         screen.fill(self.BLACK)
         mouse_pos = pygame.mouse.get_pos()
@@ -169,11 +220,19 @@ class SettingsScreen:
         volume_down_text = option_font.render("-", True, self.WHITE)
         back_text = option_font.render("Back", True, self.WHITE)
         size_label = option_font.render("Screen Size:", True, self.WHITE)
+        change_name_text = option_font.render("Change Name", True, self.WHITE)
 
         screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
         screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
         screen.blit(volume_up_text, (WINDOW_WIDTH//2 + 90, WINDOW_HEIGHT//2 - 20))
         screen.blit(volume_down_text, (WINDOW_WIDTH//2 - 90, WINDOW_HEIGHT//2 - 20))
+
+        # Draw change name button
+        if change_name_rect.collidepoint(mouse_pos):
+            pygame.draw.rect(screen, hover_color, change_name_rect)
+        pygame.draw.rect(screen, self.WHITE, change_name_rect, 2)
+        screen.blit(change_name_text, (WINDOW_WIDTH//2 - change_name_text.get_width()//2, WINDOW_HEIGHT//2 + 130))
+
         if not dropdown_open:
             screen.blit(back_text, (WINDOW_WIDTH//2 - back_text.get_width()//2, WINDOW_HEIGHT//2 + 190))
         screen.blit(size_label, (WINDOW_WIDTH//2 - size_label.get_width()//2, WINDOW_HEIGHT//2 + 20))
