@@ -19,15 +19,8 @@ class Arena:
         # Get colors from level configuration
         self.colors = params['colors']
         
-        # Initialize scoreboard
-        self.scoreboard = Scoreboard(
-            height=self.scoreboard_height,
-            scale_y=1.0,  # Will be updated when scaling changes
-            colors={
-                'WHITE': self.colors['WHITE'],
-                'DARK_BROWN': self.colors['DARK_BROWN']
-            }
-        )
+        # Initialize scoreboard as None
+        self.scoreboard = None
         
         # Calculate scaling factors
         self.scale_x = 1.0
@@ -60,6 +53,17 @@ class Arena:
         """Create a new obstacle after collision."""
         self.obstacle = self.create_obstacle()
     
+    def initialize_scoreboard(self):
+        """Initialize the scoreboard after level selection."""
+        self.scoreboard = Scoreboard(
+            height=self.scoreboard_height,
+            scale_y=1.0,  # Will be updated when scaling changes
+            colors={
+                'WHITE': self.colors['WHITE'],
+                'DARK_BROWN': self.colors['DARK_BROWN']
+            }
+        )
+    
     def update_scaling(self, window_width, window_height):
         """Update scaling factors based on window dimensions."""
         self.scale_x = window_width / self.width
@@ -70,8 +74,9 @@ class Arena:
         self.offset_x = (window_width - (self.width * self.scale)) / 2
         self.offset_y = (window_height - (self.height * self.scale)) / 2
         
-        # Update scoreboard scaling
-        self.scoreboard.scale_y = self.scale_y
+        # Update scoreboard scaling if initialized
+        if self.scoreboard:
+            self.scoreboard.scale_y = self.scale_y
     
     def scale_rect(self, rect):
         """Scale a rectangle according to current scaling factors."""
@@ -100,7 +105,8 @@ class Arena:
     
     def draw_scoreboard(self, screen, player_name, score_a, opponent_name, score_b, font, respawn_timer=None):
         """Draw the scoreboard at the top of the arena."""
-        self.scoreboard.draw(screen, player_name, score_a, opponent_name, score_b, font, respawn_timer)
+        if self.scoreboard:
+            self.scoreboard.draw(screen, player_name, score_a, opponent_name, score_b, font, respawn_timer)
     
     def get_paddle_positions(self):
         """Get the paddle positions from the loaded level configuration."""

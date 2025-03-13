@@ -89,11 +89,21 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
     """Main game loop."""
     global screen
     current_player_name = player_name  # Local variable to track current player name
+    
+    # Validate level selection
+    if not level:
+        return "title"
+        
     # Create arena instance with selected level
+    print(f"Loading arena for level: {level.__class__.__name__}...")
     arena = Arena(level)
     # Update arena with current window dimensions
     width, height = settings.get_dimensions()
     arena.update_scaling(width, height)
+    print("Arena successfully loaded and scaled")
+    
+    # Initialize scoreboard
+    arena.initialize_scoreboard()
     
     player_b_name = generate_random_name() if ai_mode else "Player B"
     # Initialize AI if in AI mode
@@ -227,6 +237,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                             # Resume game
                             last_frame_time = time.time()
                             accumulated_time = 0
+                            # Reset scoreboard debug flag to show message on resume
+                            arena.scoreboard._debug_shown = False
                             paused = False
                         elif menu_result == "title":
                             # Return to title screen
@@ -243,6 +255,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                                     width, height = settings.get_dimensions()
                                     screen = init_display(width, height)
                                     arena.update_scaling(width, height)
+                                    # Reset scoreboard debug flag to show message after settings update
+                                    arena.scoreboard._debug_shown = False
                                     update_game_objects()
                                     scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
             if event.type == pygame.KEYUP:
@@ -368,10 +382,15 @@ if __name__ == "__main__":
             game_mode = title_screen_instance.display(screen, clock, width, height)
             if game_mode == "settings":
                 settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False)
-                if isinstance(settings_result, tuple) and len(settings_result) == 2:
-                    # Normal settings return from title screen - just update dimensions
-                    settings.update_dimensions(settings_result[0], settings_result[1])
-                    screen = init_display(settings_result[0], settings_result[1])
+                if isinstance(settings_result, tuple):
+                    if settings_result[0] == "name_change":
+                        # Update player name
+                        player_name = settings_result[1]
+                        settings.update_player_name(player_name)
+                    elif len(settings_result) == 2:
+                        # Normal settings return from title screen - update dimensions
+                        settings.update_dimensions(settings_result[0], settings_result[1])
+                        screen = init_display(settings_result[0], settings_result[1])
                 continue
             elif game_mode is None:
                 running = False
@@ -383,8 +402,10 @@ if __name__ == "__main__":
             if level == "back":
                 continue  # Go back to title screen
             
+            # Get the most up-to-date player name before starting the game
+            current_player_name = settings.get_player_name()
             width, height = settings.get_dimensions()
-            game_result = main_game(game_mode, player_name, level, width, height)
+            game_result = main_game(game_mode, current_player_name, level, width, height)
             if game_result == "title":
                 break  # Go back to title screen
             elif game_result == "settings":

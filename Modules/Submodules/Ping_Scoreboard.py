@@ -8,6 +8,7 @@ class Scoreboard:
         self.scale_y = scale_y
         self.WHITE = colors['WHITE']
         self.DARK_BROWN = colors['DARK_BROWN']
+        self._debug_shown = False  # Track if debug message has been shown
 
     def draw(self, screen, player_name, score_a, opponent_name, score_b, font, respawn_timer=None):
         """Draw the scoreboard at the top of the arena."""
@@ -18,6 +19,11 @@ class Scoreboard:
         pygame.draw.rect(screen, self.DARK_BROWN, scoreboard_rect)
         pygame.draw.rect(screen, self.WHITE, scoreboard_rect, 2)
         
+        # Show debug message only once
+        if not self._debug_shown:
+            print(f"Loading scoreboard with players - {player_name} vs {opponent_name}")
+            self._debug_shown = True
+            
         # Draw scores
         score_text = font.render(f"{player_name}: {score_a}  {opponent_name}: {score_b}", True, self.WHITE)
         screen.blit(score_text, (screen.get_width()//2 - score_text.get_width()//2, scoreboard_height//4))
