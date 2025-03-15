@@ -7,7 +7,7 @@ class Scoreboard:
         self.height = height
         self.scale_y = scale_y
         self.WHITE = colors['WHITE']
-        self.DARK_BROWN = colors['DARK_BROWN']
+        self.DARK_BLUE = colors['DARK_BLUE']
         self._debug_shown = False  # Track if debug message has been shown
 
     def draw(self, screen, player_name, score_a, opponent_name, score_b, font, respawn_timer=None):
@@ -16,7 +16,7 @@ class Scoreboard:
         scoreboard_rect = pygame.Rect(0, 0, screen.get_width(), scoreboard_height)
         
         # Draw scoreboard background
-        pygame.draw.rect(screen, self.DARK_BROWN, scoreboard_rect)
+        pygame.draw.rect(screen, self.DARK_BLUE, scoreboard_rect)
         pygame.draw.rect(screen, self.WHITE, scoreboard_rect, 2)
         
         # Show debug message only once

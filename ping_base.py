@@ -285,7 +285,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     paddle_b.rect.y = paddle_ai.move_paddle(
                         ball.rect.x, ball.rect.y,  # Current ball position
                         ball.ball.velocity_x, ball.ball.velocity_y,  # Ball velocity
-                        paddle_b.rect.y, paddle_b.speed * FRAME_TIME
+                        paddle_b.rect.y, paddle_b.speed * FRAME_TIME,
+                        ball_frozen  # Pass ball's frozen state
                     )
                     # Make sure paddle stays within bounds
                     paddle_b.rect.y = max(arena.scoreboard_height,
@@ -334,8 +335,10 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                         width, height = settings.get_dimensions()
                         return win_screen(screen, clock, width, height, player_b_name)
                     
-                    # Reset ball to center position and start respawn timer
+                    # Reset ball and start AI paddle moving to center
                     ball.reset_position()
+                    if ai_mode:
+                        paddle_ai.reset_position()  # Start AI paddle moving to center
                     respawn_timer = 2.0  # 2 second respawn delay
                     accumulated_time = 0  # Reset accumulated time for accurate timing
                     ball_frozen = True

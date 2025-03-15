@@ -20,7 +20,7 @@ class DebugLevel:
         self.colors = {
             'WHITE': (255, 255, 255),
             'BLACK': (0, 0, 0),
-            'DARK_BROWN': (101, 67, 33)
+            'DARK_BLUE': (47, 62, 79)  # Dark grayish blue
         }
         
         # Center line properties

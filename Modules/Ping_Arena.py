@@ -60,7 +60,7 @@ class Arena:
             scale_y=1.0,  # Will be updated when scaling changes
             colors={
                 'WHITE': self.colors['WHITE'],
-                'DARK_BROWN': self.colors['DARK_BROWN']
+                'DARK_BLUE': self.colors['DARK_BLUE']
             }
         )
     

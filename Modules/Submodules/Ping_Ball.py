@@ -10,8 +10,8 @@ class Ball:
         self.min_speed = 500  # Minimum ball speed
         self.speed = self.min_speed  # Base ball speed
         self.max_speed = 700  # Maximum ball speed
-        self.dx = 1  # Direction multiplier
-        self.dy = -1  # Direction multiplier
+        self.dx = 1 if random.random() < 0.5 else -1  # Random horizontal direction
+        self.dy = 1 if random.random() < 0.5 else -1  # Random vertical direction
         self.velocity_x = self.speed * self.dx  # Actual velocity
         self.velocity_y = self.speed * self.dy  # Actual velocity
     

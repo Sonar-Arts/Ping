@@ -33,10 +33,16 @@ class PaddleAI:
         self.spike_probability = 0.3  # 30% chance to attempt spike
         self.spike_cooldown = 0  # Cooldown timer for spikes
         self.is_spiking = False  # Current spike attempt status
+
+        # Prediction tracking
+        self.last_prediction = None  # Store last predicted y-position
+        
+        # Reset behavior
+        self.is_resetting = False  # Whether paddle is moving back to center
     
     def predict_intersection(self, ball_x, ball_y, ball_dx, ball_dy):
         """
-        Predict where the ball will intersect with the AI paddle's vertical line.
+        Make a short-term prediction of ball movement to simulate human-like reaction.
         
         Args:
             ball_x: Current x position of the ball
@@ -45,41 +51,33 @@ class PaddleAI:
             ball_dy: Ball's velocity in y direction
             
         Returns:
-            float: Predicted y-coordinate where the ball will intersect paddle
+            float: Predicted y-coordinate where the AI should move towards
         """
-        # If ball is not moving towards paddle, maintain current position
-        if ball_dx <= 0:
-            return ball_y
+        # Only react to ball when it's in the right half of the screen
+        if ball_x <= self.arena.width / 2:
+            # When ball is in left half, return to vertical center
+            return (self.arena.height - self.paddle_height) / 2
 
-        # Calculate time until intersection
-        if ball_dx != 0:  # Avoid division by zero
-            time_to_paddle = (self.paddle_x - ball_x) / ball_dx
-            
-            # Calculate ball's y position at intersection point
-            predicted_y = ball_y + (ball_dy * time_to_paddle)
-            
-            # Handle bounces off walls
-            arena_playable_height = self.arena.height - self.arena.scoreboard_height
-            relative_y = predicted_y - self.arena.scoreboard_height
-            
-            # Number of full bounces
-            bounces = int(abs(relative_y) / arena_playable_height)
-            
-            # Final position after bounces
-            final_relative_y = relative_y % arena_playable_height
-            if bounces % 2 == 1:  # Odd number of bounces means ball is going opposite direction
-                final_relative_y = arena_playable_height - final_relative_y
-                
-            final_y = self.arena.scoreboard_height + final_relative_y
-            
-            # Add slight randomness to simulate human error
-            error = random.uniform(-10, 10) * (1 - self.accuracy_factor)
-            final_y += error
-            
-            # Ensure we stay within valid bounds
-            return min(max(final_y, self.arena.scoreboard_height), self.arena.height)
-            
-        return ball_y
+        # Make a short-term prediction (0.2 seconds into future)
+        prediction_time = 0.2
+        predicted_y = ball_y + (ball_dy * prediction_time)
+        
+        # Handle immediate wall bounces
+        if predicted_y < self.arena.scoreboard_height:
+            predicted_y = self.arena.scoreboard_height + (self.arena.scoreboard_height - predicted_y)
+        elif predicted_y > self.arena.height:
+            predicted_y = self.arena.height - (predicted_y - self.arena.height)
+        
+        # Add human error based on distance from paddle
+        distance_factor = (self.paddle_x - ball_x) / (self.arena.width / 2)
+        error = random.uniform(-20, 20) * distance_factor * (1 - self.accuracy_factor)
+        predicted_y += error
+        
+        # Store prediction for failure tracking
+        self.last_prediction = predicted_y
+        
+        # Ensure prediction stays within bounds
+        return min(max(predicted_y, self.arena.scoreboard_height), self.arena.height)
 
     def should_attempt_spike(self, ball_x, ball_dx):
         """Decide whether to attempt a spike based on ball position and trajectory."""
@@ -120,6 +118,10 @@ class PaddleAI:
             # Random position for unpredictable angles
             return predicted_y - (self.paddle_height * random.uniform(0.2, 0.8))
 
+    def reset_position(self):
+        """Start moving paddle back to center position."""
+        self.is_resetting = True
+
     def calculate_movement_speed(self, current_y, target_y, max_movement):
         """Calculate the optimal movement speed based on distance to target."""
         distance = target_y - current_y
@@ -127,8 +129,34 @@ class PaddleAI:
             return distance  # Move exact distance if close
         return math.copysign(max_movement, distance)  # Move at max speed in correct direction
 
-    def move_paddle(self, ball_x, ball_y, ball_dx, ball_dy, paddle_y, paddle_movement):
-        """Calculate the next paddle position based on ball trajectory prediction."""
+    def move_paddle(self, ball_x, ball_y, ball_dx, ball_dy, paddle_y, paddle_movement, ball_frozen):
+        """Calculate the next paddle position based on game state and ball trajectory."""
+        center_y = (self.arena.height - self.paddle_height) // 2
+
+        # If resetting to center, ignore all other states
+        if self.is_resetting:
+            movement = self.calculate_movement_speed(paddle_y, center_y, paddle_movement)
+            new_y = paddle_y + movement
+            
+            # Check if we've reached center (within 2 pixels)
+            if abs(new_y - center_y) < 2:
+                self.is_resetting = False
+                return center_y
+            return new_y
+
+        # If ball is frozen during respawn and we're at center, stay there
+        if ball_frozen and not self.is_resetting and abs(paddle_y - center_y) < 2:
+            return center_y
+
+        # Check for failed prediction when ball gets past paddle
+        if self.last_prediction is not None and ball_x > self.paddle_x + 20:  # Ball is past paddle
+            actual_y = ball_y
+            prediction_error = abs(actual_y - self.last_prediction)
+            if prediction_error > self.paddle_height / 2:  # Significant error
+                print(f"AI Prediction Failed! Error: {prediction_error:.1f}px")
+                print(f"Predicted Y: {self.last_prediction:.1f}, Actual Y: {actual_y:.1f}")
+            self.last_prediction = None
+
         # Get predicted intersection
         predicted_y = self.predict_intersection(ball_x, ball_y, ball_dx, ball_dy)
         

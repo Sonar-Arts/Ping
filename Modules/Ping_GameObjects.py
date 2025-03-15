@@ -58,6 +58,11 @@ class PaddleObject(ArenaObject):
         """Move the paddle based on input flags and time delta."""
         self.paddle.move(delta_time, self.scoreboard_height, self.arena_height)
     
+    def draw(self, screen, color):
+        """Draw the paddle with rounded corners."""
+        scaled_rect = self.scale_rect(self.rect)
+        pygame.draw.rect(screen, color, scaled_rect, border_radius=7)
+
     def reset_position(self):
         """Reset paddle to starting position."""
         self.paddle.reset_position(self.arena_width, self.arena_height)
