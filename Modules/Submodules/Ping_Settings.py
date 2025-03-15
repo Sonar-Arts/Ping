@@ -70,10 +70,32 @@ class SettingsScreen:
     
     def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False):
         """Display the settings screen with volume control and screen size options."""
-        # Scale font size based on window height
-        scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
-        font_size = max(12, int(36 * scale_y))  # Scale while maintaining minimum readable size
+        # Scale font size based on both dimensions
+        scale_y = WINDOW_HEIGHT / 600  # Base height scale
+        scale_x = WINDOW_WIDTH / 800   # Base width scale
+        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+        
+        # Calculate base button dimensions
+        button_width = 240  # Width of standard buttons
+        
+        # Calculate and adjust option font size
+        font_size = max(12, int(36 * scale))
         option_font = pygame.font.Font(None, font_size)
+        
+        # Test render the longest possible text to ensure it fits
+        test_texts = [
+            "Settings",
+            f"Volume: 100%",
+            "Screen Size:",
+            "1920x1080",
+            "Change Name",
+            "Back"
+        ]
+        
+        # Adjust font size until all text fits within buttons
+        while any(option_font.render(text, True, self.WHITE).get_width() > button_width - 20 for text in test_texts) and font_size > 12:
+            font_size -= 1
+            option_font = pygame.font.Font(None, font_size)
         volume = paddle_sound.get_volume()  # Get current volume
         screen_size = (WINDOW_WIDTH, WINDOW_HEIGHT)  # Initialize screen_size with current window size
         try:

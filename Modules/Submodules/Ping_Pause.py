@@ -9,10 +9,24 @@ class PauseMenu:
         
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Display the pause menu with options to resume, go to title screen, or settings."""
-        option_font = pygame.font.Font(None, 48)
-
+        scale_y = WINDOW_HEIGHT / 600  # Base height scale
+        scale_x = WINDOW_WIDTH / 800   # Base width scale
+        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+        
+        # Calculate font size based on both dimensions and button size
+        button_width = min(300, WINDOW_WIDTH // 3)
+        font_size = max(12, int(48 * scale))  # Base size of 48, scaled with window
+        option_font = pygame.font.Font(None, font_size)
+        
+        # Test render the longest text to ensure it fits
+        test_text = option_font.render("Back to Title", True, self.WHITE)
+        while test_text.get_width() > button_width - 20 and font_size > 12:  # 20px padding
+            font_size -= 1
+            option_font = pygame.font.Font(None, font_size)
+            test_text = option_font.render("Back to Title", True, self.WHITE)
+        
         # Create rects for buttons
-        button_spacing = 60  # Vertical space between buttons
+        button_spacing = int(60 * scale_y)  # Vertical space between buttons
         first_button_y = WINDOW_HEIGHT//2 - button_spacing
         
         resume_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, first_button_y, 300, 50)

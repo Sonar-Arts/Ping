@@ -87,9 +87,27 @@ class MainMenu:
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Display the title screen with game options."""
-        scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
-        title_font = pygame.font.Font(None, max(12, int(74 * scale_y)))
-        option_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+        scale_y = WINDOW_HEIGHT / 600  # Base height scale
+        scale_x = WINDOW_WIDTH / 800   # Base width scale
+        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+        
+        # Calculate font sizes based on both dimensions
+        button_width = min(300, WINDOW_WIDTH // 3)
+        
+        # Title font scaling
+        title_font_size = max(12, int(74 * scale))
+        title_font = pygame.font.Font(None, title_font_size)
+        
+        # Option font scaling with fit check
+        option_font_size = max(12, int(48 * scale))
+        option_font = pygame.font.Font(None, option_font_size)
+        
+        # Test render the longest text to ensure it fits
+        test_text = option_font.render("Player vs Player", True, WHITE)
+        while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
+            option_font_size -= 1
+            option_font = pygame.font.Font(None, option_font_size)
+            test_text = option_font.render("Player vs Player", True, WHITE)
         
         settings_text = option_font.render("Settings", True, WHITE)
         

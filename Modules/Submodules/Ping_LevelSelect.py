@@ -11,11 +11,24 @@ class LevelSelect:
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Display the level select screen."""
-        scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
-        option_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+        scale_y = WINDOW_HEIGHT / 600  # Base height scale
+        scale_x = WINDOW_WIDTH / 800   # Base width scale
+        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+        
+        button_width = min(300, WINDOW_WIDTH // 3)
+        
+        # Calculate and adjust option font size
+        option_font_size = max(12, int(48 * scale))
+        option_font = pygame.font.Font(None, option_font_size)
+        
+        # Test render the longest text to ensure it fits
+        test_text = option_font.render("Debug Level", True, WHITE)
+        while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
+            option_font_size -= 1
+            option_font = pygame.font.Font(None, option_font_size)
+            test_text = option_font.render("Debug Level", True, WHITE)
         
         while True:
-            button_width = min(300, WINDOW_WIDTH // 3)
             button_height = min(50, WINDOW_HEIGHT // 12)
             button_spacing = button_height + 20
             

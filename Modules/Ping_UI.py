@@ -39,10 +39,25 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     """Display the player name input screen."""
     from .Submodules.Ping_Settings import SettingsScreen
-    scale_y = WINDOW_HEIGHT / 600  # Use standard height of 600 as base
-    font_size = max(12, int(48 * scale_y))
+    scale_y = WINDOW_HEIGHT / 600  # Base height scale
+    scale_x = WINDOW_WIDTH / 800   # Base width scale
+    scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+    
+    # Calculate input box dimensions
+    input_box_width = min(300, WINDOW_WIDTH // 3)
+    input_box_height = min(50, WINDOW_HEIGHT // 12)
+    input_box = pygame.Rect(WINDOW_WIDTH//2 - input_box_width//2,
+                          WINDOW_HEIGHT//2 - input_box_height//2,
+                          input_box_width, input_box_height)
+    
+    # Calculate font size and ensure it fits
+    font_size = max(12, int(48 * scale))
     font = pygame.font.Font(None, font_size)
-    input_box = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 - 30, 300, 50)
+    test_text = font.render("Enter name", True, color_inactive)
+    while test_text.get_width() > input_box_width - 20 and font_size > 12:  # 20px padding
+        font_size -= 1
+        font = pygame.font.Font(None, font_size)
+        test_text = font.render("Enter name", True, color_inactive)
     color_inactive = pygame.Color('lightskyblue3')
     color_active = pygame.Color('dodgerblue2')
     color = color_inactive
@@ -95,12 +110,34 @@ class TitleScreen:
 
 def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
     """Display the win screen with the winner's name."""
-    scale_y = WINDOW_HEIGHT / 600
-    font_size = max(12, int(74 * scale_y))
-    title_font = pygame.font.Font(None, font_size)
-    option_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+    scale_y = WINDOW_HEIGHT / 600  # Base height scale
+    scale_x = WINDOW_WIDTH / 800   # Base width scale
+    scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
     
-    continue_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, WINDOW_HEIGHT//2 + 50, 300, 50)
+    # Calculate button dimensions
+    button_width = min(300, WINDOW_WIDTH // 3)
+    button_height = min(50, WINDOW_HEIGHT // 12)
+    continue_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2,
+                              WINDOW_HEIGHT//2 + 50,
+                              button_width, button_height)
+    
+    # Calculate and adjust title font size
+    title_font_size = max(12, int(74 * scale))
+    title_font = pygame.font.Font(None, title_font_size)
+    title_text = title_font.render(f"{winner_name} Wins!", True, WHITE)
+    while title_text.get_width() > WINDOW_WIDTH - 40 and title_font_size > 12:  # 40px padding
+        title_font_size -= 1
+        title_font = pygame.font.Font(None, title_font_size)
+        title_text = title_font.render(f"{winner_name} Wins!", True, WHITE)
+    
+    # Calculate and adjust option font size
+    option_font_size = max(12, int(48 * scale))
+    option_font = pygame.font.Font(None, option_font_size)
+    test_text = option_font.render("Continue", True, WHITE)
+    while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
+        option_font_size -= 1
+        option_font = pygame.font.Font(None, option_font_size)
+        test_text = option_font.render("Continue", True, WHITE)
     
     while True:
         for event in pygame.event.get():
