@@ -71,21 +71,39 @@ class Ball:
         return True
     
     def handle_wall_collision(self, scoreboard_height, arena_height):
-        """Handle collision with walls and scoreboard."""
-        if self.rect.top <= scoreboard_height or self.rect.bottom >= arena_height:
-            self.dy *= -1
+        """Handle collision with vertical walls (top and bottom)."""
+        collided = False
+        
+        # Handle top wall collision
+        if self.rect.top <= scoreboard_height:
+            self.rect.top = scoreboard_height + 5  # Push down more from wall
+            self.dy = abs(self.dy)  # Force downward movement
+            collided = True
+            
+        # Handle bottom wall collision
+        elif self.rect.bottom >= arena_height:
+            self.rect.bottom = arena_height - 5  # Push up more from wall
+            self.dy = -abs(self.dy)  # Force upward movement
+            collided = True
+            
+        if collided:
             # Ensure minimum speed after wall collision
             total_velocity = math.sqrt(1 + self.dy * self.dy)
             if total_velocity * self.speed < self.min_speed:
                 self.speed = self.min_speed / total_velocity
             self.velocity_y = self.speed * self.dy
-            return True
-        return False
+            
+        return collided
     
     def handle_scoring(self, arena_width):
-        """Check if ball has scored and return score information."""
+        """
+        Check if ball has scored and return score information.
+        For Debug Level: score when ball hits vertical walls
+        """
         if self.rect.left <= 0:
+            self.rect.x = (arena_width - self.size) // 2  # Reset horizontal position
             return "right"  # Right player scores
         elif self.rect.right >= arena_width:
+            self.rect.x = (arena_width - self.size) // 2  # Reset horizontal position
             return "left"  # Left player scores
         return None

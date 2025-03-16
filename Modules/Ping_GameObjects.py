@@ -3,7 +3,7 @@ import math
 import random
 from .Submodules.Ping_Ball import Ball
 from .Submodules.Ping_Paddle import Paddle
-from .Submodules.Ping_Obstacles import Obstacle
+from .Submodules.Ping_Obstacles import Obstacle, Goal  # Added Goal for Sewer Level
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -94,13 +94,63 @@ class BallObject(ArenaObject):
         """Handle collision with a paddle."""
         return self.ball.handle_paddle_collision(paddle)
     
-    def handle_wall_collision(self):
-        """Handle collision with walls and scoreboard."""
-        return self.ball.handle_wall_collision(self.scoreboard_height, self.arena_height)
-    
-    def handle_scoring(self):
-        """Check if ball has scored and return score information."""
+    def handle_wall_collision(self, bounce_walls=False):
+        """Handle wall collisions."""
+        # First handle vertical walls (top/bottom) - always bounce
+        collided = self.ball.handle_wall_collision(self.scoreboard_height, self.arena_height)
+        
+        # Then handle horizontal walls (left/right) - only bounce if bounce_walls is True
+        if bounce_walls:
+            if self.rect.left <= 0:
+                self.rect.left = 5  # Push further from wall
+                self.ball.dx = abs(self.ball.dx)  # Force right direction
+                self.ball.velocity_x = self.ball.speed * self.ball.dx
+                collided = True
+            elif self.rect.right >= self.arena_width:
+                self.rect.right = self.arena_width - 5  # Push further from wall
+                self.ball.dx = -abs(self.ball.dx)  # Force left direction
+                self.ball.velocity_x = self.ball.speed * self.ball.dx
+                collided = True
+        
+        return collided
+
+    def handle_scoring(self, goals=None, bounce_walls=False):
+        """
+        Check if ball has scored and return score information.
+        Uses goal system if goals are provided, otherwise uses traditional edge scoring.
+        """
+        if goals or bounce_walls:
+            return None  # Scoring handled by goals or walls bounce ball
         return self.ball.handle_scoring(self.arena_width)
+
+# Added for Sewer Level implementation
+class GoalObject(ArenaObject):
+    """Goal object that handles scoring zones behind paddles."""
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, is_left_goal=True):
+        """Initialize a goal object with arena properties."""
+        super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
+        
+        # Calculate goal dimensions
+        width = 20  # Goal depth
+        height = 200  # Goal height
+        
+        # Position goal with specified gaps
+        if is_left_goal:
+            x = 10  # 10 pixel gap from left wall
+        else:
+            x = arena_width - width - 10  # 10 pixel gap from right wall
+        
+        y = (arena_height - height) // 2  # Vertically centered
+        
+        self.goal = Goal(x, y, width, height, is_left_goal)
+    
+    @property
+    def rect(self):
+        return self.goal.rect
+    
+    def handle_collision(self, ball):
+        """Handle collision between goal and ball."""
+        return self.goal.handle_collision(ball)
 
 class ObstacleObject(ArenaObject):
     def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, width=20, height=60):

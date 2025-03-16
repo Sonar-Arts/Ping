@@ -1,5 +1,5 @@
 import pygame
-from Modules.Ping_GameObjects import ObstacleObject
+from Modules.Ping_GameObjects import ObstacleObject, GoalObject
 from Modules.Submodules.Ping_Levels import DebugLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
 
@@ -37,8 +37,14 @@ class Arena:
         # Store paddle positions
         self.paddle_positions = params['paddle_positions']
         
-        # Initialize obstacle
+        # Initialize obstacle and goals
         self.obstacle = self.create_obstacle()
+        self.goals = []
+        if 'goals' in params and params['goals']:
+            if params['goals'].get('left'):
+                self.goals.append(GoalObject(self.width, self.height, self.scoreboard_height, self.scale_rect, is_left_goal=True))
+            if params['goals'].get('right'):
+                self.goals.append(GoalObject(self.width, self.height, self.scoreboard_height, self.scale_rect, is_left_goal=False))
     
     def create_obstacle(self):
         """Create a new obstacle in the arena."""
@@ -49,6 +55,16 @@ class Arena:
             scale_rect=self.scale_rect
         )
     
+    def check_goal_collisions(self, ball):
+        """Check for collisions between ball and goals."""
+        for goal in self.goals:
+            result = goal.handle_collision(ball)
+            if result == "left" or result == "right":
+                return result
+            elif result == "bounce":
+                return None
+        return None
+
     def reset_obstacle(self):
         """Create a new obstacle after collision."""
         self.obstacle = self.create_obstacle()
@@ -137,8 +153,13 @@ class Arena:
         # Fill background
         screen.fill(self.colors['BLACK'])
         
-        # Draw center line
-        self.draw_center_line(screen)
+        # Draw center line if not disabled (0 width/height)
+        if self.center_line_box_width > 0 and self.center_line_box_height > 0:
+            self.draw_center_line(screen)
+        
+        # Draw goals first so they appear behind other objects
+        for goal in self.goals:
+            goal.draw(screen, self.colors['WHITE'])
         
         # Draw game objects
         for obj in game_objects:

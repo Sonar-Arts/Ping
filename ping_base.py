@@ -6,6 +6,7 @@ from sys import exit
 from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
 from Modules.Ping_GameObjects import PaddleObject, BallObject
+from Modules.Submodules.Ping_Levels import SewerLevel  # Added for Sewer Level check
 
 """
 Ping Base Code
@@ -318,8 +319,20 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     # Create new obstacle after collision
                     arena.reset_obstacle()
                 
-                # Check for scoring
-                scored = ball.handle_scoring()
+                # Handle all wall collisions and scoring
+                scored = None
+                if isinstance(level, SewerLevel):
+                    # Sewer Level: bounce off all walls, score with goals
+                    if ball.handle_wall_collision(bounce_walls=True):
+                        play_sound(paddle_sound)
+                    scored = arena.check_goal_collisions(ball)
+                else:
+                    # Debug Level: bounce off top/bottom, score on sides
+                    if ball.handle_wall_collision(bounce_walls=False):
+                        play_sound(paddle_sound)
+                    scored = ball.handle_scoring()
+                    
+                # Handle scoring results
                 if scored:
                     if scored == "right":
                         score_b += 1
