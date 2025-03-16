@@ -55,6 +55,27 @@ class MainMenu:
         self.title_letters = list("Ping")
         self.title_colors = [WHITE] * len(self.title_letters)
         self.balls = [Ball()]  # Start with one ball
+        self.ball_clicked = False  # Track if ball has been clicked
+        
+        # Initialize sound
+        self.wahahoo_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/wahahoo.wav")
+        self.wahahoo_sound.set_volume(0.5)
+    def play_pitch_varied_wahahoo(self):
+        """Play wahahoo sound at random pitch from predefined set."""
+        if self.ball_clicked:  # Only play if ball has been clicked
+            # List of distinct pitch speeds for variety
+            pitch_speeds = [
+                0.25,  # Very low pitch (2 octaves down)
+                0.5,   # Low pitch (1 octave down)
+                0.75,  # Slightly low pitch
+                1.0,   # Normal pitch
+                1.5,   # Medium high pitch
+                2.0,   # High pitch (1 octave up)
+                2.5,   # Very high pitch
+                3.0    # Highest pitch
+            ]
+            speed = random.choice(pitch_speeds)
+            self.wahahoo_sound.play(maxtime=int(self.wahahoo_sound.get_length() * 1000 / speed))
 
     def handle_ball_collisions(self, ball, pvp_rect, ai_rect, settings_rect, title_rect, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Handle all collision checks for a single ball."""
@@ -84,6 +105,7 @@ class MainMenu:
         if collision:
             ball.randomize_direction()
             ball.randomize_color()
+            self.play_pitch_varied_wahahoo()
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Display the title screen with game options."""
@@ -142,9 +164,12 @@ class MainMenu:
                     # Check for ball clicks
                     for ball in self.balls[:]:  # Use slice to avoid modifying list during iteration
                         if ball.get_rect().collidepoint(mouse_pos):
+                            # Set ball clicked flag and handle first click
+                            self.ball_clicked = True
                             # Randomize clicked ball's direction and spawn new ball
                             ball.randomize_direction()
                             ball.randomize_color()
+                            self.play_pitch_varied_wahahoo()
                             new_ball = Ball(ball.ball_pos[:])  # Create new ball at same position
                             self.balls.append(new_ball)
                             break  # Only handle one ball click per frame
