@@ -97,3 +97,62 @@ class Obstacle:
                 
             return True
         return False
+
+class Portal(Obstacle):
+    def __init__(self, x, y, width, height, target_portal=None):
+        """Initialize a portal with given dimensions and target portal."""
+        super().__init__(x, y, width, height)
+        self.target_portal = target_portal
+        self.teleport_cooldown = 0
+    
+    def set_target(self, target_portal):
+        """Set the target portal for teleportation."""
+        self.target_portal = target_portal
+        
+    def handle_collision(self, ball):
+        """Handle collision by teleporting the ball to the target portal."""
+        if self.teleport_cooldown > 0:  # Skip if on cooldown
+            return False
+            
+        if ball.rect.colliderect(self.rect) and self.target_portal:
+            # Preserve velocities
+            curr_dx = ball.ball.dx
+            curr_dy = ball.ball.dy
+            curr_speed = ball.ball.speed
+            
+            # Calculate exit point based on whether portal is on left or right wall
+            if self.rect.x == 0:  # Left wall portal
+                new_x = self.target_portal.rect.right + ball.rect.width
+            else:  # Right wall portal
+                new_x = self.target_portal.rect.left - ball.rect.width
+                
+            # Use relative Y position but ensure ball stays within portal bounds
+            rel_y = (ball.rect.centery - self.rect.y) / self.height
+            new_y = self.target_portal.rect.y + (rel_y * self.target_portal.height)
+            
+            # Ensure ball stays within vertical bounds
+            new_y = max(self.target_portal.rect.top + ball.rect.height/2,
+                      min(new_y, self.target_portal.rect.bottom - ball.rect.height/2))
+            
+            # Set new position
+            ball.rect.centerx = new_x
+            ball.rect.centery = new_y
+            
+            # Maintain velocities
+            ball.ball.dx = curr_dx
+            ball.ball.dy = curr_dy
+            ball.ball.speed = curr_speed
+            ball.ball.velocity_x = curr_speed * curr_dx
+            ball.ball.velocity_y = curr_speed * curr_dy
+            
+            # Set cooldown for both portals
+            self.teleport_cooldown = 15  # About 0.25 seconds at 60 FPS
+            self.target_portal.teleport_cooldown = 15
+            
+            return True
+        return False
+        
+    def update_cooldown(self):
+        """Update teleport cooldown timer."""
+        if self.teleport_cooldown > 0:
+            self.teleport_cooldown -= 1

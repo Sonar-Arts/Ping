@@ -21,7 +21,8 @@ class SewerLevel:
         self.colors = {
             'WHITE': (255, 255, 255),
             'BLACK': (20, 20, 20),  # Darker black for atmosphere
-            'DARK_BLUE': (30, 40, 50)  # Darker blue for sewer atmosphere
+            'DARK_BLUE': (30, 40, 50),  # Darker blue for sewer atmosphere
+            'PORTAL': (0, 0, 0)  # Black for sewer portals
         }
         
         # No center line in sewer level
@@ -49,6 +50,20 @@ class SewerLevel:
             'left': True,   # Include left goal
             'right': True,  # Include right goal
         }
+        
+        # Portal parameters
+        portal_width = 20
+        portal_height = 80
+        self.portals = {
+            'width': portal_width,
+            'height': portal_height,
+            'positions': {
+                'top_left': {'x': 0, 'y': self.scoreboard_height + 20},
+                'bottom_left': {'x': 0, 'y': self.height - portal_height - 20},
+                'top_right': {'x': self.width - portal_width, 'y': self.scoreboard_height + 20},
+                'bottom_right': {'x': self.width - portal_width, 'y': self.height - portal_height - 20}
+            }
+        }
     
     def get_parameters(self):
         """Return all level parameters in a dictionary format."""
@@ -61,7 +76,8 @@ class SewerLevel:
             'colors': self.colors,
             'center_line': self.center_line,
             'paddle_positions': self.paddle_positions,
-            'goals': self.goals
+            'goals': self.goals,
+            'portals': self.portals
         }
 
 class DebugLevel:

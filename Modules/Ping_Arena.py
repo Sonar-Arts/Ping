@@ -1,5 +1,5 @@
 import pygame
-from Modules.Ping_GameObjects import ObstacleObject, GoalObject
+from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject
 from Modules.Submodules.Ping_Levels import DebugLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
 
@@ -37,14 +37,48 @@ class Arena:
         # Store paddle positions
         self.paddle_positions = params['paddle_positions']
         
-        # Initialize obstacle and goals
+        # Initialize obstacle, goals and portals
         self.obstacle = self.create_obstacle()
         self.goals = []
+        self.portals = []
+        
+        # Create goals if specified
         if 'goals' in params and params['goals']:
             if params['goals'].get('left'):
                 self.goals.append(GoalObject(self.width, self.height, self.scoreboard_height, self.scale_rect, is_left_goal=True))
             if params['goals'].get('right'):
                 self.goals.append(GoalObject(self.width, self.height, self.scoreboard_height, self.scale_rect, is_left_goal=False))
+        
+        # Create portals if specified
+        if 'portals' in params:
+            portal_params = params['portals']
+            positions = portal_params['positions']
+            
+            # Create the four portals
+            top_left = PortalObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                  positions['top_left']['x'], positions['top_left']['y'],
+                                  portal_params['width'], portal_params['height'])
+            
+            bottom_left = PortalObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                     positions['bottom_left']['x'], positions['bottom_left']['y'],
+                                     portal_params['width'], portal_params['height'])
+            
+            top_right = PortalObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                   positions['top_right']['x'], positions['top_right']['y'],
+                                   portal_params['width'], portal_params['height'])
+            
+            bottom_right = PortalObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                      positions['bottom_right']['x'], positions['bottom_right']['y'],
+                                      portal_params['width'], portal_params['height'])
+            
+            # Link the portals diagonally
+            top_left.set_target(bottom_right)
+            bottom_right.set_target(top_left)
+            bottom_left.set_target(top_right)
+            top_right.set_target(bottom_left)
+            
+            # Add portals to the list
+            self.portals.extend([top_left, bottom_left, top_right, bottom_right])
     
     def create_obstacle(self):
         """Create a new obstacle in the arena."""
@@ -64,6 +98,18 @@ class Arena:
             elif result == "bounce":
                 return None
         return None
+
+    def check_portal_collisions(self, ball):
+        """Check for collisions between ball and portals."""
+        # Update cooldowns for all portals
+        for portal in self.portals:
+            portal.update_cooldown()
+            
+        # Check for collisions
+        for portal in self.portals:
+            if portal.handle_collision(ball):
+                return True
+        return False
 
     def reset_obstacle(self):
         """Create a new obstacle after collision."""
@@ -157,7 +203,11 @@ class Arena:
         if self.center_line_box_width > 0 and self.center_line_box_height > 0:
             self.draw_center_line(screen)
         
-        # Draw goals first so they appear behind other objects
+        # Draw portals first
+        for portal in self.portals:
+            portal.draw(screen, self.colors['PORTAL'])
+
+        # Draw goals behind other objects
         for goal in self.goals:
             goal.draw(screen, self.colors['WHITE'])
         

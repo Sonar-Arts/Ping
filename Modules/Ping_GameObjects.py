@@ -3,7 +3,7 @@ import math
 import random
 from .Submodules.Ping_Ball import Ball
 from .Submodules.Ping_Paddle import Paddle
-from .Submodules.Ping_Obstacles import Obstacle, Goal  # Added Goal for Sewer Level
+from .Submodules.Ping_Obstacles import Obstacle, Goal, Portal  # Added Portal for Sewer Level teleportation
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -151,6 +151,35 @@ class GoalObject(ArenaObject):
     def handle_collision(self, ball):
         """Handle collision between goal and ball."""
         return self.goal.handle_collision(ball)
+
+class PortalObject(ArenaObject):
+    """Portal object that allows ball teleportation between paired portals."""
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, width, height):
+        """Initialize a portal object with arena properties."""
+        super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
+        self.portal = Portal(x, y, width, height)
+        self.target = None
+    
+    def set_target(self, target_portal):
+        """Set the target portal for teleportation."""
+        self.portal.set_target(target_portal.portal)
+    
+    @property
+    def rect(self):
+        return self.portal.rect
+    
+    def handle_collision(self, ball):
+        """Handle collision between portal and ball."""
+        return self.portal.handle_collision(ball)
+        
+    def update_cooldown(self):
+        """Update portal cooldown timer."""
+        self.portal.update_cooldown()
+    
+    def draw(self, screen, color):
+        """Draw the portal as a black rectangle."""
+        scaled_rect = self.scale_rect(self.rect)
+        pygame.draw.rect(screen, color, scaled_rect)
 
 class ObstacleObject(ArenaObject):
     def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, width=20, height=60):

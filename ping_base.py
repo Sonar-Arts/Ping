@@ -318,6 +318,9 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     play_sound(paddle_sound)
                     # Create new obstacle after collision
                     arena.reset_obstacle()
+
+                # Check portal collisions
+                arena.check_portal_collisions(ball)
                 
                 # Handle all wall collisions and scoring
                 scored = None
