@@ -5,6 +5,8 @@ from .Submodules.Ping_Settings import SettingsScreen
 from .Submodules.Ping_MainMenu import MainMenu
 from .Submodules.Ping_Pause import PauseMenu
 from .Submodules.Ping_LevelSelect import LevelSelect
+from .Submodules.Ping_Fonts import get_font_manager
+from .Submodules.Ping_Button import get_button  # Add button manager import
 
 # Colors
 WHITE = (255, 255, 255)
@@ -50,17 +52,16 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
                           WINDOW_HEIGHT//2 - input_box_height//2,
                           input_box_width, input_box_height)
     
-    # Calculate font size and ensure it fits
+    # Get font manager and calculate font size
+    font_manager = get_font_manager()
     font_size = max(12, int(48 * scale))
-    font = pygame.font.Font(None, font_size)
-    test_text = font.render("Enter name", True, color_inactive)
+    font = font_manager.get_font('text', font_size)
+    # Test render with default color
+    test_text = font.render("Enter name", True, pygame.Color('lightskyblue3'))
     while test_text.get_width() > input_box_width - 20 and font_size > 12:  # 20px padding
         font_size -= 1
-        font = pygame.font.Font(None, font_size)
-        test_text = font.render("Enter name", True, color_inactive)
-    color_inactive = pygame.Color('lightskyblue3')
-    color_active = pygame.Color('dodgerblue2')
-    color = color_inactive
+        font = font_manager.get_font('text', font_size)
+        test_text = font.render("Enter name", True, pygame.Color('lightskyblue3'))
     active = False
     current_name = SettingsScreen.get_player_name()
     text = current_name
@@ -72,10 +73,9 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
                 exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if input_box.collidepoint(event.pos):
-                    active = not active
+                    active = not active  # Just toggle active state for visual feedback
                 else:
                     active = False
-                color = color_active if active else color_inactive
             if event.type == pygame.KEYDOWN:
                 if active:
                     if event.key == pygame.K_RETURN:
@@ -88,14 +88,38 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
                         text += event.unicode
 
         screen.fill(BLACK)
-        txt_surface = font.render(text if text else "Enter name", True, color)
-        width = max(300, txt_surface.get_width()+10)
-        input_box.w = width
-        screen.blit(txt_surface, (input_box.x+5, input_box.y+5))
-        pygame.draw.rect(screen, color, input_box, 2)
+        
+        # Get button renderer
+        button = get_button()
 
+        # Draw prompt text
         prompt_text = font.render("Enter your name:", True, WHITE)
         screen.blit(prompt_text, (WINDOW_WIDTH//2 - prompt_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
+
+        # Adjust input box width based on text
+        # Use the box color for text rendering
+        box_color = pygame.Color('dodgerblue2') if active else pygame.Color('lightskyblue3')
+        txt_surface = font.render(text if text else "Enter name", True, box_color)
+        width = max(300, txt_surface.get_width()+20)  # Added more padding
+        input_box.w = width
+
+        # Draw input box with custom style
+        if active:
+            # Draw active input box with glow effect
+            glow = pygame.Surface((width + 10, input_box_height + 10), pygame.SRCALPHA)
+            glow_color = (30, 144, 255, 100)  # dodgerblue2 RGB values with alpha
+            pygame.draw.rect(glow, glow_color, (0, 0, width + 10, input_box_height + 10), border_radius=8)
+            screen.blit(glow, (input_box.x - 5, input_box.y - 5))
+
+        # Draw input box background with fixed colors
+        box_color = pygame.Color('dodgerblue2') if active else pygame.Color('lightskyblue3')
+        bg_color = (40, 40, 60) if active else (30, 30, 40)
+        pygame.draw.rect(screen, bg_color, input_box, border_radius=8)
+        pygame.draw.rect(screen, box_color, input_box, 2, border_radius=8)
+        
+        # Draw text centered in box
+        screen.blit(txt_surface, (input_box.x + (width - txt_surface.get_width())//2,
+                                input_box.y + (input_box_height - txt_surface.get_height())//2))
 
         pygame.display.flip()
         clock.tick(30)
@@ -121,22 +145,25 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
                               WINDOW_HEIGHT//2 + 50,
                               button_width, button_height)
     
+    # Get font manager
+    font_manager = get_font_manager()
+    
     # Calculate and adjust title font size
     title_font_size = max(12, int(74 * scale))
-    title_font = pygame.font.Font(None, title_font_size)
+    title_font = font_manager.get_font('title', title_font_size)
     title_text = title_font.render(f"{winner_name} Wins!", True, WHITE)
     while title_text.get_width() > WINDOW_WIDTH - 40 and title_font_size > 12:  # 40px padding
         title_font_size -= 1
-        title_font = pygame.font.Font(None, title_font_size)
+        title_font = font_manager.get_font('title', title_font_size)
         title_text = title_font.render(f"{winner_name} Wins!", True, WHITE)
     
     # Calculate and adjust option font size
     option_font_size = max(12, int(48 * scale))
-    option_font = pygame.font.Font(None, option_font_size)
+    option_font = font_manager.get_font('menu', option_font_size)
     test_text = option_font.render("Continue", True, WHITE)
     while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
         option_font_size -= 1
-        option_font = pygame.font.Font(None, option_font_size)
+        option_font = font_manager.get_font('menu', option_font_size)
         test_text = option_font.render("Continue", True, WHITE)
     
     while True:
@@ -157,14 +184,12 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
         winner_text = title_font.render(f"{winner_name} Wins!", True, WHITE)
         screen.blit(winner_text, (WINDOW_WIDTH//2 - winner_text.get_width()//2, WINDOW_HEIGHT//3))
         
-        # Draw continue button
-        hover_color = (100, 100, 100)
-        if continue_rect.collidepoint(pygame.mouse.get_pos()):
-            pygame.draw.rect(screen, hover_color, continue_rect)
-        pygame.draw.rect(screen, WHITE, continue_rect, 2)
+        # Get button renderer
+        button = get_button()
         
-        continue_text = option_font.render("Continue", True, WHITE)
-        screen.blit(continue_text, (WINDOW_WIDTH//2 - continue_text.get_width()//2, WINDOW_HEIGHT//2 + 60))
+        # Draw continue button with new style
+        button.draw(screen, continue_rect, "Continue", option_font,
+                   is_hovered=continue_rect.collidepoint(pygame.mouse.get_pos()))
         
         pygame.display.flip()
         clock.tick(60)

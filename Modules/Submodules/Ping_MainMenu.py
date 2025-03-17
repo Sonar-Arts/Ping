@@ -2,6 +2,8 @@ import pygame
 import time
 import random
 import math
+from .Ping_Fonts import get_font_manager
+from .Ping_Button import get_button
 
 # Colors
 WHITE = (255, 255, 255)
@@ -93,20 +95,23 @@ class MainMenu:
         
         # Calculate font sizes based on both dimensions
         button_width = min(300, WINDOW_WIDTH // 3)
+        # Get font manager
+        font_manager = get_font_manager()
         
         # Title font scaling
         title_font_size = max(12, int(74 * scale))
-        title_font = pygame.font.Font(None, title_font_size)
+        title_font = font_manager.get_font('title', title_font_size)
         
         # Option font scaling with fit check
         option_font_size = max(12, int(48 * scale))
-        option_font = pygame.font.Font(None, option_font_size)
+        option_font = font_manager.get_font('menu', option_font_size)
         
         # Test render the longest text to ensure it fits
         test_text = option_font.render("Player vs Player", True, WHITE)
         while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
             option_font_size -= 1
-            option_font = pygame.font.Font(None, option_font_size)
+            option_font = font_manager.get_font('menu', option_font_size)
+            test_text = option_font.render("Player vs Player", True, WHITE)
             test_text = option_font.render("Player vs Player", True, WHITE)
         
         settings_text = option_font.render("Settings", True, WHITE)
@@ -170,28 +175,16 @@ class MainMenu:
             hover_color = (100, 100, 100)
             mouse_pos = pygame.mouse.get_pos()
             
-            # Draw menu buttons
-            if pvp_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(screen, hover_color, pvp_rect)
-            pygame.draw.rect(screen, WHITE, pvp_rect, 2)
+            # Get button renderer
+            button = get_button()
             
-            if ai_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(screen, hover_color, ai_rect)
-            pygame.draw.rect(screen, WHITE, ai_rect, 2)
-            
-            if settings_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(screen, hover_color, settings_rect)
-            pygame.draw.rect(screen, WHITE, settings_rect, 2)
-            
-            pvp_text = option_font.render("Player vs Player", True, WHITE)
-            ai_text = option_font.render("Player vs AI", True, WHITE)
-            
-            screen.blit(pvp_text, (pvp_rect.centerx - pvp_text.get_width()//2, 
-                                pvp_rect.centery - pvp_text.get_height()//2))
-            screen.blit(ai_text, (ai_rect.centerx - ai_text.get_width()//2, 
-                               ai_rect.centery - ai_text.get_height()//2))
-            screen.blit(settings_text, (settings_rect.centerx - settings_text.get_width()//2,
-                                    settings_rect.centery - settings_text.get_height()//2))
+            # Draw stylish menu buttons
+            button.draw(screen, pvp_rect, "Player vs Player", option_font,
+                       is_hovered=pvp_rect.collidepoint(mouse_pos))
+            button.draw(screen, ai_rect, "Player vs AI", option_font,
+                       is_hovered=ai_rect.collidepoint(mouse_pos))
+            button.draw(screen, settings_rect, "Settings", option_font,
+                       is_hovered=settings_rect.collidepoint(mouse_pos))
 
             # Create title collision rect
             title_rect = pygame.Rect(x_offset - title_width, WINDOW_HEIGHT//4,
