@@ -1,5 +1,7 @@
 import pygame
 from .Ping_Levels import DebugLevel, SewerLevel  # Added Sewer Level import
+from .Ping_Fonts import get_font_manager
+from .Ping_Button import get_button
 
 # Colors
 WHITE = (255, 255, 255)
@@ -17,15 +19,16 @@ class LevelSelect:
         
         button_width = min(300, WINDOW_WIDTH // 3)
         
-        # Calculate and adjust option font size
+        # Get font manager and calculate font size
+        font_manager = get_font_manager()
         option_font_size = max(12, int(48 * scale))
-        option_font = pygame.font.Font(None, option_font_size)
+        option_font = font_manager.get_font('menu', option_font_size)
         
         # Test render the longest text to ensure it fits
         test_text = option_font.render("Debug Level", True, WHITE)
         while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
             option_font_size -= 1
-            option_font = pygame.font.Font(None, option_font_size)
+            option_font = font_manager.get_font('menu', option_font_size)
             test_text = option_font.render("Debug Level", True, WHITE)
         
         while True:
@@ -61,6 +64,14 @@ class LevelSelect:
             hover_color = (100, 100, 100)
             mouse_pos = pygame.mouse.get_pos()
             
+            # Get button renderer
+            button = get_button()
+            
+            # Draw stylish menu buttons
+            button.draw(screen, debug_rect, "Debug Level", option_font,
+                       is_hovered=debug_rect.collidepoint(mouse_pos))
+            button.draw(screen, back_rect, "Back", option_font,
+                       is_hovered=back_rect.collidepoint(mouse_pos))
             # Draw all buttons
             for rect, text in [
                 (debug_rect, "Debug Level"),
