@@ -1,5 +1,6 @@
 import pygame
 import random
+from Modules.Submodules.Ping_Ball import Ball
 
 # Goals for Sewer Level - Added for new level implementation
 class Goal:
@@ -35,7 +36,7 @@ class Goal:
         # For left goal
         if self.is_left_goal:
             if min_collision == collision_right:  # Ball entered from right side
-                return "left"
+                return "right"
             # Ball hit other sides, bounce
             if min_collision in (collision_left, collision_right):
                 ball.ball.dx *= -1
@@ -48,7 +49,7 @@ class Goal:
         # For right goal
         else:
             if min_collision == collision_left:  # Ball entered from left side
-                return "right"
+                return "left"
             # Ball hit other sides, bounce
             if min_collision in (collision_left, collision_right):
                 ball.ball.dx *= -1
@@ -156,3 +157,92 @@ class Portal(Obstacle):
         """Update teleport cooldown timer."""
         if self.teleport_cooldown > 0:
             self.teleport_cooldown -= 1
+
+class PowerUpBall:
+    def __init__(self, x, y, size=20):
+        """Initialize a ball-shaped power up."""
+        self.rect = pygame.Rect(x, y, size, size)
+        self.x = x
+        self.y = y
+        self.width = size
+        self.height = size
+        self.size = size
+        self.spawn_timer = 0
+        self.active = True
+        self.next_spawn_time = random.randint(3, 15) * 60  # 3-15 seconds (at 60 FPS)
+
+    def draw(self, screen, color, scale_rect):
+        """Draw the power up as a circle if active."""
+        if self.active:
+            scaled_rect = scale_rect(self.rect)
+            pygame.draw.circle(screen, color, scaled_rect.center, scaled_rect.width // 2)
+    
+    def handle_collision(self, ball):
+        """Handle collision by creating a duplicate ball with same trajectory."""
+        if not self.active:
+            return False
+            
+        if ball.rect.colliderect(self.rect):
+            # Create new ball with same properties
+            new_ball = Ball(ball.ball.size)
+            new_ball.rect.x = self.rect.x
+            new_ball.rect.y = self.rect.y
+            new_ball.dx = ball.ball.dx
+            new_ball.dy = ball.ball.dy
+            new_ball.speed = ball.ball.speed
+            new_ball.velocity_x = ball.ball.velocity_x
+            new_ball.velocity_y = ball.ball.velocity_y
+            
+            # Deactivate power up
+            self.active = False
+            # Reset spawn timer
+            self.spawn_timer = 0
+            return new_ball
+        return None
+    
+    def find_valid_position(self, arena_width, arena_height, scoreboard_height, obstacles):
+        """Find a valid spawn position that doesn't overlap with obstacles."""
+        margin = 20  # Minimum distance from walls and obstacles
+        max_attempts = 50  # Maximum number of attempts to find valid position
+        
+        for _ in range(max_attempts):
+            # Generate random position with margins
+            x = random.randint(margin, arena_width - self.size - margin)
+            y = random.randint(scoreboard_height + margin, arena_height - self.size - margin)
+            
+            # Create temporary rect for collision checking
+            test_rect = pygame.Rect(x, y, self.size, self.size)
+            
+            # Check for collisions with obstacles
+            valid_position = True
+            if obstacles:
+                for obstacle in obstacles:
+                    # Add margin around obstacles
+                    expanded_rect = obstacle.rect.inflate(margin * 2, margin * 2)
+                    if test_rect.colliderect(expanded_rect):
+                        valid_position = False
+                        break
+            
+            if valid_position:
+                return x, y
+                
+        # If no valid position found after max attempts, use center position
+        return (arena_width - self.size) // 2, (arena_height - self.size) // 2
+
+    def update(self, ball_count, arena_width, arena_height, scoreboard_height, obstacles=None):
+        """Update spawn timer and activate power up when ready."""
+        if not self.active:
+            self.spawn_timer += 1
+            if self.spawn_timer >= self.next_spawn_time and ball_count < 10:
+                # Find new valid position
+                new_x, new_y = self.find_valid_position(
+                    arena_width, arena_height, scoreboard_height, obstacles
+                )
+                self.rect.x = new_x
+                self.rect.y = new_y
+                
+                self.active = True
+                self.spawn_timer = 0
+                self.next_spawn_time = random.randint(3, 15) * 60  # 3-15 seconds (at 60 FPS)
+                return True
+        return False

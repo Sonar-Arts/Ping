@@ -3,7 +3,7 @@ import math
 import random
 from .Submodules.Ping_Ball import Ball
 from .Submodules.Ping_Paddle import Paddle
-from .Submodules.Ping_Obstacles import Obstacle, Goal, Portal  # Added Portal for Sewer Level teleportation
+from .Submodules.Ping_Obstacles import Obstacle, Goal, Portal, PowerUpBall  # Added PowerUpBall for Sewer Level
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -204,3 +204,27 @@ class ObstacleObject(ArenaObject):
     def handle_collision(self, ball):
         """Handle collision between obstacle and ball."""
         return self.obstacle.handle_collision(ball)
+
+class PowerUpBallObject(ArenaObject):
+    """Power-up that creates a duplicate ball on collision."""
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, size=20):
+        """Initialize a power-up ball object with arena properties."""
+        super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
+        self.power_up = PowerUpBall(x, y, size)
+        self.color = (0, 255, 0)  # Green color for visibility
+    
+    @property
+    def rect(self):
+        return self.power_up.rect
+    
+    def draw(self, screen, color):
+        """Override draw method to use power-up's circular drawing."""
+        self.power_up.draw(screen, self.color, self.scale_rect)
+    
+    def handle_collision(self, ball):
+        """Handle collision between power-up and ball."""
+        return self.power_up.handle_collision(ball)
+    
+    def update(self, ball_count, arena_width, arena_height, scoreboard_height, obstacles=None):
+        """Update power-up state and check for respawn."""
+        return self.power_up.update(ball_count, arena_width, arena_height, scoreboard_height, obstacles)

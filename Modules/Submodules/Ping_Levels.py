@@ -64,6 +64,20 @@ class SewerLevel:
                 'bottom_right': {'x': self.width - portal_width, 'y': self.height - portal_height - 20}
             }
         }
+        
+        # Power-up parameters
+        power_up_size = 20
+        self.power_ups = {
+            'ball_duplicator': {
+                'active': True,
+                'size': power_up_size,
+                'color': (0, 255, 0),  # Green color for visibility
+                'position': {
+                    'x': (self.width - power_up_size) // 2,
+                    'y': (self.height - power_up_size) // 2
+                }
+            }
+        }
     
     def get_parameters(self):
         """Return all level parameters in a dictionary format."""
@@ -77,7 +91,8 @@ class SewerLevel:
             'center_line': self.center_line,
             'paddle_positions': self.paddle_positions,
             'goals': self.goals,
-            'portals': self.portals
+            'portals': self.portals,
+            'power_ups': self.power_ups
         }
 
 class DebugLevel:
