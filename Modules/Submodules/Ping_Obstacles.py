@@ -158,6 +158,85 @@ class Portal(Obstacle):
         if self.teleport_cooldown > 0:
             self.teleport_cooldown -= 1
 
+class Manhole:
+    """A static obstacle that can spout to affect ball trajectory."""
+    def __init__(self, x, y, width, height, is_bottom=True):
+        """Initialize a static manhole obstacle with two parts."""
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.is_bottom = is_bottom
+        self.is_spouting = False
+        
+        # Vertical slab is taller than horizontal
+        self.spout_height = height * 10  # Makes the vertical part much more visible
+        
+        # Define the two parts of the manhole
+        # Horizontal slab stays at base position when dormant
+        self.horizontal_rect = pygame.Rect(x, y, width, height)
+        
+        # Position vertical slab underneath horizontal
+        vertical_y = y + height if is_bottom else y - self.spout_height
+        self.vertical_rect = pygame.Rect(x, vertical_y, width, self.spout_height)
+        
+        # Calculate position for horizontal slab when pushed
+        self.spout_position = y - height if is_bottom else y + height
+        
+        # Store initial position for resetting
+        self.initial_y = y
+        
+        # Timing variables for spouting behavior
+        self.spout_timer = 0
+        self.next_spout_time = random.randint(5, 20) * 60  # Random interval between 5-20 seconds at 60 FPS
+        self.spout_duration = 60  # Spout for 1 second
+
+    def update(self, active_manholes):
+        """Update manhole state and handle spouting mechanics."""
+        if self.is_spouting:
+            self.spout_timer += 1
+            if self.spout_timer >= self.spout_duration:
+                # End spouting: return horizontal slab to original position
+                self.horizontal_rect.y = self.initial_y
+                self.is_spouting = False
+                self.spout_timer = 0
+                self.next_spout_time = random.randint(5, 20) * 60
+        else:
+            self.spout_timer += 1
+            if self.spout_timer >= self.next_spout_time:
+                # Only start spouting if less than 2 manholes are active
+                if len(active_manholes) < 2:
+                    self.is_spouting = True
+                    self.spout_timer = 0
+                    # Push horizontal slab up/down
+                    self.horizontal_rect.y = self.spout_position
+
+    def handle_collision(self, ball):
+        """Handle collision with the ball."""
+        # Only check collision if spouting (static obstacle with optional collision)
+        if not self.is_spouting:
+            return False
+
+        # Only check collision with horizontal slab
+        if ball.rect.colliderect(self.horizontal_rect):
+            # No bounce - only speed up and force direction
+            ball.ball.dy = -1 if self.is_bottom else 1  # Force ball up/down based on position
+            ball.ball.speed *= 1.5  # Speed boost
+            ball.ball.velocity_y = ball.ball.speed * ball.ball.dy
+            return True
+        return False
+
+    def draw(self, screen, color, scale_rect):
+        """Draw the manhole parts based on state."""
+        if self.is_spouting:
+            # During spouting, only draw the vertical slab
+            scaled_vertical = scale_rect(self.vertical_rect)
+            pygame.draw.rect(screen, color, scaled_vertical)
+        else:
+            # When dormant, only draw the horizontal slab
+            scaled_horizontal = scale_rect(self.horizontal_rect)
+            pygame.draw.rect(screen, color, scaled_horizontal)
+
 class PowerUpBall:
     def __init__(self, x, y, size=20):
         """Initialize a ball-shaped power up."""

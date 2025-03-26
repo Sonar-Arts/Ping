@@ -1,5 +1,5 @@
 import pygame
-from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject
+from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject
 from Modules.Submodules.Ping_Levels import DebugLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
 
@@ -37,11 +37,37 @@ class Arena:
         # Store paddle positions
         self.paddle_positions = params['paddle_positions']
         
-        # Initialize obstacle, goals, portals and power-ups
+        # Initialize obstacle, goals, portals, manholes and power-ups
         self.obstacle = self.create_obstacle()
         self.goals = []
         self.portals = []
+        self.manholes = []
         self.power_up = None
+
+        # Create manholes if specified
+        if 'manholes' in params:
+            manhole_params = params['manholes']
+            positions = manhole_params['positions']
+            
+            # Create the four manholes
+            bottom_left = ManHoleObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                    positions['bottom_left']['x'], positions['bottom_left']['y'],
+                                    manhole_params['width'], manhole_params['height'], True)
+            
+            bottom_right = ManHoleObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                     positions['bottom_right']['x'], positions['bottom_right']['y'],
+                                     manhole_params['width'], manhole_params['height'], True)
+            
+            top_left = ManHoleObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                  positions['top_left']['x'], positions['top_left']['y'],
+                                  manhole_params['width'], manhole_params['height'], False)
+            
+            top_right = ManHoleObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
+                                   positions['top_right']['x'], positions['top_right']['y'],
+                                   manhole_params['width'], manhole_params['height'], False)
+            
+            # Add manholes to the list
+            self.manholes.extend([bottom_left, bottom_right, top_left, top_right])
 
         # Create power-up if specified
         if 'power_ups' in params and 'ball_duplicator' in params['power_ups']:
@@ -123,6 +149,19 @@ class Arena:
         # Check for collisions
         for portal in self.portals:
             if portal.handle_collision(ball):
+                return True
+        return False
+
+    def update_manholes(self):
+        """Update all manhole states."""
+        active_manholes = [m for m in self.manholes if m.is_spouting]
+        for manhole in self.manholes:
+            manhole.update(active_manholes)
+    
+    def check_manhole_collisions(self, ball):
+        """Check for collisions between ball and manholes."""
+        for manhole in self.manholes:
+            if manhole.handle_collision(ball):
                 return True
         return False
 
@@ -253,6 +292,10 @@ class Arena:
         # Draw portals first
         for portal in self.portals:
             portal.draw(screen, self.colors['PORTAL'])
+
+        # Draw manholes behind other objects
+        for manhole in self.manholes:
+            manhole.draw(screen, self.colors['MANHOLE'])
 
         # Draw goals behind other objects
         for goal in self.goals:

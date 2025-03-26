@@ -307,9 +307,10 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                         respawn_timer = None
                         ball_frozen = False
 
-                # Update power-up state
+                # Update power-up and manhole states for Sewer Level
                 if isinstance(level, SewerLevel):
                     arena.update_power_up(len(balls))
+                    arena.update_manholes()  # Add manhole updates
 
                 # Handle all active balls
                 scored = None
@@ -335,9 +336,14 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
 
                     # Check portal collisions
                     arena.check_portal_collisions(current_ball)
-                    
-                    # Power-up collision (only for Sewer Level)
+
+                    # Sewer Level specific collisions
                     if isinstance(level, SewerLevel):
+                        # Check manhole collisions first as they affect ball trajectory
+                        if arena.check_manhole_collisions(current_ball):
+                            play_sound(paddle_sound)
+                        
+                        # Power-up collision check
                         new_ball = arena.check_power_up_collision(current_ball, len(balls))
                         if new_ball:
                             balls.append(new_ball)
