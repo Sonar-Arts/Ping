@@ -201,20 +201,32 @@ class PowerUpBall:
         return None
     
     def find_valid_position(self, arena_width, arena_height, scoreboard_height, obstacles):
-        """Find a valid spawn position that doesn't overlap with obstacles."""
+        """Find a valid spawn position that doesn't overlap with obstacles or paddle movement areas."""
         margin = 20  # Minimum distance from walls and obstacles
         max_attempts = 50  # Maximum number of attempts to find valid position
         
+        # Define paddle movement areas to avoid
+        paddle_margin = 100  # Space to avoid around paddles
+        left_paddle_zone = pygame.Rect(0, scoreboard_height, paddle_margin, arena_height - scoreboard_height)
+        right_paddle_zone = pygame.Rect(arena_width - paddle_margin, scoreboard_height, paddle_margin, arena_height - scoreboard_height)
+        
         for _ in range(max_attempts):
             # Generate random position with margins
-            x = random.randint(margin, arena_width - self.size - margin)
+            x = random.randint(margin + paddle_margin, arena_width - self.size - margin - paddle_margin)
             y = random.randint(scoreboard_height + margin, arena_height - self.size - margin)
             
             # Create temporary rect for collision checking
             test_rect = pygame.Rect(x, y, self.size, self.size)
             
-            # Check for collisions with obstacles
+            # Check for collisions with obstacles and paddle zones
             valid_position = True
+            
+            # Check paddle movement areas
+            if test_rect.colliderect(left_paddle_zone) or test_rect.colliderect(right_paddle_zone):
+                valid_position = False
+                continue
+            
+            # Check other obstacles
             if obstacles:
                 for obstacle in obstacles:
                     # Add margin around obstacles

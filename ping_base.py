@@ -183,8 +183,9 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
     scale_y = height / arena.height
     font = pygame.font.Font(None, max(12, int(48 * scale_y)))
     
-    # List to track all active balls
-    balls = [ball]
+    # List to track all active balls - don't add the initial ball twice
+    balls = []
+    balls.append(ball)
 
     # Game state flags
     paddle_a_up = False
