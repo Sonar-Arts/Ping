@@ -1,7 +1,9 @@
 import pygame
+import pygame.sndarray
 import random
 import time
 import threading
+import numpy as np
 from sys import exit
 from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
@@ -68,18 +70,9 @@ MAX_SCORE = 10  # Score needed to win the game
 pygame.display.set_caption("Ping")
 clock = pygame.time.Clock()
 
-# Load sounds
-paddle_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Paddle.wav")
-score_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Score.wav")
-
-# Set volume to 50%
-paddle_sound.set_volume(0.5)
-score_sound.set_volume(0.5)
-
-
-def play_sound(sound):
-    """Play sound asynchronously."""
-    threading.Thread(target=sound.play).start()
+# Initialize sound manager
+from Modules.Submodules.Ping_Sound import SoundManager
+sound_manager = SoundManager()
 
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
@@ -262,7 +255,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                             return "title"
                         elif menu_result == "settings":
                             # Handle settings screen
-                            settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=True, debug_console=debug_console)
+                            settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=True, debug_console=debug_console)
                             if isinstance(settings_result, tuple):
                                 if settings_result[0] == "back_to_pause":
                                     # Update player name if it has changed
@@ -337,14 +330,14 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
                         # Handle collisions
                         if current_ball.handle_wall_collision():
-                            play_sound(paddle_sound)
+                            sound_manager.play_paddle_hit('wall')
 
                     if current_ball.handle_paddle_collision(paddle_a) or current_ball.handle_paddle_collision(paddle_b):
-                        play_sound(paddle_sound)
+                        sound_manager.play_paddle_hit('paddle')
 
                     # Ball collision with obstacle
                     if arena.obstacle.handle_collision(current_ball):
-                        play_sound(paddle_sound)
+                        sound_manager.play_paddle_hit('obstacle')
                         # Create new obstacle after collision
                         arena.reset_obstacle()
 
@@ -355,8 +348,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     if isinstance(level, SewerLevel):
                         # Check manhole collisions first as they affect ball trajectory
                         if arena.check_manhole_collisions(current_ball):
-                            play_sound(paddle_sound)
-                        
+                            sound_manager.play_paddle_hit('manhole')
+
                         # Power-up collision check
                         new_ball = arena.check_power_up_collision(current_ball, len(balls))
                         if new_ball:
@@ -366,7 +359,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     if isinstance(level, SewerLevel):
                         # Sewer Level: bounce off all walls, score with goals
                         if current_ball.handle_wall_collision(bounce_walls=True):
-                            play_sound(paddle_sound)
+                            sound_manager.play_paddle_hit('wall')
                         ball_scored = arena.check_goal_collisions(current_ball)
                         if ball_scored:
                             scored = ball_scored
@@ -374,11 +367,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     else:
                         # Debug Level: bounce off top/bottom, score on sides
                         if current_ball.handle_wall_collision(bounce_walls=False):
-                            play_sound(paddle_sound)
+                            sound_manager.play_paddle_hit('wall')
                         ball_scored = current_ball.handle_scoring()
                         if ball_scored:
                             scored = ball_scored
-                
+                 
                 # Remove scored balls
                 for ball_to_remove in balls_to_remove:
                     if ball_to_remove in balls:
@@ -390,7 +383,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         score_b += 1
                     else:
                         score_a += 1
-                    play_sound(score_sound)
+                    sound_manager.play_sound('score')
                     
                     # Check for win condition
                     if score_a >= MAX_SCORE:
@@ -469,7 +462,7 @@ if __name__ == "__main__":
             width, height = settings.get_dimensions()
             game_mode = title_screen_instance.menu.display(screen, clock, width, height, debug_console)
             if game_mode == "settings":
-                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False, debug_console=debug_console)
+                settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
                     if settings_result[0] == "name_change":
                         # Update player name
@@ -498,7 +491,7 @@ if __name__ == "__main__":
                 break  # Go back to title screen
             elif game_result == "settings":
                 width, height = settings.get_dimensions()
-                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False, debug_console=debug_console)
+                settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
                     if settings_result[0] == "name_change":
                         player_name = settings_result[1]  # Update player name immediately

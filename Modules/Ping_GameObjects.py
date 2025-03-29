@@ -58,10 +58,94 @@ class PaddleObject(ArenaObject):
         """Move the paddle based on input flags and time delta."""
         self.paddle.move(delta_time, self.scoreboard_height, self.arena_height)
     
+    def lerp_color(self, color1, color2, t):
+        """Linearly interpolate between two colors."""
+        return tuple(int(a + (b - a) * t) for a, b in zip(color1, color2))
+    
     def draw(self, screen, color):
-        """Draw the paddle with rounded corners."""
+        """Draw the paddle with retro Sega Genesis style and ultra-smooth gradient."""
         scaled_rect = self.scale_rect(self.rect)
-        pygame.draw.rect(screen, color, scaled_rect, border_radius=7)
+        
+        # Define key colors
+        light_brown = (205, 175, 149)  # Back side
+        base_color = color             # Middle
+        green_shade = (30, 180, 30)    # Left paddle front
+        red_shade = (180, 30, 30)      # Right paddle front
+        
+        # Number of gradient sections (more sections = smoother gradient)
+        num_sections = 12
+        section_width = scaled_rect.width / num_sections
+        
+        if self.is_left_paddle:
+            # Left paddle gradient (light brown → base → green)
+            for i in range(num_sections):
+                t = i / (num_sections - 1)  # Interpolation factor
+                
+                # First half: brown to base color
+                if i < num_sections // 2:
+                    t_adjusted = t * 2  # Adjust t for first half
+                    current_color = self.lerp_color(light_brown, base_color, t_adjusted)
+                # Second half: base color to green
+                else:
+                    t_adjusted = (t - 0.5) * 2  # Adjust t for second half
+                    current_color = self.lerp_color(base_color, green_shade, t_adjusted)
+                
+                # Draw section
+                section_rect = pygame.Rect(
+                    scaled_rect.left + (i * section_width),
+                    scaled_rect.top,
+                    section_width + 1,  # +1 to prevent gaps
+                    scaled_rect.height
+                )
+                
+                # Apply border radius consistently
+                if i == 0:  # Left-most section (back)
+                    pygame.draw.rect(screen, current_color, section_rect,
+                                   border_radius=4,
+                                   border_top_right_radius=0,
+                                   border_bottom_right_radius=0)
+                elif i == num_sections - 1:  # Right-most section (front)
+                    pygame.draw.rect(screen, current_color, section_rect,
+                                   border_radius=4,
+                                   border_top_left_radius=0,
+                                   border_bottom_left_radius=0)
+                else:  # Middle sections
+                    pygame.draw.rect(screen, current_color, section_rect)
+        else:
+            # Right paddle gradient (brown → base → red)
+            for i in range(num_sections):
+                t = i / (num_sections - 1)
+                
+                # First half: brown to base color
+                if i < num_sections // 2:
+                    t_adjusted = t * 2
+                    current_color = self.lerp_color(light_brown, base_color, t_adjusted)
+                # Second half: base color to red
+                else:
+                    t_adjusted = (t - 0.5) * 2
+                    current_color = self.lerp_color(base_color, red_shade, t_adjusted)
+                
+                # Draw section
+                section_rect = pygame.Rect(
+                    scaled_rect.right - ((i + 1) * section_width),
+                    scaled_rect.top,
+                    section_width + 1,  # +1 to prevent gaps
+                    scaled_rect.height
+                )
+                
+                # Apply border radius consistently
+                if i == 0:  # Right-most section (back)
+                    pygame.draw.rect(screen, current_color, section_rect,
+                                   border_radius=4,
+                                   border_top_left_radius=0,
+                                   border_bottom_left_radius=0)
+                elif i == num_sections - 1:  # Left-most section (front)
+                    pygame.draw.rect(screen, current_color, section_rect,
+                                   border_radius=4,
+                                   border_top_right_radius=0,
+                                   border_bottom_right_radius=0)
+                else:  # Middle sections
+                    pygame.draw.rect(screen, current_color, section_rect)
 
     def reset_position(self):
         """Reset paddle to starting position."""
@@ -204,6 +288,52 @@ class ObstacleObject(ArenaObject):
     def handle_collision(self, ball):
         """Handle collision between obstacle and ball."""
         return self.obstacle.handle_collision(ball)
+        
+    def draw(self, screen, color):
+        """Draw the obstacle as a pixelated brick wall."""
+        scaled_rect = self.scale_rect(self.rect)
+        
+        # Create brick and mortar colors with brown tinting
+        r, g, b = color
+        # Mix with brown (139, 69, 19) for brick color
+        brick_color = (min(255, (r + 139) // 2), min(255, (g + 69) // 2), min(255, (b + 19) // 2))
+        # Darker brown shading
+        dark_brick = (max(0, brick_color[0] - 40), max(0, brick_color[1] - 40), max(0, brick_color[2] - 40))
+        # Even darker for mortar
+        mortar_color = (max(0, brick_color[0] - 60), max(0, brick_color[1] - 60), max(0, brick_color[2] - 60))
+        
+        # Draw base rectangle (mortar color)
+        pygame.draw.rect(screen, mortar_color, scaled_rect)
+        
+        # Draw brick pattern
+        brick_height = 10  # Height of each brick
+        brick_rows = scaled_rect.height // brick_height
+        
+        for row in range(brick_rows):
+            # Alternate brick pattern offset for each row
+            offset = (10 if row % 2 else 0)
+            y = scaled_rect.top + (row * brick_height)
+            
+            # Draw bricks in this row
+            brick_width = 16  # Width of each brick
+            x = scaled_rect.left + offset
+            while x < scaled_rect.right - 2:
+                # Calculate brick width to fit within obstacle
+                current_width = min(brick_width, scaled_rect.right - x - 2)
+                
+                # Brick rectangle with 1px gap for mortar
+                brick_rect = pygame.Rect(x, y, current_width - 1, brick_height - 1)
+                pygame.draw.rect(screen, brick_color, brick_rect)
+                
+                # Add shading on right and bottom for 3D effect
+                shade_right = pygame.Rect(brick_rect.right - 2, brick_rect.top,
+                                        2, brick_rect.height)
+                shade_bottom = pygame.Rect(brick_rect.left, brick_rect.bottom - 2,
+                                         brick_rect.width, 2)
+                pygame.draw.rect(screen, dark_brick, shade_right)
+                pygame.draw.rect(screen, dark_brick, shade_bottom)
+                
+                x += brick_width  # Move to next brick position
 
 class ManHoleObject(ArenaObject):
     """Manhole obstacle that can spout upward and affect ball trajectory."""
