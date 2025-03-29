@@ -22,7 +22,8 @@ class SewerLevel:
             'WHITE': (255, 255, 255),
             'BLACK': (20, 20, 20),  # Darker black for atmosphere
             'DARK_BLUE': (30, 40, 50),  # Darker blue for sewer atmosphere
-            'PORTAL': (0, 0, 0)  # Black for sewer portals
+            'PORTAL': (0, 0, 0),  # Black for sewer portals
+            'MANHOLE': (139, 69, 19)  # Brown for sewer manholes
         }
         
         # No center line in sewer level
@@ -64,6 +65,35 @@ class SewerLevel:
                 'bottom_right': {'x': self.width - portal_width, 'y': self.height - portal_height - 20}
             }
         }
+        
+        # Manhole parameters
+        manhole_width = 80  # Made skinnier (was 80)
+        manhole_height = 10
+        margin = 120  # Distance from sides, closer to center
+        self.manholes = {
+            'width': manhole_width,
+            'height': manhole_height,
+            'positions': {
+                'bottom_left': {'x': margin, 'y': self.height - manhole_height - 10},
+                'bottom_right': {'x': self.width - margin - manhole_width, 'y': self.height - manhole_height - 10},
+                'top_left': {'x': margin, 'y': self.scoreboard_height + 10},
+                'top_right': {'x': self.width - margin - manhole_width, 'y': self.scoreboard_height + 10}
+            }
+        }
+
+        # Power-up parameters
+        power_up_size = 20
+        self.power_ups = {
+            'ball_duplicator': {
+                'active': True,
+                'size': power_up_size,
+                'color': (0, 255, 0),  # Green color for visibility
+                'position': {
+                    'x': (self.width - power_up_size) // 2,
+                    'y': (self.height - power_up_size) // 2
+                }
+            }
+        }
     
     def get_parameters(self):
         """Return all level parameters in a dictionary format."""
@@ -77,7 +107,9 @@ class SewerLevel:
             'center_line': self.center_line,
             'paddle_positions': self.paddle_positions,
             'goals': self.goals,
-            'portals': self.portals
+            'portals': self.portals,
+            'manholes': self.manholes,
+            'power_ups': self.power_ups
         }
 
 class DebugLevel:

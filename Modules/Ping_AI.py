@@ -28,6 +28,7 @@ class PaddleAI:
         self.paddle_x = self.arena.width - 70  # Fixed x-position (70px from right)
         self.accuracy_factor = 0.8  # AI accuracy (0-1)
         self.max_error = arena.height  # Maximum possible prediction error
+        self.min_speed = 500  # Minimum ball speed (should match Ball class)
         
         # Spike behavior parameters
         self.spike_probability = 0.3  # 30% chance to attempt spike
@@ -40,7 +41,7 @@ class PaddleAI:
         # Reset behavior
         self.is_resetting = False  # Whether paddle is moving back to center
     
-    def predict_intersection(self, ball_x, ball_y, ball_dx, ball_dy):
+    def predict_intersection(self, ball_x, ball_y, ball_dx, ball_dy, all_balls=None):
         """
         Make a short-term prediction of ball movement to simulate human-like reaction.
         
@@ -49,28 +50,55 @@ class PaddleAI:
             ball_y: Current y position of the ball
             ball_dx: Ball's velocity in x direction
             ball_dy: Ball's velocity in y direction
+            all_balls: List of all active balls (optional)
             
         Returns:
             float: Predicted y-coordinate where the AI should move towards
         """
-        # Only react to ball when it's in the right half of the screen
-        if ball_x <= self.arena.width / 2:
-            # When ball is in left half, return to vertical center
+        # If there are multiple balls, focus on the closest threatening ball
+        if all_balls:
+            closest_ball = None
+            min_time_to_paddle = float('inf')
+            
+            for current_ball in all_balls:
+                if current_ball.ball.velocity_x > 0:  # Only consider balls moving towards AI
+                    distance = self.paddle_x - current_ball.rect.x
+                    if distance > 0:  # Ball is to the left of paddle
+                        time_to_paddle = distance / current_ball.ball.velocity_x
+                        if time_to_paddle < min_time_to_paddle:
+                            min_time_to_paddle = time_to_paddle
+                            closest_ball = current_ball
+            
+            if closest_ball:
+                ball_x = closest_ball.rect.x
+                ball_y = closest_ball.rect.y
+                ball_dx = closest_ball.ball.velocity_x
+                ball_dy = closest_ball.ball.velocity_y
+
+        # Only react to ball when it's in the right half and moving towards paddle
+        if ball_x <= self.arena.width / 2 or ball_dx <= 0:
             return (self.arena.height - self.paddle_height) / 2
 
-        # Make a short-term prediction (0.2 seconds into future)
-        prediction_time = 0.2
-        predicted_y = ball_y + (ball_dy * prediction_time)
+        # Calculate time until ball reaches paddle's x position
+        time_to_paddle = (self.paddle_x - ball_x) / ball_dx
+        predicted_y = ball_y + (ball_dy * time_to_paddle)
         
-        # Handle immediate wall bounces
-        if predicted_y < self.arena.scoreboard_height:
-            predicted_y = self.arena.scoreboard_height + (self.arena.scoreboard_height - predicted_y)
-        elif predicted_y > self.arena.height:
-            predicted_y = self.arena.height - (predicted_y - self.arena.height)
+        # Handle wall bounces that might occur before reaching paddle
+        bounces = 0
+        while bounces < 4:  # Limit bounce calculations
+            if predicted_y < self.arena.scoreboard_height:
+                predicted_y = self.arena.scoreboard_height + (self.arena.scoreboard_height - predicted_y)
+                bounces += 1
+            elif predicted_y > self.arena.height:
+                predicted_y = self.arena.height - (predicted_y - self.arena.height)
+                bounces += 1
+            else:
+                break
         
-        # Add human error based on distance from paddle
+        # Add human error based on distance and speed
         distance_factor = (self.paddle_x - ball_x) / (self.arena.width / 2)
-        error = random.uniform(-20, 20) * distance_factor * (1 - self.accuracy_factor)
+        speed_factor = abs(ball_dx) / self.min_speed  # Normalize based on min ball speed
+        error = random.uniform(-20, 20) * distance_factor * (1 - self.accuracy_factor) * (1 + speed_factor)
         predicted_y += error
         
         # Store prediction for failure tracking
@@ -129,7 +157,7 @@ class PaddleAI:
             return distance  # Move exact distance if close
         return math.copysign(max_movement, distance)  # Move at max speed in correct direction
 
-    def move_paddle(self, ball_x, ball_y, ball_dx, ball_dy, paddle_y, paddle_movement, ball_frozen):
+    def move_paddle(self, ball_x, ball_y, ball_dx, ball_dy, paddle_y, paddle_movement, ball_frozen, all_balls=None):
         """Calculate the next paddle position based on game state and ball trajectory."""
         center_y = (self.arena.height - self.paddle_height) // 2
 
@@ -157,8 +185,8 @@ class PaddleAI:
                 print(f"Predicted Y: {self.last_prediction:.1f}, Actual Y: {actual_y:.1f}")
             self.last_prediction = None
 
-        # Get predicted intersection
-        predicted_y = self.predict_intersection(ball_x, ball_y, ball_dx, ball_dy)
+        # Get predicted intersection considering all balls
+        predicted_y = self.predict_intersection(ball_x, ball_y, ball_dx, ball_dy, all_balls)
         
         # Update spike status and get target position
         if self.should_attempt_spike(ball_x, ball_dx):

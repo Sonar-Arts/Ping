@@ -181,13 +181,17 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         size=BALL_SIZE
     )
     
-    # Score
+    # Score and game state
     score_a = 0
     score_b = 0
     width, height = settings.get_dimensions()
     scale_x = width / arena.width
     scale_y = height / arena.height
     font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+    
+    # List to track all active balls - don't add the initial ball twice
+    balls = []
+    balls.append(ball)
 
     # Game state flags
     paddle_a_up = False
@@ -301,7 +305,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         ball.rect.x, ball.rect.y,  # Current ball position
                         ball.ball.velocity_x, ball.ball.velocity_y,  # Ball velocity
                         paddle_b.rect.y, paddle_b.speed * FRAME_TIME,
-                        ball_frozen  # Pass ball's frozen state
+                        ball_frozen,  # Pass ball's frozen state
+                        all_balls=balls  # Pass all active balls for better prediction
                     )
                     # Make sure paddle stays within bounds
                     paddle_b.rect.y = max(arena.scoreboard_height,
@@ -316,38 +321,68 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         respawn_timer = None
                         ball_frozen = False
 
-                # Move ball if not frozen
-                if not ball_frozen:
-                    ball.move(FRAME_TIME)
-
-                    # Handle collisions
-                    if ball.handle_wall_collision():
-                        play_sound(paddle_sound)
-
-                if ball.handle_paddle_collision(paddle_a) or ball.handle_paddle_collision(paddle_b):
-                    play_sound(paddle_sound)
-
-                # Ball collision with obstacle
-                if arena.obstacle.handle_collision(ball):
-                    play_sound(paddle_sound)
-                    # Create new obstacle after collision
-                    arena.reset_obstacle()
-
-                # Check portal collisions
-                arena.check_portal_collisions(ball)
-                
-                # Handle all wall collisions and scoring
-                scored = None
+                # Update power-up and manhole states for Sewer Level
                 if isinstance(level, SewerLevel):
-                    # Sewer Level: bounce off all walls, score with goals
-                    if ball.handle_wall_collision(bounce_walls=True):
+                    arena.update_power_up(len(balls))
+                    arena.update_manholes()  # Add manhole updates
+
+                # Handle all active balls
+                scored = None
+                balls_to_remove = []
+                
+                for current_ball in balls:
+                    # Move ball if not frozen
+                    if not ball_frozen:
+                        current_ball.move(FRAME_TIME)
+
+                        # Handle collisions
+                        if current_ball.handle_wall_collision():
+                            play_sound(paddle_sound)
+
+                    if current_ball.handle_paddle_collision(paddle_a) or current_ball.handle_paddle_collision(paddle_b):
                         play_sound(paddle_sound)
-                    scored = arena.check_goal_collisions(ball)
-                else:
-                    # Debug Level: bounce off top/bottom, score on sides
-                    if ball.handle_wall_collision(bounce_walls=False):
+
+                    # Ball collision with obstacle
+                    if arena.obstacle.handle_collision(current_ball):
                         play_sound(paddle_sound)
-                    scored = ball.handle_scoring()
+                        # Create new obstacle after collision
+                        arena.reset_obstacle()
+
+                    # Check portal collisions
+                    arena.check_portal_collisions(current_ball)
+
+                    # Sewer Level specific collisions
+                    if isinstance(level, SewerLevel):
+                        # Check manhole collisions first as they affect ball trajectory
+                        if arena.check_manhole_collisions(current_ball):
+                            play_sound(paddle_sound)
+                        
+                        # Power-up collision check
+                        new_ball = arena.check_power_up_collision(current_ball, len(balls))
+                        if new_ball:
+                            balls.append(new_ball)
+                    
+                    # Handle all wall collisions and scoring
+                    if isinstance(level, SewerLevel):
+                        # Sewer Level: bounce off all walls, score with goals
+                        if current_ball.handle_wall_collision(bounce_walls=True):
+                            play_sound(paddle_sound)
+                        ball_scored = arena.check_goal_collisions(current_ball)
+                        if ball_scored:
+                            scored = ball_scored
+                            balls_to_remove.append(current_ball)
+                    else:
+                        # Debug Level: bounce off top/bottom, score on sides
+                        if current_ball.handle_wall_collision(bounce_walls=False):
+                            play_sound(paddle_sound)
+                        ball_scored = current_ball.handle_scoring()
+                        if ball_scored:
+                            scored = ball_scored
+                
+                # Remove scored balls
+                for ball_to_remove in balls_to_remove:
+                    if ball_to_remove in balls:
+                        balls.remove(ball_to_remove)
                     
                 # Handle scoring results
                 if scored:
@@ -365,8 +400,23 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         width, height = settings.get_dimensions()
                         return win_screen(screen, clock, width, height, player_b_name, debug_console)
                     
-                    # Reset ball and start AI paddle moving to center
-                    ball.reset_position()
+                    # Reset balls and start AI paddle moving to center
+                    if len(balls) == 0:
+                        # Create new ball if all balls are gone
+                        new_ball = BallObject(
+                            arena_width=arena.width,
+                            arena_height=arena.height,
+                            scoreboard_height=arena.scoreboard_height,
+                            scale_rect=arena.scale_rect,
+                            size=BALL_SIZE
+                        )
+                        new_ball.reset_position()
+                        balls = [new_ball]
+                    else:
+                        # Reset remaining balls
+                        for b in balls:
+                            b.reset_position()
+                            
                     if ai_mode:
                         paddle_ai.reset_position()  # Start AI paddle moving to center
                     respawn_timer = 2.0  # 2 second respawn delay
@@ -387,7 +437,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
         
         # Draw complete game state using arena
-        game_objects = [paddle_a, paddle_b, ball]
+        game_objects = [paddle_a, paddle_b] + balls  # Include all active balls
         arena.draw(screen, game_objects, scaled_font, current_player_name, score_a, player_b_name, score_b, respawn_timer, paused)
 
         # Draw debug console (handles its own visibility)
