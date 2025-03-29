@@ -9,7 +9,7 @@ class PauseMenu:
         self.BLACK = (0, 0, 0)
         self.HOVER_COLOR = (100, 100, 100)
         
-    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
+    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the pause menu with options to resume, go to title screen, or settings."""
         scale_y = WINDOW_HEIGHT / 600  # Base height scale
         scale_x = WINDOW_WIDTH / 800   # Base width scale
@@ -36,7 +36,22 @@ class PauseMenu:
         title_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, first_button_y + button_spacing, 300, 50)
         settings_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, first_button_y + 2 * button_spacing, 300, 50)
         while True:
-            for event in pygame.event.get():
+            # Get events
+            events = pygame.event.get()
+            
+            # Handle debug console if provided
+            if debug_console:
+                for event in events:
+                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                        debug_console.update([event])
+                        continue
+                    # Move the handle_event check inside the event loop
+                    if debug_console.visible:
+                        if debug_console.handle_event(event):
+                            continue
+
+            # Process remaining events
+            for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()

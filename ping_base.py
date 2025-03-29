@@ -6,6 +6,7 @@ from sys import exit
 from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
 from Modules.Ping_GameObjects import PaddleObject, BallObject
+from Modules.Submodules.Ping_DBConsole import get_console
 from Modules.Submodules.Ping_Levels import SewerLevel  # Added for Sewer Level check
 
 """
@@ -21,6 +22,10 @@ pygame.mixer.init()
 
 from Modules.Ping_Arena import Arena
 from Modules.Submodules.Ping_Settings import SettingsScreen
+
+# Initialize global debug console (singleton)
+debug_console = get_console()
+debug_console.log("Game initialized")
 
 def read_settings():
     """Read window dimensions from settings file."""
@@ -86,10 +91,11 @@ def generate_random_name():
     last_name = random.choice(last_names)
     return f"{first_name} {last_name}"
 
-def main_game(ai_mode, player_name, level, window_width, window_height):
+def main_game(ai_mode, player_name, level, window_width, window_height, debug_console=debug_console):
     """Main game loop."""
     global screen
     current_player_name = player_name  # Local variable to track current player name
+    debug_console.log(f"Starting game: Mode={ai_mode}, Player={player_name}")  # Use global debug_console
     
     # Validate level selection
     if not level:
@@ -214,7 +220,13 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
         last_frame_time = current_time
         accumulated_time += delta_time
         
-        for event in pygame.event.get():
+        # Get events and handle debug console first
+        events = pygame.event.get()
+        if debug_console.update(events):
+            continue
+
+        # Handle regular game events
+        for event in events:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
@@ -232,7 +244,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     paused = True
                     while paused:  # Keep pause menu active until explicitly resumed or exited
                         width, height = SettingsScreen.get_dimensions()
-                        menu_result = pause_screen(screen, clock, width, height)
+                        menu_result = pause_screen(screen, clock, width, height, debug_console)
                         
                         if menu_result == "resume":
                             # Resume game
@@ -246,7 +258,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                             return "title"
                         elif menu_result == "settings":
                             # Handle settings screen
-                            settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=True)
+                            settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=True, debug_console=debug_console)
                             if isinstance(settings_result, tuple):
                                 if settings_result[0] == "back_to_pause":
                                     # Update player name if it has changed
@@ -255,6 +267,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                                     settings.update_dimensions(settings_result[1], settings_result[2])
                                     width, height = settings.get_dimensions()
                                     screen = init_display(width, height)
+                                    debug_console.draw(screen, width, height)  # Draw console after init
+                                    pygame.display.flip()
                                     arena.update_scaling(width, height)
                                     # Reset scoreboard debug flag to show message after settings update
                                     arena.scoreboard._debug_shown = False
@@ -346,10 +360,10 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
                     # Check for win condition
                     if score_a >= MAX_SCORE:
                         width, height = settings.get_dimensions()
-                        return win_screen(screen, clock, width, height, current_player_name)
+                        return win_screen(screen, clock, width, height, current_player_name, debug_console)
                     elif score_b >= MAX_SCORE:
                         width, height = settings.get_dimensions()
-                        return win_screen(screen, clock, width, height, player_b_name)
+                        return win_screen(screen, clock, width, height, player_b_name, debug_console)
                     
                     # Reset ball and start AI paddle moving to center
                     ball.reset_position()
@@ -375,7 +389,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height):
         # Draw complete game state using arena
         game_objects = [paddle_a, paddle_b, ball]
         arena.draw(screen, game_objects, scaled_font, current_player_name, score_a, player_b_name, score_b, respawn_timer, paused)
-        
+
+        # Draw debug console (handles its own visibility)
+        debug_console.draw(screen, width, height)
+
+        # Final display update
         pygame.display.flip()
 
 def get_player_name():
@@ -385,7 +403,7 @@ def get_player_name():
     
     if not player_name or player_name == "Player":
         width, height = settings.get_dimensions()
-        player_name = player_name_screen(screen, clock, width, height)
+        player_name = player_name_screen(screen, clock, width, height, debug_console)
         settings.update_player_name(player_name)
         
     return player_name
@@ -396,11 +414,12 @@ if __name__ == "__main__":
     while running:
         player_name = get_player_name()
         while True:
+            # Create and display title screen
             title_screen_instance = TitleScreen()
             width, height = settings.get_dimensions()
-            game_mode = title_screen_instance.display(screen, clock, width, height)
+            game_mode = title_screen_instance.menu.display(screen, clock, width, height, debug_console)
             if game_mode == "settings":
-                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False)
+                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
                     if settings_result[0] == "name_change":
                         # Update player name
@@ -417,19 +436,19 @@ if __name__ == "__main__":
             
             # Show level selection screen
             width, height = settings.get_dimensions()
-            level = level_select_screen(screen, clock, width, height)
+            level = level_select_screen(screen, clock, width, height, debug_console)
             if level == "back":
                 continue  # Go back to title screen
             
             # Get the most up-to-date player name before starting the game
             current_player_name = settings.get_player_name()
             width, height = settings.get_dimensions()
-            game_result = main_game(game_mode, current_player_name, level, width, height)
+            game_result = main_game(game_mode, current_player_name, level, width, height, debug_console)
             if game_result == "title":
                 break  # Go back to title screen
             elif game_result == "settings":
                 width, height = settings.get_dimensions()
-                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False)
+                settings_result = settings_screen(screen, clock, paddle_sound, score_sound, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
                     if settings_result[0] == "name_change":
                         player_name = settings_result[1]  # Update player name immediately

@@ -109,8 +109,8 @@ class MainMenu:
             ball.randomize_color()
             self.play_pitch_varied_wahahoo()
 
-    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
-        """Display the title screen with game options."""
+    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
+        """Display the title screen with game options and handle debug console."""
         scale_y = WINDOW_HEIGHT / 600  # Base height scale
         scale_x = WINDOW_WIDTH / 800   # Base width scale
         scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
@@ -153,7 +153,22 @@ class MainMenu:
                                     WINDOW_HEIGHT//2 - button_height//2 + button_spacing,
                                     button_width, button_height)
 
-            for event in pygame.event.get():
+            # Get events
+            events = pygame.event.get()
+            
+            # Handle debug console if provided
+            if debug_console:
+                for event in events:
+                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                        debug_console.update([event])
+                        continue
+                    # Move the handle_event check inside the event loop
+                    if debug_console.visible:
+                        if debug_console.handle_event(event):
+                            continue
+            
+            # Process remaining events
+            for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
@@ -217,10 +232,16 @@ class MainMenu:
                                    title_font.get_height())
 
             # Update and handle collisions for all balls
+            # Update and draw balls
             for ball in self.balls:
                 ball.update()
                 self.handle_ball_collisions(ball, pvp_rect, ai_rect, settings_rect, title_rect, WINDOW_WIDTH, WINDOW_HEIGHT)
                 ball.draw(screen)
 
+            # Draw debug console if provided
+            if debug_console:
+                debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+            # Update display
             pygame.display.flip()
             clock.tick(60)

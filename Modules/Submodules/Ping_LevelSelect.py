@@ -11,8 +11,8 @@ class LevelSelect:
     def __init__(self):
         pass
 
-    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
-        """Display the level select screen."""
+    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
+        """Display the level select screen with optional debug console."""
         scale_y = WINDOW_HEIGHT / 600  # Base height scale
         scale_x = WINDOW_WIDTH / 800   # Base width scale
         scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
@@ -46,7 +46,22 @@ class LevelSelect:
                                  WINDOW_HEIGHT//2 - button_height//2 + button_spacing*2,
                                  button_width, button_height)
 
-            for event in pygame.event.get():
+            # Get events
+            events = pygame.event.get()
+            
+            # Handle debug console if provided
+            if debug_console:
+                for event in events:
+                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                        debug_console.update([event])
+                        continue
+                    # Move the handle_event check inside the event loop
+                    if debug_console.visible:
+                        if debug_console.handle_event(event):
+                            continue
+
+            # Process remaining events
+            for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
@@ -85,6 +100,10 @@ class LevelSelect:
                 text_surface = option_font.render(text, True, WHITE)
                 screen.blit(text_surface, (rect.centerx - text_surface.get_width()//2,
                                          rect.centery - text_surface.get_height()//2))
+            
+            # Draw debug console if provided
+            if debug_console:
+                debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
 
             pygame.display.flip()
             clock.tick(60)

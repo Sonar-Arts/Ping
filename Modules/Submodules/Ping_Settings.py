@@ -1,21 +1,24 @@
 import pygame
 from sys import exit
+import json
 from .Ping_Fonts import get_font_manager
 from .Ping_Button import get_button
 
 class SettingsScreen:
     """A class to handle the settings screen functionality and game settings."""
     
-    # Class level variables for window dimensions and player name
+    # Class level variables
     WINDOW_WIDTH = 800  # Default value
     WINDOW_HEIGHT = 600  # Default value
     PLAYER_NAME = "Player"  # Default value
+    SHADER_ENABLED = True  # Default value
     
     def __init__(self):
         # Colors
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
+        self.SHADER_ENABLED = True  # Default value matching class variable
         self._load_settings()
 
     @classmethod
@@ -35,6 +38,8 @@ class SettingsScreen:
                     cls.WINDOW_HEIGHT = int(settings['WINDOW_HEIGHT'])
                 if 'PLAYER_NAME' in settings:
                     cls.PLAYER_NAME = settings['PLAYER_NAME']
+                if 'SHADER_ENABLED' in settings:
+                    cls.SHADER_ENABLED = settings['SHADER_ENABLED'].lower() == 'true'
         except (FileNotFoundError, ValueError):
             # If file doesn't exist or is invalid, use defaults
             pass
@@ -66,11 +71,26 @@ class SettingsScreen:
     def _save_settings(cls):
         """Save all settings to the settings file."""
         with open("Game Parameters/settings.txt", "w") as f:
-            f.write(f"WINDOW_WIDTH={cls.WINDOW_WIDTH}\n")
-            f.write(f"WINDOW_HEIGHT={cls.WINDOW_HEIGHT}\n")
-            f.write(f"PLAYER_NAME={cls.PLAYER_NAME}")
+            settings = [
+                f"WINDOW_WIDTH={cls.WINDOW_WIDTH}",
+                f"WINDOW_HEIGHT={cls.WINDOW_HEIGHT}",
+                f"PLAYER_NAME={cls.PLAYER_NAME}",
+                f"SHADER_ENABLED={str(cls.SHADER_ENABLED).lower()}"
+            ]
+            f.write("\n".join(settings))
+
+    @classmethod
+    def get_shader_enabled(cls):
+        """Get shader enabled state."""
+        return cls.SHADER_ENABLED
+
+    @classmethod
+    def update_shader_enabled(cls, enabled):
+        """Update shader enabled state and save to settings."""
+        cls.SHADER_ENABLED = enabled
+        cls._save_settings()
     
-    def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False):
+    def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
         """Display the settings screen with volume control and screen size options."""
         # Scale font size based on both dimensions
         scale_y = WINDOW_HEIGHT / 600  # Base height scale
@@ -112,8 +132,9 @@ class SettingsScreen:
         dropdown_open = False
 
         while True:
-            back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 180, 240, 40)
-            change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 120, 240, 40)
+            shader_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 120, 240, 40)
+            change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 170, 240, 40)
+            back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 220, 240, 40)
             volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
             volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
             # Calculate proper height for dropdown
@@ -123,7 +144,21 @@ class SettingsScreen:
             size_rect_height = 40 if not dropdown_open else dropdown_height
             size_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 50, 240, size_rect_height)
 
-            for event in pygame.event.get():
+            events = pygame.event.get()
+            
+            # Handle debug console if provided
+            if debug_console:
+                for event in events:
+                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                        debug_console.update([event])
+                        continue
+                    # Move the handle_event check inside the event loop
+                    if debug_console.visible:
+                        if debug_console.handle_event(event):
+                            continue
+
+            # Process remaining events
+            for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
@@ -169,7 +204,9 @@ class SettingsScreen:
                                         screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
                                         screen.fill(self.BLACK)
                                     # Update UI elements positions and sizes
-                                    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 180, 240, 40)
+                                    shader_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 120, 240, 40)
+                                    change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 170, 240, 40)
+                                    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 220, 240, 40)
                                     volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
                                     volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
                                     size_rect_height = 40 if not dropdown_open else 120
@@ -197,9 +234,14 @@ class SettingsScreen:
                             volume = max(volume - 0.1, 0.0)
                             paddle_sound.set_volume(volume)
                             score_sound.set_volume(volume)
+                        elif shader_rect.collidepoint(mouse_pos):
+                            # Toggle shader state and save
+                            self.__class__.SHADER_ENABLED = not self.__class__.SHADER_ENABLED
+                            self.SHADER_ENABLED = self.__class__.SHADER_ENABLED
+                            self._save_settings()
                         elif change_name_rect.collidepoint(mouse_pos):
                             from Modules.Ping_UI import player_name_screen
-                            new_name = player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+                            new_name = player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
                             if new_name:
                                 self.PLAYER_NAME = new_name
                                 self._save_settings()
@@ -214,16 +256,23 @@ class SettingsScreen:
                         elif size_rect.collidepoint(mouse_pos):
                             dropdown_open = True
 
+            # Draw screen elements
             self._draw_screen(screen, dropdown_open, current_size_index, volume,
                             WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect,
-                            volume_down_rect, back_rect, size_rect, change_name_rect)
+                            volume_down_rect, back_rect, size_rect, change_name_rect,
+                            shader_rect)
+            
+            # Draw debug console if provided
+            if debug_console:
+                debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
 
             pygame.display.flip()
             clock.tick(60)
 
     def _draw_screen(self, screen, dropdown_open, current_size_index, volume,
                     WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect,
-                    volume_down_rect, back_rect, size_rect, change_name_rect):
+                    volume_down_rect, back_rect, size_rect, change_name_rect,
+                    shader_rect):
         """Helper method to handle screen drawing logic."""
         screen.fill(self.BLACK)
         mouse_pos = pygame.mouse.get_pos()
@@ -244,6 +293,11 @@ class SettingsScreen:
 
         # Draw size selector with custom appearance
         pygame.draw.rect(screen, self.WHITE, size_rect, 2)
+
+        # Draw shader checkbox with class-level state
+        button.draw(screen, shader_rect, "Pixel Shader Effect", option_font,
+                    is_hovered=shader_rect.collidepoint(mouse_pos),
+                    is_checkbox=True, is_checked=self.__class__.SHADER_ENABLED)
 
         # Draw change name and back buttons
         button.draw(screen, change_name_rect, "Change Name", option_font,

@@ -22,7 +22,7 @@ def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     pygame.display.set_caption("Ping")
     return screen
 
-def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False):
+def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
     """Display the settings screen with volume control and screen size options.
     
     Args:
@@ -34,11 +34,12 @@ def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WIND
         WINDOW_HEIGHT: Current window height
         in_game (bool): Whether settings is being accessed from within a game.
                        Controls whether back returns to pause menu or previous screen.
+        debug_console: Debug console instance for overlay
     """
     settings = SettingsScreen()
-    return settings.display(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game)
+    return settings.display(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game, debug_console)
 
-def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
+def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
     """Display the player name input screen."""
     from .Submodules.Ping_Settings import SettingsScreen
     scale_y = WINDOW_HEIGHT / 600  # Base height scale
@@ -67,7 +68,21 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
     text = current_name
 
     while True:
-        for event in pygame.event.get():
+        # Get events
+        events = pygame.event.get()
+        
+        # Handle debug console if provided
+        if debug_console:
+            for event in events:
+                if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                    debug_console.update([event])
+                    continue
+            if debug_console.visible:
+                if debug_console.handle_event(event):
+                    continue
+
+        # Process remaining events
+        for event in events:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
@@ -121,6 +136,10 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
         screen.blit(txt_surface, (input_box.x + (width - txt_surface.get_width())//2,
                                 input_box.y + (input_box_height - txt_surface.get_height())//2))
 
+        # Draw debug console if provided
+        if debug_console:
+            debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+
         pygame.display.flip()
         clock.tick(30)
 
@@ -128,11 +147,11 @@ class TitleScreen:
     def __init__(self):
         self.menu = MainMenu()
 
-    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
+    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the title screen with game options."""
-        return self.menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+        return self.menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
 
-def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
+def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name, debug_console=None):
     """Display the win screen with the winner's name."""
     scale_y = WINDOW_HEIGHT / 600  # Base height scale
     scale_x = WINDOW_WIDTH / 800   # Base width scale
@@ -167,7 +186,21 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
         test_text = option_font.render("Continue", True, WHITE)
     
     while True:
-        for event in pygame.event.get():
+        # Get events
+        events = pygame.event.get()
+        
+        # Handle debug console if provided
+        if debug_console:
+            for event in events:
+                if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                    debug_console.update([event])
+                    continue
+            if debug_console.visible:
+                if debug_console.handle_event(event):
+                    continue
+
+        # Process remaining events
+        for event in events:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
@@ -191,15 +224,19 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name):
         button.draw(screen, continue_rect, "Continue", option_font,
                    is_hovered=continue_rect.collidepoint(pygame.mouse.get_pos()))
         
+        # Draw debug console if provided
+        if debug_console:
+            debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+            
         pygame.display.flip()
         clock.tick(60)
 
-def pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
+def pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
     """Display the pause menu with options to resume, go to title screen, or settings."""
     pause_menu = PauseMenu()
-    return pause_menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+    return pause_menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
 
-def level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT):
+def level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
     """Display the level selection screen."""
     level_select = LevelSelect()
-    return level_select.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT)
+    return level_select.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
