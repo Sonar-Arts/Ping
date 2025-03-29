@@ -1,6 +1,7 @@
 import pygame
 import random
 from Modules.Submodules.Ping_Ball import Ball
+from Modules.Submodules.Ping_Particles import WaterSpout
 
 # Goals for Sewer Level - Added for new level implementation
 class Goal:
@@ -186,23 +187,38 @@ class Manhole:
         # Store initial position for resetting
         self.initial_y = y
         
-        # Timing variables for spouting behavior
+        # Create water spout particle system
+        spout_x = x + width // 2  # Center of manhole
+        if is_bottom:
+            spout_y = y  # Bottom manhole shoots up from top edge
+            self.water_spout = WaterSpout(spout_x, spout_y, width, is_bottom=True)
+        else:
+            spout_y = y + height  # Top manhole shoots down from bottom edge
+            self.water_spout = WaterSpout(spout_x, spout_y, width, is_bottom=False)
+        
+        # Initialize instance variables
+        self.is_spouting = False
+        
+        # Timing variables for spouting behavior (in seconds)
         self.spout_timer = 0
-        self.next_spout_time = random.randint(5, 20) * 60  # Random interval between 5-20 seconds at 60 FPS
-        self.spout_duration = 60  # Spout for 1 second
+        self.next_spout_time = random.uniform(5, 20)  # Random interval between 5-20 seconds
+        self.spout_duration = 60  # Will be reset to 1 second (60 frames) in update
 
-    def update(self, active_manholes):
+    def update(self, active_manholes, delta_time=1/60):
         """Update manhole state and handle spouting mechanics."""
+        frames_per_second = 60
+        
         if self.is_spouting:
-            self.spout_timer += 1
-            if self.spout_timer >= self.spout_duration:
+            self.spout_timer += delta_time
+            if self.spout_timer >= self.spout_duration / frames_per_second:
                 # End spouting: return horizontal slab to original position
                 self.horizontal_rect.y = self.initial_y
                 self.is_spouting = False
                 self.spout_timer = 0
-                self.next_spout_time = random.randint(5, 20) * 60
+                # Set next spout time in seconds
+                self.next_spout_time = random.uniform(5, 20)
         else:
-            self.spout_timer += 1
+            self.spout_timer += delta_time
             if self.spout_timer >= self.next_spout_time:
                 # Only start spouting if less than 2 manholes are active
                 if len(active_manholes) < 2:
@@ -210,6 +226,12 @@ class Manhole:
                     self.spout_timer = 0
                     # Push horizontal slab up/down
                     self.horizontal_rect.y = self.spout_position
+                    # Reset spout duration to 1 second
+                    self.spout_duration = frames_per_second
+
+        # Update particle system when spouting
+        if self.is_spouting:
+            self.water_spout.update(delta_time)
 
     def handle_collision(self, ball):
         """Handle collision with the ball."""
@@ -227,11 +249,18 @@ class Manhole:
         return False
 
     def draw(self, screen, color, scale_rect):
-        """Draw the manhole parts based on state."""
+        """Draw the manhole parts and water particles based on state."""
         if self.is_spouting:
-            # During spouting, only draw the vertical slab
+            # Draw water particles first so they appear behind the manhole cover
+            self.water_spout.draw(screen, scale_rect)
+            
+            # Draw the vertical slab
             scaled_vertical = scale_rect(self.vertical_rect)
             pygame.draw.rect(screen, color, scaled_vertical)
+            
+            # Draw the horizontal slab in spouting position
+            scaled_horizontal = scale_rect(self.horizontal_rect)
+            pygame.draw.rect(screen, color, scaled_horizontal)
         else:
             # When dormant, only draw the horizontal slab
             scaled_horizontal = scale_rect(self.horizontal_rect)

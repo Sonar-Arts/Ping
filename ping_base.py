@@ -68,6 +68,15 @@ MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
 MAX_SCORE = 10  # Score needed to win the game
 
 pygame.display.set_caption("Ping")
+
+# Set window icon
+try:
+    icon = pygame.image.load("Ping Assets/Images/Icons/Ping Game Icon.png")
+    pygame.display.set_icon(icon)
+    debug_console.log("Game icon loaded successfully")
+except (pygame.error, FileNotFoundError) as e:
+    debug_console.log(f"Could not load game icon: {e}")
+
 clock = pygame.time.Clock()
 
 # Initialize sound manager
@@ -317,7 +326,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 # Update power-up and manhole states for Sewer Level
                 if isinstance(level, SewerLevel):
                     arena.update_power_up(len(balls))
-                    arena.update_manholes()  # Add manhole updates
+                    arena.update_manholes(FRAME_TIME)  # Pass frame time for smooth particle animation
 
                 # Handle all active balls
                 scored = None

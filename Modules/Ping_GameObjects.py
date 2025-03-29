@@ -346,9 +346,9 @@ class ManHoleObject(ArenaObject):
     def rect(self):
         return self.manhole.horizontal_rect
     
-    def update(self, active_manholes):
-        """Update manhole state."""
-        self.manhole.update(active_manholes)
+    def update(self, active_manholes, delta_time=1/60):
+        """Update manhole state and particle effects."""
+        self.manhole.update(active_manholes, delta_time)
     
     def handle_collision(self, ball):
         """Handle collision between manhole and ball."""

@@ -1,0 +1,3 @@
+# Build dependencies
+pyinstaller>=6.3.0
+pillow>=10.0.0  # For icon conversion

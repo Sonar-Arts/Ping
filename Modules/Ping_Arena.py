@@ -152,11 +152,11 @@ class Arena:
                 return True
         return False
 
-    def update_manholes(self):
+    def update_manholes(self, delta_time=1/60):
         """Update all manhole states."""
         active_manholes = [m for m in self.manholes if m.is_spouting]
         for manhole in self.manholes:
-            manhole.update(active_manholes)
+            manhole.update(active_manholes, delta_time)
     
     def check_manhole_collisions(self, ball):
         """Check for collisions between ball and manholes."""
