@@ -1,7 +1,6 @@
 import pygame
 from sys import exit
-import json
-from .Ping_Fonts import get_font_manager
+from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 
 class SettingsScreen:
@@ -12,353 +11,421 @@ class SettingsScreen:
     WINDOW_HEIGHT = 600  # Default value
     PLAYER_NAME = "Player"  # Default value
     SHADER_ENABLED = True  # Default value
+    RETRO_EFFECTS_ENABLED = True  # Default value
+    SCANLINE_INTENSITY = 40  # Default value
+    GLOW_INTENSITY = 80  # Default value
+    VS_BLINK_SPEED = 5.0  # Default value
+    SCORE_GLOW_COLOR = "180,180,255"  # Default value
+    
+    @classmethod
+    def get_dimensions(cls):
+        """Get current window dimensions."""
+        try:
+            with open("Game Parameters/settings.txt", "r") as f:
+                settings = dict(line.strip().split('=') for line in f
+                              if '=' in line and not line.strip().startswith('#'))
+                width = int(settings.get('WINDOW_WIDTH', cls.WINDOW_WIDTH))
+                height = int(settings.get('WINDOW_HEIGHT', cls.WINDOW_HEIGHT))
+                return width, height
+        except Exception as e:
+            print(f"Error loading dimensions: {e}")
+            return cls.WINDOW_WIDTH, cls.WINDOW_HEIGHT
+
+    @classmethod
+    def update_dimensions(cls, width, height):
+        """Update window dimensions in settings file."""
+        try:
+            current_settings = {}
+            try:
+                with open("Game Parameters/settings.txt", "r") as f:
+                    current_settings = dict(line.strip().split('=') for line in f
+                                         if '=' in line and not line.strip().startswith('#'))
+            except:
+                pass
+            
+            current_settings['WINDOW_WIDTH'] = width
+            current_settings['WINDOW_HEIGHT'] = height
+            
+            with open("Game Parameters/settings.txt", "w") as f:
+                for key, value in current_settings.items():
+                    f.write(f"{key}={value}\n")
+            return True
+        except Exception as e:
+            print(f"Error updating dimensions: {e}")
+            return False
+
+    @classmethod
+    def get_player_name(cls):
+        """Get current player name from settings."""
+        try:
+            with open("Game Parameters/settings.txt", "r") as f:
+                settings = dict(line.strip().split('=') for line in f
+                              if '=' in line and not line.strip().startswith('#'))
+                return settings.get('PLAYER_NAME', cls.PLAYER_NAME)
+        except Exception as e:
+            print(f"Error loading player name: {e}")
+            return cls.PLAYER_NAME
+
+    @classmethod
+    def update_player_name(cls, name):
+        """Update player name in settings file."""
+        try:
+            current_settings = {}
+            try:
+                with open("Game Parameters/settings.txt", "r") as f:
+                    current_settings = dict(line.strip().split('=') for line in f
+                                         if '=' in line and not line.strip().startswith('#'))
+            except:
+                pass
+            
+            current_settings['PLAYER_NAME'] = name
+            
+            with open("Game Parameters/settings.txt", "w") as f:
+                for key, value in current_settings.items():
+                    f.write(f"{key}={value}\n")
+            return True
+        except Exception as e:
+            print(f"Error updating player name: {e}")
+            return False
     
     def __init__(self):
         # Colors
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
-        self.SHADER_ENABLED = True  # Default value matching class variable
+        
+        # Initialize settings with defaults
+        self.current_size_index = 0
+        self.player_name = self.PLAYER_NAME
+        self.shader_enabled = self.SHADER_ENABLED
+        self.retro_effects_enabled = self.RETRO_EFFECTS_ENABLED
+        self.scanline_intensity = self.SCANLINE_INTENSITY
+        self.glow_intensity = self.GLOW_INTENSITY
+        self.vs_blink_speed = self.VS_BLINK_SPEED
+        self.score_glow_color = self.SCORE_GLOW_COLOR
+        
         self._load_settings()
 
-    @classmethod
-    def _load_settings(cls):
+    def _load_settings(self):
         """Load settings from the settings file."""
         try:
             with open("Game Parameters/settings.txt", "r") as f:
                 settings = {}
                 for line in f:
-                    key, value = line.strip().split('=')
-                    settings[key] = value
+                    if '=' in line and not line.strip().startswith('#'):
+                        key, value = line.strip().split('=')
+                        settings[key] = value
                 
-                # Update class variables with loaded values
-                if 'WINDOW_WIDTH' in settings:
-                    cls.WINDOW_WIDTH = int(settings['WINDOW_WIDTH'])
-                if 'WINDOW_HEIGHT' in settings:
-                    cls.WINDOW_HEIGHT = int(settings['WINDOW_HEIGHT'])
-                if 'PLAYER_NAME' in settings:
-                    cls.PLAYER_NAME = settings['PLAYER_NAME']
-                if 'SHADER_ENABLED' in settings:
-                    cls.SHADER_ENABLED = settings['SHADER_ENABLED'].lower() == 'true'
-        except (FileNotFoundError, ValueError):
-            # If file doesn't exist or is invalid, use defaults
-            pass
+                width = int(settings.get('WINDOW_WIDTH', self.WINDOW_WIDTH))
+                height = int(settings.get('WINDOW_HEIGHT', self.WINDOW_HEIGHT))
+                
+                # Find matching resolution index
+                for i, (w, h) in enumerate(self.screen_sizes):
+                    if w == width and h == height:
+                        self.current_size_index = i
+                        break
+                
+                self.player_name = settings.get('PLAYER_NAME', self.PLAYER_NAME)
+                self.shader_enabled = settings.get('SHADER_ENABLED', 'true').lower() == 'true'
+                self.retro_effects_enabled = settings.get('RETRO_EFFECTS_ENABLED', 'true').lower() == 'true'
+                self.scanline_intensity = int(settings.get('SCANLINE_INTENSITY', self.SCANLINE_INTENSITY))
+                self.glow_intensity = int(settings.get('GLOW_INTENSITY', self.GLOW_INTENSITY))
+                self.vs_blink_speed = float(settings.get('VS_BLINK_SPEED', self.VS_BLINK_SPEED))
+                self.score_glow_color = settings.get('SCORE_GLOW_COLOR', self.SCORE_GLOW_COLOR)
+                
+        except Exception as e:
+            print(f"Error loading settings: {e}")
 
-    @classmethod
-    def update_dimensions(cls, width, height):
-        """Update window dimensions and save to settings file."""
-        cls.WINDOW_WIDTH = width
-        cls.WINDOW_HEIGHT = height
-        cls._save_settings()
-
-    @classmethod
-    def get_dimensions(cls):
-        """Get current window dimensions."""
-        return cls.WINDOW_WIDTH, cls.WINDOW_HEIGHT
-
-    @classmethod
-    def update_player_name(cls, name):
-        """Update player name and save to settings file."""
-        cls.PLAYER_NAME = name
-        cls._save_settings()
-
-    @classmethod
-    def get_player_name(cls):
-        """Get current player name."""
-        return cls.PLAYER_NAME
-
-    @classmethod
-    def _save_settings(cls):
-        """Save all settings to the settings file."""
-        with open("Game Parameters/settings.txt", "w") as f:
-            settings = [
-                f"WINDOW_WIDTH={cls.WINDOW_WIDTH}",
-                f"WINDOW_HEIGHT={cls.WINDOW_HEIGHT}",
-                f"PLAYER_NAME={cls.PLAYER_NAME}",
-                f"SHADER_ENABLED={str(cls.SHADER_ENABLED).lower()}"
-            ]
-            f.write("\n".join(settings))
-
-    @classmethod
-    def get_shader_enabled(cls):
-        """Get shader enabled state."""
-        return cls.SHADER_ENABLED
-
-    @classmethod
-    def update_shader_enabled(cls, enabled):
-        """Update shader enabled state and save to settings."""
-        cls.SHADER_ENABLED = enabled
-        cls._save_settings()
-    
-    def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
-        """Display the settings screen with volume control and screen size options."""
-        # Scale font size based on both dimensions
-        scale_y = WINDOW_HEIGHT / 600  # Base height scale
-        scale_x = WINDOW_WIDTH / 800   # Base width scale
-        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
-        
-        # Calculate base button dimensions
-        button_width = 240  # Width of standard buttons
-        
-        # Get font manager and calculate font size
-        font_manager = get_font_manager()
-        font_size = max(12, int(36 * scale))
-        option_font = font_manager.get_font('menu', font_size)
-        
-        # Test render the longest possible text to ensure it fits
-        test_texts = [
-            "Settings",
-            f"Volume: 100%",
-            "Screen Size:",
-            "1920x1080",
-            "Change Name",
-            "Back"
-        ]
-        
-        # Adjust font size until all text fits within buttons
-        while any(option_font.render(text, True, self.WHITE).get_width() > button_width - 20 for text in test_texts) and font_size > 12:
-            font_size -= 1
-            option_font = font_manager.get_font('menu', font_size)
-        volume = paddle_sound.get_volume()  # Get current volume
-        screen_size = (WINDOW_WIDTH, WINDOW_HEIGHT)  # Initialize screen_size with current window size
+    def save_settings(self):
+        """Save current settings to file."""
         try:
-            current_size_index = self.screen_sizes.index((WINDOW_WIDTH, WINDOW_HEIGHT))
-        except ValueError:
-            current_size_index = 0
-            screen_size = self.screen_sizes[0]
-            WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
-            screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+            width, height = self.screen_sizes[self.current_size_index]
+            settings = {
+                'WINDOW_WIDTH': width,
+                'WINDOW_HEIGHT': height,
+                'PLAYER_NAME': self.player_name,
+                'SHADER_ENABLED': str(self.shader_enabled).lower(),
+                'RETRO_EFFECTS_ENABLED': str(self.retro_effects_enabled).lower(),
+                'SCANLINE_INTENSITY': self.scanline_intensity,
+                'GLOW_INTENSITY': self.glow_intensity,
+                'VS_BLINK_SPEED': self.vs_blink_speed,
+                'SCORE_GLOW_COLOR': self.score_glow_color
+            }
+            
+            with open("Game Parameters/settings.txt", "w") as f:
+                for key, value in settings.items():
+                    f.write(f"{key}={value}\n")
+            return True
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+            return False
 
-        dropdown_open = False
-
+    def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
+        """Display the settings screen and handle its events."""
         while True:
-            shader_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 120, 240, 40)
-            change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 170, 240, 40)
-            back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 220, 240, 40)
-            volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
-            volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
-            # Calculate proper height for dropdown
-            option_height = 35
-            total_options = len(self.screen_sizes)
-            dropdown_height = total_options * option_height + 10  # Add padding
-            size_rect_height = 40 if not dropdown_open else dropdown_height
-            size_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 50, 240, size_rect_height)
-
             events = pygame.event.get()
             
-            # Handle debug console if provided
             if debug_console:
                 for event in events:
-                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                    if event.type == pygame.KEYDOWN and event.key == 96:  # backtick key
                         debug_console.update([event])
                         continue
-                    # Move the handle_event check inside the event loop
-                    if debug_console.visible:
-                        if debug_console.handle_event(event):
-                            continue
-
-            # Process remaining events
+                if debug_console.visible:
+                    if debug_console.handle_event(event):
+                        continue
+            
             for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-                if event.type == pygame.MOUSEWHEEL:
-                    continue
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    mouse_pos = pygame.mouse.get_pos()
-                    if dropdown_open:
-                        # Calculate dropdown dimensions for click detection
-                        option_height = 35
-                        dropdown_y = WINDOW_HEIGHT//2 + 52
-                        dropdown_height = (len(self.screen_sizes) * option_height) + 10
-                        
-                        # Check if click is on the close arrow
-                        arrow_y = dropdown_y + dropdown_height + 5
-                        arrow_rect = pygame.Rect(WINDOW_WIDTH//2 - 20, arrow_y, 40, 20)
-                        
-                        if arrow_rect.collidepoint(mouse_pos):
-                            dropdown_open = False
-                        elif size_rect.collidepoint(mouse_pos):
-                            # Ensure click is within valid option area
-                            relative_y = mouse_pos[1] - dropdown_y
-                            if 0 <= relative_y < dropdown_height:  # Only within actual options area
-                                clicked_index = int(relative_y // option_height)
-                                if 0 <= clicked_index < len(self.screen_sizes):
-                                    option_y = dropdown_y + (clicked_index * option_height) + 5
-                                    option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118,
-                                                        option_y,
-                                                        236, 30)
-                                    if option_rect.collidepoint(mouse_pos):
-                                        current_size_index = clicked_index
-                                        screen_size = self.screen_sizes[current_size_index]
-                                        WINDOW_WIDTH, WINDOW_HEIGHT = screen_size
-                                        old_surface = screen.copy()
-                                    try:
-                                        # Set new screen size
-                                        screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
-                                        screen.fill(self.BLACK)
-                                        scaled_surface = pygame.transform.scale(old_surface, screen_size)
-                                        screen.blit(scaled_surface, (0, 0))
-                                    except pygame.error as e:
-                                        print(f"Failed to create renderer: {e}")
-                                        screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
-                                        screen.fill(self.BLACK)
-                                    # Update UI elements positions and sizes
-                                    shader_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 120, 240, 40)
-                                    change_name_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 170, 240, 40)
-                                    back_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 220, 240, 40)
-                                    volume_up_rect = pygame.Rect(WINDOW_WIDTH//2 + 20, WINDOW_HEIGHT//2 - 30, 100, 40)
-                                    volume_down_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 - 30, 100, 40)
-                                    size_rect_height = 40 if not dropdown_open else 120
-                                    size_rect = pygame.Rect(WINDOW_WIDTH//2 - 120, WINDOW_HEIGHT//2 + 50, 240, size_rect_height)
-                                    pygame.display.flip()
-                                    pygame.time.wait(100)
-                                    option_font = font_manager.get_font('menu', 36)
-                                    dropdown_open = False
-                        else:
-                            dropdown_open = False
-                    else:
-                        if back_rect.collidepoint(mouse_pos):
-                            # Handle back button differently based on context
-                            if in_game:
-                                # When in game, return special value for pause menu
-                                return ("back_to_pause", WINDOW_WIDTH, WINDOW_HEIGHT)
-                            else:
-                                # Normal back behavior for title screen
-                                return (WINDOW_WIDTH, WINDOW_HEIGHT)
-                        elif volume_up_rect.collidepoint(mouse_pos):
-                            volume = min(volume + 0.1, 1.0)
-                            paddle_sound.set_volume(volume)
-                            score_sound.set_volume(volume)
-                        elif volume_down_rect.collidepoint(mouse_pos):
-                            volume = max(volume - 0.1, 0.0)
-                            paddle_sound.set_volume(volume)
-                            score_sound.set_volume(volume)
-                        elif shader_rect.collidepoint(mouse_pos):
-                            # Toggle shader state and save
-                            self.__class__.SHADER_ENABLED = not self.__class__.SHADER_ENABLED
-                            self.SHADER_ENABLED = self.__class__.SHADER_ENABLED
-                            self._save_settings()
-                        elif change_name_rect.collidepoint(mouse_pos):
-                            from Modules.Ping_UI import player_name_screen
-                            new_name = player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
-                            if new_name:
-                                self.PLAYER_NAME = new_name
-                                self._save_settings()
-                                # First update the player name
-                                self.update_player_name(new_name)
-                                # Then return to the appropriate screen
-                                if in_game:
-                                    return ("back_to_pause", WINDOW_WIDTH, WINDOW_HEIGHT)
-                                else:
-                                    # Return current dimensions instead of name change tuple
-                                    return (WINDOW_WIDTH, WINDOW_HEIGHT)
-                        elif size_rect.collidepoint(mouse_pos):
-                            dropdown_open = True
-
-            # Draw screen elements
-            self._draw_screen(screen, dropdown_open, current_size_index, volume,
-                            WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect,
-                            volume_down_rect, back_rect, size_rect, change_name_rect,
-                            shader_rect)
+                    
+            # Draw settings and handle events
+            result = self.draw_settings_screen(screen, events, None, lambda: "title")
             
-            # Draw debug console if provided
+            # Draw debug console if active
             if debug_console:
                 debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
-
+            
             pygame.display.flip()
             clock.tick(60)
-
-    def _draw_screen(self, screen, dropdown_open, current_size_index, volume,
-                    WINDOW_WIDTH, WINDOW_HEIGHT, option_font, volume_up_rect,
-                    volume_down_rect, back_rect, size_rect, change_name_rect,
-                    shader_rect):
-        """Helper method to handle screen drawing logic."""
-        screen.fill(self.BLACK)
-        mouse_pos = pygame.mouse.get_pos()
-        
-        # Get button renderer
-        button = get_button()
-
-        # Render text elements
-        title_text = option_font.render("Settings", True, self.WHITE)
-        volume_text = option_font.render(f"Volume: {int(volume * 100)}%", True, self.WHITE)
-        size_label = option_font.render("Screen Size:", True, self.WHITE)
-
-        # Draw stylish buttons
-        button.draw(screen, volume_up_rect, "+", option_font,
-                   is_hovered=volume_up_rect.collidepoint(mouse_pos))
-        button.draw(screen, volume_down_rect, "-", option_font,
-                   is_hovered=volume_down_rect.collidepoint(mouse_pos))
-
-        # Draw size selector with custom appearance
-        pygame.draw.rect(screen, self.WHITE, size_rect, 2)
-
-        # Draw shader checkbox with class-level state
-        button.draw(screen, shader_rect, "Pixel Shader Effect", option_font,
-                    is_hovered=shader_rect.collidepoint(mouse_pos),
-                    is_checkbox=True, is_checked=self.__class__.SHADER_ENABLED)
-
-        # Draw change name and back buttons
-        button.draw(screen, change_name_rect, "Change Name", option_font,
-                   is_hovered=change_name_rect.collidepoint(mouse_pos))
-        
-        if not dropdown_open:
-            button.draw(screen, back_rect, "Back", option_font,
-                       is_hovered=back_rect.collidepoint(mouse_pos))
-
-        # Draw text elements
-        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
-        screen.blit(volume_text, (WINDOW_WIDTH//2 - volume_text.get_width()//2, WINDOW_HEIGHT//2 - 100))
-        screen.blit(size_label, (WINDOW_WIDTH//2 - size_label.get_width()//2, WINDOW_HEIGHT//2 + 20))
-
-        if dropdown_open:
-            # Get button renderer once and pass it to _draw_dropdown
-            button = get_button()
-            self._draw_dropdown(screen, current_size_index, WINDOW_WIDTH, WINDOW_HEIGHT, option_font, title_text, size_label, size_rect, button)
-        else:
-            # Draw current screen size with dropdown arrow
-            current_size = self.screen_sizes[current_size_index]
-            button.draw(screen, size_rect, f"{current_size[0]}x{current_size[1]} ▼", option_font,
-                       is_hovered=size_rect.collidepoint(mouse_pos))
-
-    def _draw_dropdown(self, screen, current_size_index, WINDOW_WIDTH, WINDOW_HEIGHT, option_font, title_text, size_label, size_rect, button):
-        """Helper method to handle dropdown menu drawing."""
-        # Setup dimensions
-        option_height = 35
-        total_options = len(self.screen_sizes)
-        dropdown_height = (total_options * option_height)
-        dropdown_y = WINDOW_HEIGHT//2 + 52
-
-        # Create semi-transparent overlay for the entire screen
-        screen_overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-        screen_overlay.fill((0, 0, 0))
-        screen_overlay.set_alpha(128)
-        screen.blit(screen_overlay, (0, 0))
-
-        # Create dropdown background with extra space for close button
-        dropdown_bg = pygame.Surface((240, dropdown_height + 45))
-        dropdown_bg.fill((30, 30, 40))
-        screen.blit(dropdown_bg, (WINDOW_WIDTH//2 - 120, dropdown_y))
-        
-        # Re-draw header texts on top
-        screen.blit(title_text, (WINDOW_WIDTH//2 - title_text.get_width()//2, WINDOW_HEIGHT//4))
-        screen.blit(size_label, (WINDOW_WIDTH//2 - size_label.get_width()//2, WINDOW_HEIGHT//2 + 20))
-        
-        # Get mouse position for hover effects
-        mouse_pos = pygame.mouse.get_pos()
-
-        # Draw each option
-        for i, size in enumerate(self.screen_sizes):
-            option_y = dropdown_y + (i * option_height) + 5  # Add 5px padding from top
-            option_rect = pygame.Rect(WINDOW_WIDTH//2 - 118, option_y, 236, 30)
             
-            # Draw option button with appropriate state
-            button.draw(screen, option_rect, f"{size[0]}x{size[1]}", option_font,
-                       is_hovered=option_rect.collidepoint(mouse_pos) or i == current_size_index)
+            # Handle return to title screen
+            if result == "title":
+                return result
+            
+    def draw_settings_screen(self, screen, events, sound_test_fn=None, back_fn=None):
+        """Draw the settings screen with all options."""
+        # Get fonts at different sizes
+        title_font = get_pixel_font(24)
+        font = get_pixel_font(20)
+        small_font = get_pixel_font(16)
         
-        # Draw close arrow button at the bottom of dropdown
-        arrow_y = dropdown_y + dropdown_height + 15  # Increased padding to 15px
-        arrow_rect = pygame.Rect(WINDOW_WIDTH//2 - 118, arrow_y, 236, 30)
-        button.draw(screen, arrow_rect, "^", option_font,
-                   is_hovered=arrow_rect.collidepoint(mouse_pos))
+        # Clear screen
+        screen.fill(self.BLACK)
+        
+        # Calculate positions
+        width, height = screen.get_width(), screen.get_height()
+        center_x = width // 2
+        
+        # Create a surface for scrollable content
+        total_height = 950  # Approximate total height of content
+        content_surface = pygame.Surface((width, total_height))
+        content_surface.fill(self.BLACK)
+        
+        # Track scroll position (class variable if not exists)
+        if not hasattr(self, 'scroll_y'):
+            self.scroll_y = 0
+            
+        # Handle scrolling with mouse wheel
+        for event in events:
+            if event.type == pygame.MOUSEWHEEL:
+                self.scroll_y = min(0, max(-total_height + height, self.scroll_y + event.y * 30))
+        
+        current_y = 50
+        spacing = 50
+        
+        # Title
+        title = title_font.render("Settings", True, self.WHITE)
+        content_surface.blit(title, (center_x - title.get_width()//2, current_y))
+        current_y += spacing * 1.5
+        
+        button = get_button()
+        
+        # Resolution settings
+        current_res = f"{self.screen_sizes[self.current_size_index][0]}x{self.screen_sizes[self.current_size_index][1]}"
+        res_label = font.render("Resolution:", True, self.WHITE)
+        content_surface.blit(res_label, (center_x - 200, current_y))
+        res_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        button.draw(content_surface, res_btn_rect, current_res, font,
+                   is_hovered=res_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+        current_y += spacing
+        
+        # Player name
+        name_label = font.render("Player Name:", True, self.WHITE)
+        content_surface.blit(name_label, (center_x - 200, current_y))
+        name_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        button.draw(content_surface, name_btn_rect, self.player_name, font,
+                   is_hovered=name_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+        current_y += spacing
+        
+        # Shader toggle
+        shader_label = font.render("Shader Effects:", True, self.WHITE)
+        content_surface.blit(shader_label, (center_x - 200, current_y))
+        shader_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        button.draw(content_surface, shader_btn_rect, "On" if self.shader_enabled else "Off", font,
+                   is_hovered=shader_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+        current_y += spacing
+        
+        # Retro effects settings section
+        retro_text = font.render("Retro Effects", True, self.WHITE)
+        content_surface.blit(retro_text, (center_x - retro_text.get_width()//2, current_y))
+        current_y += spacing
+        
+        # Retro effects enabled toggle
+        effects_label = small_font.render("Enable Effects:", True, self.WHITE)
+        content_surface.blit(effects_label, (center_x - 200, current_y))
+        effects_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        button.draw(content_surface, effects_btn_rect, "On" if self.retro_effects_enabled else "Off", font,
+                   is_hovered=effects_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+        current_y += spacing * 0.8
+        
+        # Scanline intensity
+        scanline_text = small_font.render(
+            f"Scanline Intensity: {self.scanline_intensity}%", True, self.WHITE)
+        content_surface.blit(scanline_text, (center_x - scanline_text.get_width()//2, current_y))
+        current_y += spacing * 0.8
+        
+        # Glow intensity
+        glow_text = small_font.render(
+            f"Glow Intensity: {self.glow_intensity}%", True, self.WHITE)
+        content_surface.blit(glow_text, (center_x - glow_text.get_width()//2, current_y))
+        current_y += spacing * 1.2
+        
+        # Draw preview box
+        preview_width = min(300, int(width * 0.4))  # Scale preview width with window
+        preview_height = 100
+        preview_x = center_x - preview_width // 2
+        preview_y = current_y
+        preview_rect = pygame.Rect(preview_x, preview_y, preview_width, preview_height)
+        
+        # Create preview surface
+        preview_surf = pygame.Surface((preview_width + 20, preview_height + 20), pygame.SRCALPHA)
+        inner_rect = pygame.Rect(10, 10, preview_width, preview_height)
+        
+        # Draw preview background
+        pygame.draw.rect(preview_surf, (0, 0, 60), inner_rect)
+        pygame.draw.rect(preview_surf, self.WHITE, inner_rect, 2)
+        
+        # Add preview text
+        preview_text = font.render("PREVIEW", True, self.WHITE)
+        preview_score = font.render("88", True, self.WHITE)
+        
+        # Draw with current effect settings
+        if self.retro_effects_enabled:
+            # Draw scanlines on preview surface
+            scanline_surface = pygame.Surface((preview_width, preview_height), pygame.SRCALPHA)
+            for y in range(0, preview_height, 4):
+                alpha = self.scanline_intensity
+                pygame.draw.line(scanline_surface, (0, 0, 0, alpha),
+                               (0, y), (preview_width, y))
+            preview_surf.blit(scanline_surface, (10, 10))
+            
+            # Draw glow
+            glow_alpha = int(self.glow_intensity * 2.55)  # Convert percentage to alpha (0-255)
+            glow_color = tuple(map(int, self.score_glow_color.split(','))) + (glow_alpha,)
+            pygame.draw.rect(preview_surf, glow_color, preview_surf.get_rect(), border_radius=10)
+        
+        # Draw preview content
+        preview_surf.blit(preview_text,
+                         (10 + (preview_width - preview_text.get_width()) // 2,
+                          30))
+        preview_surf.blit(preview_score,
+                         (10 + (preview_width - preview_score.get_width()) // 2,
+                          70))
+        
+        # Blit preview surface to content surface
+        content_surface.blit(preview_surf, (preview_x - 10, preview_y - 10))
+        
+        current_y = preview_y + preview_height + spacing
+        
+        # Draw control hints
+        hint_color = (180, 180, 180)  # Slightly dimmer white
+        controls = [
+            "Controls:",
+            "R - Toggle Retro Effects",
+            "← → - Adjust Scanline Intensity",
+            "Shift + ← → - Adjust Glow Intensity",
+            "Mouse Wheel - Scroll Settings"
+        ]
+        
+        # Create hints surface
+        hints_y = current_y
+        hints_height = len(controls) * spacing * 0.7 + spacing * 0.8
+        hints_surface = pygame.Surface((width, hints_height), pygame.SRCALPHA)
+        
+        hint_y = 0
+        for hint in controls:
+            hint_text = small_font.render(hint, True, hint_color)
+            hints_surface.blit(hint_text, (center_x - hint_text.get_width()//2, hint_y))
+            hint_y += spacing * 0.7
+        
+        content_surface.blit(hints_surface, (0, hints_y))
+        current_y = hints_y + hints_height + spacing * 0.8
+        
+        # Draw buttons (fixed at bottom of screen)
+        button_y = height - 100
+        button = get_button()
+        
+        # Create button rectangles
+        save_btn_rect = pygame.Rect(center_x - 150, button_y, 100, 40)
+        back_btn_rect = pygame.Rect(center_x + 50, button_y, 100, 40)
+        
+        # Draw the scrollable content to the screen
+        visible_rect = pygame.Rect(0, -self.scroll_y, width, height)
+        screen.blit(content_surface, (0, 0), visible_rect)
+        
+        # Draw buttons using Button instance (on main screen, not content surface)
+        button.draw(screen, save_btn_rect, "Save", font,
+                   is_hovered=save_btn_rect.collidepoint(pygame.mouse.get_pos()))
+        button.draw(screen, back_btn_rect, "Back", font,
+                   is_hovered=back_btn_rect.collidepoint(pygame.mouse.get_pos()))
+        
+        # Handle button actions
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button in (1, 2, 3):  # Only left, middle, right clicks
+                mouse_pos = pygame.mouse.get_pos()
+                # Adjust mouse position for scrolling when checking content surface buttons
+                scrolled_pos = (mouse_pos[0], mouse_pos[1] + self.scroll_y)
+                
+                if res_btn_rect.collidepoint(scrolled_pos):
+                    # Cycle through available resolutions
+                    self.current_size_index = (self.current_size_index + 1) % len(self.screen_sizes)
+                    # Force reset scroll position when changing resolution
+                    self.scroll_y = 0
+                    # Save and apply new resolution immediately
+                    new_width, new_height = self.screen_sizes[self.current_size_index]
+                    self.update_dimensions(new_width, new_height)
+                    pygame.display.set_mode((new_width, new_height))
+                elif name_btn_rect.collidepoint(scrolled_pos):
+                    # Handle player name change
+                    from ..Ping_UI import player_name_screen
+                    new_name = player_name_screen(screen, pygame.time.Clock(), width, height)
+                    if new_name:
+                        self.player_name = new_name
+                elif shader_btn_rect.collidepoint(scrolled_pos):
+                    # Toggle shader effects
+                    self.shader_enabled = not self.shader_enabled
+                elif effects_btn_rect.collidepoint(scrolled_pos):
+                    # Toggle retro effects
+                    self.retro_effects_enabled = not self.retro_effects_enabled
+                # These buttons are not on the content surface, so use original mouse pos
+                elif save_btn_rect.collidepoint(mouse_pos):
+                    if self.save_settings():
+                        print("Settings saved successfully")
+                        # Apply resolution change immediately if needed
+                        if width != self.screen_sizes[self.current_size_index][0] or \
+                           height != self.screen_sizes[self.current_size_index][1]:
+                            return "title"  # Return to title to apply new resolution
+                    else:
+                        print("Error saving settings")
+                elif back_btn_rect.collidepoint(mouse_pos) and back_fn:
+                    return back_fn()
+                    
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE and back_fn:
+                    return back_fn()
+                elif event.key == pygame.K_r:
+                    # Toggle retro effects
+                    self.retro_effects_enabled = not self.retro_effects_enabled
+                elif event.key == pygame.K_LEFT:
+                    # Decrease values
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        self.glow_intensity = max(0, self.glow_intensity - 5)
+                    else:
+                        self.scanline_intensity = max(0, self.scanline_intensity - 5)
+                elif event.key == pygame.K_RIGHT:
+                    # Increase values
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        self.glow_intensity = min(100, self.glow_intensity + 5)
+                    else:
+                        self.scanline_intensity = min(100, self.scanline_intensity + 5)

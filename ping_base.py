@@ -189,7 +189,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     width, height = settings.get_dimensions()
     scale_x = width / arena.width
     scale_y = height / arena.height
-    font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+    from Modules.Submodules.Ping_Fonts import get_pixel_font
+    font = get_pixel_font(max(12, int(28 * scale_y)))
     
     # List to track all active balls - don't add the initial ball twice
     balls = []
@@ -210,7 +211,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         width, height = settings.get_dimensions()
         scale_x = width / arena.width
         scale_y = height / arena.height
-        scaled_font = pygame.font.Font(None, max(12, int(48 * scale_y)))
+        scaled_font = get_pixel_font(max(12, int(28 * scale_y)))
         countdown_text = scaled_font.render(str(i), True, arena.colors['WHITE'])
         screen.blit(countdown_text, (width//2 - countdown_text.get_width()//2,
                                     height//2 - countdown_text.get_height()//2))
@@ -279,7 +280,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                                     # Reset scoreboard debug flag to show message after settings update
                                     arena.scoreboard._debug_shown = False
                                     update_game_objects()
-                                    scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
+                                    scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_w:
                     paddle_a_up = False
@@ -436,7 +437,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         arena.update_scaling(width, height)
 
         # Create or update scaled font
-        scaled_font = pygame.font.Font(None, max(12, int(48 * arena.scale_y)))
+        scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
         
         # Draw complete game state using arena
         game_objects = [paddle_a, paddle_b] + balls  # Include all active balls

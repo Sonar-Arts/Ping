@@ -1,6 +1,6 @@
 import pygame
 from .Ping_Levels import DebugLevel, SewerLevel  # Added Sewer Level import
-from .Ping_Fonts import get_font_manager
+from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 
 # Colors
@@ -19,17 +19,16 @@ class LevelSelect:
         
         button_width = min(300, WINDOW_WIDTH // 3)
         
-        # Get font manager and calculate font size
-        font_manager = get_font_manager()
-        option_font_size = max(12, int(48 * scale))
-        option_font = font_manager.get_font('menu', option_font_size)
+        # Calculate font size and ensure it fits
+        option_font_size = max(12, int(36 * scale))  # Starting with slightly smaller base size
+        option_font = get_pixel_font(option_font_size)
         
-        # Test render the longest text to ensure it fits
-        test_text = option_font.render("Debug Level", True, WHITE)
-        while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
+        # Test all texts to ensure they fit
+        test_texts = ["Debug Level", "Sewer Level", "Back"]
+        while any(option_font.render(text, True, WHITE).get_width() > button_width - 20 
+                 for text in test_texts) and option_font_size > 12:
             option_font_size -= 1
-            option_font = font_manager.get_font('menu', option_font_size)
-            test_text = option_font.render("Debug Level", True, WHITE)
+            option_font = get_pixel_font(option_font_size)
         
         while True:
             button_height = min(50, WINDOW_HEIGHT // 12)
@@ -55,7 +54,6 @@ class LevelSelect:
                     if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
                         debug_console.update([event])
                         continue
-                    # Move the handle_event check inside the event loop
                     if debug_console.visible:
                         if debug_console.handle_event(event):
                             continue
@@ -76,31 +74,26 @@ class LevelSelect:
 
             screen.fill(BLACK)
             
-            hover_color = (100, 100, 100)
+            # Get mouse position for hover effects
             mouse_pos = pygame.mouse.get_pos()
             
             # Get button renderer
             button = get_button()
             
-            # Draw stylish menu buttons
-            button.draw(screen, debug_rect, "Debug Level", option_font,
-                       is_hovered=debug_rect.collidepoint(mouse_pos))
-            button.draw(screen, back_rect, "Back", option_font,
-                       is_hovered=back_rect.collidepoint(mouse_pos))
-            # Draw all buttons
+            # Draw title
+            title = option_font.render("Select Level", True, WHITE)
+            screen.blit(title, (WINDOW_WIDTH//2 - title.get_width()//2,
+                              WINDOW_HEIGHT//4 - title.get_height()//2))
+            
+            # Draw all buttons with consistent styling
             for rect, text in [
                 (debug_rect, "Debug Level"),
                 (sewer_rect, "Sewer Level"),
                 (back_rect, "Back")
             ]:
-                if rect.collidepoint(mouse_pos):
-                    pygame.draw.rect(screen, hover_color, rect)
-                pygame.draw.rect(screen, WHITE, rect, 2)
-                
-                text_surface = option_font.render(text, True, WHITE)
-                screen.blit(text_surface, (rect.centerx - text_surface.get_width()//2,
-                                         rect.centery - text_surface.get_height()//2))
-            
+                button.draw(screen, rect, text, option_font,
+                          is_hovered=rect.collidepoint(mouse_pos))
+
             # Draw debug console if provided
             if debug_console:
                 debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)

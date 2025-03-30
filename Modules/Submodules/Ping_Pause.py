@@ -1,6 +1,6 @@
 import pygame
 from sys import exit
-from .Ping_Fonts import get_font_manager
+from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 
 class PauseMenu:
@@ -15,17 +15,16 @@ class PauseMenu:
         scale_x = WINDOW_WIDTH / 800   # Base width scale
         scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
         
-        # Get font manager and calculate font size
-        font_manager = get_font_manager()
+        # Calculate button width and font size
         button_width = min(300, WINDOW_WIDTH // 3)
         font_size = max(12, int(48 * scale))  # Base size of 48, scaled with window
-        option_font = font_manager.get_font('menu', font_size)
+        option_font = get_pixel_font(font_size)
         
         # Test render the longest text to ensure it fits
         test_text = option_font.render("Back to Title", True, self.WHITE)
         while test_text.get_width() > button_width - 20 and font_size > 12:  # 20px padding
             font_size -= 1
-            option_font = font_manager.get_font('menu', font_size)
+            option_font = get_pixel_font(font_size)
             test_text = option_font.render("Back to Title", True, self.WHITE)
         
         # Create rects for buttons

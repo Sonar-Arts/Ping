@@ -2,7 +2,7 @@ import pygame
 import time
 import random
 import math
-from .Ping_Fonts import get_font_manager
+from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 
 # Colors
@@ -62,6 +62,7 @@ class MainMenu:
         # Initialize sound
         self.wahahoo_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/wahahoo.wav")
         self.wahahoo_sound.set_volume(0.5)
+
     def play_pitch_varied_wahahoo(self):
         """Play wahahoo sound at random pitch from predefined set."""
         if self.ball_clicked:  # Only play if ball has been clicked
@@ -111,32 +112,26 @@ class MainMenu:
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the title screen with game options and handle debug console."""
-        scale_y = WINDOW_HEIGHT / 600  # Base height scale
-        scale_x = WINDOW_WIDTH / 800   # Base width scale
-        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+        scale_y = WINDOW_HEIGHT / 600
+        scale_x = WINDOW_WIDTH / 800
+        scale = min(scale_x, scale_y)
         
-        # Calculate font sizes based on both dimensions
+        # Calculate button dimensions
         button_width = min(300, WINDOW_WIDTH // 3)
-        # Get font manager
-        font_manager = get_font_manager()
         
-        # Title font scaling
+        # Calculate font sizes
         title_font_size = max(12, int(74 * scale))
-        title_font = font_manager.get_font('title', title_font_size)
+        title_font = get_pixel_font(title_font_size)
         
-        # Option font scaling with fit check
         option_font_size = max(12, int(48 * scale))
-        option_font = font_manager.get_font('menu', option_font_size)
+        option_font = get_pixel_font(option_font_size)
         
-        # Test render the longest text to ensure it fits
+        # Test render to ensure text fits
         test_text = option_font.render("Player vs Player", True, WHITE)
-        while test_text.get_width() > button_width - 20 and option_font_size > 12:  # 20px padding
+        while test_text.get_width() > button_width - 20 and option_font_size > 12:
             option_font_size -= 1
-            option_font = font_manager.get_font('menu', option_font_size)
+            option_font = get_pixel_font(option_font_size)
             test_text = option_font.render("Player vs Player", True, WHITE)
-            test_text = option_font.render("Player vs Player", True, WHITE)
-        
-        settings_text = option_font.render("Settings", True, WHITE)
         
         while True:
             button_width = min(300, WINDOW_WIDTH // 3)
@@ -153,28 +148,23 @@ class MainMenu:
                                     WINDOW_HEIGHT//2 - button_height//2 + button_spacing,
                                     button_width, button_height)
 
-            # Get events
             events = pygame.event.get()
             
-            # Handle debug console if provided
             if debug_console:
                 for event in events:
-                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                    if event.type == pygame.KEYDOWN and event.key == 96:
                         debug_console.update([event])
                         continue
-                    # Move the handle_event check inside the event loop
                     if debug_console.visible:
                         if debug_console.handle_event(event):
                             continue
-            
-            # Process remaining events
+
             for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
-                    # Check menu button clicks
                     if pvp_rect.collidepoint(mouse_pos):
                         return False  # PvP mode
                     elif ai_rect.collidepoint(mouse_pos):
@@ -182,17 +172,15 @@ class MainMenu:
                     elif settings_rect.collidepoint(mouse_pos):
                         return "settings"
                     # Check for ball clicks
-                    for ball in self.balls[:]:  # Use slice to avoid modifying list during iteration
+                    for ball in self.balls[:]:
                         if ball.get_rect().collidepoint(mouse_pos):
-                            # Set ball clicked flag and handle first click
                             self.ball_clicked = True
-                            # Randomize clicked ball's direction and spawn new ball
                             ball.randomize_direction()
                             ball.randomize_color()
                             self.play_pitch_varied_wahahoo()
-                            new_ball = Ball(ball.ball_pos[:])  # Create new ball at same position
+                            new_ball = Ball(ball.ball_pos[:])
                             self.balls.append(new_ball)
-                            break  # Only handle one ball click per frame
+                            break
 
             screen.fill(BLACK)
 
@@ -202,23 +190,22 @@ class MainMenu:
                 self.title_colors = [random_color() for _ in self.title_letters]
                 self.last_color_change = current_time
 
-            # Draw title
+            # Draw title with rainbow effect
             title_width = sum(title_font.render(letter, True, self.title_colors[i]).get_width() 
                             for i, letter in enumerate(self.title_letters)) + (len(self.title_letters) - 1) * 5
             x_offset = (WINDOW_WIDTH - title_width) // 2
             
+            # Draw each letter with its color
             for i, letter in enumerate(self.title_letters):
                 text = title_font.render(letter, True, self.title_colors[i])
                 screen.blit(text, (x_offset, WINDOW_HEIGHT//4))
                 x_offset += text.get_width() + 5
-            
-            hover_color = (100, 100, 100)
-            mouse_pos = pygame.mouse.get_pos()
-            
+
             # Get button renderer
             button = get_button()
             
             # Draw stylish menu buttons
+            mouse_pos = pygame.mouse.get_pos()
             button.draw(screen, pvp_rect, "Player vs Player", option_font,
                        is_hovered=pvp_rect.collidepoint(mouse_pos))
             button.draw(screen, ai_rect, "Player vs AI", option_font,
@@ -232,16 +219,13 @@ class MainMenu:
                                    title_font.get_height())
 
             # Update and handle collisions for all balls
-            # Update and draw balls
             for ball in self.balls:
                 ball.update()
                 self.handle_ball_collisions(ball, pvp_rect, ai_rect, settings_rect, title_rect, WINDOW_WIDTH, WINDOW_HEIGHT)
                 ball.draw(screen)
 
-            # Draw debug console if provided
             if debug_console:
                 debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
 
-            # Update display
             pygame.display.flip()
             clock.tick(60)

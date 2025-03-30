@@ -1,6 +1,6 @@
 import pygame
 import time
-from ..Submodules.Ping_Fonts import get_font_manager
+from ..Submodules.Ping_Fonts import get_pixel_font
 from collections import deque
 
 class DebugConsole:
@@ -149,9 +149,8 @@ class DebugConsole:
         console_surface = pygame.Surface((WINDOW_WIDTH, self.console_height), pygame.SRCALPHA)
         pygame.draw.rect(console_surface, self.bg_color, (0, 0, WINDOW_WIDTH, self.console_height))
         
-        # Get font
-        font_manager = get_font_manager()
-        font = font_manager.get_font('text', self.font_size, use_shader=False)
+        # Get font for console text
+        font = get_pixel_font(self.font_size)
         
         # Draw messages (moved up to leave space for command line)
         y = self.console_height - (2 * self.padding) - (2 * self.line_height)  # Start higher to leave room for command
