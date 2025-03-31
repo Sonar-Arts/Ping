@@ -477,13 +477,7 @@ class SettingsScreen:
         
         current_y = preview_y + preview_height + spacing
         
-        # Draw vertical separator line between columns
-        separator_x = width // 2
-        separator_start = 50 + spacing * 2.5  # Start after title
-        separator_end = current_y - spacing  # End before hints
-        pygame.draw.line(content_surface, (100, 100, 100),  # Dimmer color for subtle effect
-                        (separator_x, separator_start),
-                        (separator_x, separator_end), 1)
+        # Removed vertical separator line for cleaner UI
         
         # Draw section separator before hints
         pygame.draw.line(content_surface, self.WHITE,
