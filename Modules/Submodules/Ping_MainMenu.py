@@ -120,7 +120,7 @@ class MainMenu:
         button_width = min(300, WINDOW_WIDTH // 3)
         
         # Calculate font sizes
-        title_font_size = max(12, int(74 * scale))
+        title_font_size = max(12, int(56 * scale))
         title_font = get_pixel_font(title_font_size)
         
         option_font_size = max(12, int(48 * scale))

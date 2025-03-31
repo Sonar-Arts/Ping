@@ -10,19 +10,22 @@ class FontManager:
         
     def ensure_pixel_font(self):
         """Ensure the pixel font is available in the project."""
+        # Try to find Press Start 2P in system fonts first
+        system_fonts = pygame.font.get_fonts()
+        for font in system_fonts:
+            if 'pressstart2p' in font.lower().replace('-', '').replace(' ', ''):
+                return pygame.font.match_font(font)
+                
+        # If not found in system fonts, try the project's font directory
         font_dir = os.path.join("Ping Assets", "Fonts")
         font_path = os.path.join(font_dir, "PressStart2P-Regular.ttf")
         
-        # Create fonts directory if it doesn't exist
-        if not os.path.exists(font_dir):
-            os.makedirs(font_dir)
-        
-        # Check if font already exists
         if os.path.exists(font_path):
             return font_path
-        
-        # Font URL (Press Start 2P is an open source font)
-        font_url = "https://github.com/googlefonts/PressStart2P/raw/master/PressStart2P-Regular.ttf"
+            
+        # If no font found, fall back to system default
+        print("Note: Press Start 2P font not found. Please install the font or place it in 'Ping Assets/Fonts' directory.")
+        return None
         
         try:
             print("Downloading pixel font...")

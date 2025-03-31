@@ -16,6 +16,10 @@ class SettingsScreen:
     GLOW_INTENSITY = 80  # Default value
     VS_BLINK_SPEED = 5.0  # Default value
     SCORE_GLOW_COLOR = "180,180,255"  # Default value
+    MASTER_VOLUME = 100  # Default value
+    EFFECTS_VOLUME = 100  # Default value
+    MUSIC_VOLUME = 100  # Default value
+    SCORE_EFFECT_INTENSITY = 50  # Default value
     
     @classmethod
     def get_dimensions(cls):
@@ -99,10 +103,15 @@ class SettingsScreen:
         self.player_name = self.PLAYER_NAME
         self.shader_enabled = self.SHADER_ENABLED
         self.retro_effects_enabled = self.RETRO_EFFECTS_ENABLED
+        self.scroll_y = 0  # Initialize scroll position
         self.scanline_intensity = self.SCANLINE_INTENSITY
         self.glow_intensity = self.GLOW_INTENSITY
         self.vs_blink_speed = self.VS_BLINK_SPEED
         self.score_glow_color = self.SCORE_GLOW_COLOR
+        self.master_volume = self.MASTER_VOLUME
+        self.effects_volume = self.EFFECTS_VOLUME
+        self.music_volume = self.MUSIC_VOLUME
+        self.score_effect_intensity = self.SCORE_EFFECT_INTENSITY
         
         self._load_settings()
 
@@ -132,6 +141,10 @@ class SettingsScreen:
                 self.glow_intensity = int(settings.get('GLOW_INTENSITY', self.GLOW_INTENSITY))
                 self.vs_blink_speed = float(settings.get('VS_BLINK_SPEED', self.VS_BLINK_SPEED))
                 self.score_glow_color = settings.get('SCORE_GLOW_COLOR', self.SCORE_GLOW_COLOR)
+                self.master_volume = int(settings.get('MASTER_VOLUME', self.MASTER_VOLUME))
+                self.effects_volume = int(settings.get('EFFECTS_VOLUME', self.EFFECTS_VOLUME))
+                self.music_volume = int(settings.get('MUSIC_VOLUME', self.MUSIC_VOLUME))
+                self.score_effect_intensity = int(settings.get('SCORE_EFFECT_INTENSITY', self.SCORE_EFFECT_INTENSITY))
                 
         except Exception as e:
             print(f"Error loading settings: {e}")
@@ -149,7 +162,11 @@ class SettingsScreen:
                 'SCANLINE_INTENSITY': self.scanline_intensity,
                 'GLOW_INTENSITY': self.glow_intensity,
                 'VS_BLINK_SPEED': self.vs_blink_speed,
-                'SCORE_GLOW_COLOR': self.score_glow_color
+                'SCORE_GLOW_COLOR': self.score_glow_color,
+                'MASTER_VOLUME': self.master_volume,
+                'EFFECTS_VOLUME': self.effects_volume,
+                'MUSIC_VOLUME': self.music_volume,
+                'SCORE_EFFECT_INTENSITY': self.score_effect_intensity
             }
             
             with open("Game Parameters/settings.txt", "w") as f:
@@ -193,98 +210,230 @@ class SettingsScreen:
             if result == "title":
                 return result
             
+    def _check_button_hover(self, rect, mouse_pos):
+        """Helper function to check button hover with proper scroll offset"""
+        return rect.collidepoint(mouse_pos[0], mouse_pos[1] - self.scroll_y)
+
     def draw_settings_screen(self, screen, events, sound_test_fn=None, back_fn=None):
         """Draw the settings screen with all options."""
-        # Get fonts at different sizes
+        # Clear screen and reset states
+        screen.fill(self.BLACK)
+        pygame.event.clear([pygame.MOUSEMOTION])  # Clear lingering mouse events
+        
+        # Get fonts and button instance
         title_font = get_pixel_font(24)
         font = get_pixel_font(20)
         small_font = get_pixel_font(16)
+        button = get_button()
         
-        # Clear screen
-        screen.fill(self.BLACK)
-        
-        # Calculate positions
+        # Calculate positions and layout dimensions
         width, height = screen.get_width(), screen.get_height()
-        center_x = width // 2
+        left_column_x = width // 4  # Left column at 1/4 width
+        right_column_x = (width * 3) // 4  # Right column at 3/4 width
+        button_width = min(200, width // 4)  # Limit button width
         
         # Create a surface for scrollable content
         total_height = 950  # Approximate total height of content
         content_surface = pygame.Surface((width, total_height))
         content_surface.fill(self.BLACK)
         
-        # Track scroll position (class variable if not exists)
-        if not hasattr(self, 'scroll_y'):
-            self.scroll_y = 0
-            
-        # Handle scrolling with mouse wheel
+        # Handle scrolling with mouse wheel and clear any queued mouse motion events
         for event in events:
             if event.type == pygame.MOUSEWHEEL:
-                self.scroll_y = min(0, max(-total_height + height, self.scroll_y + event.y * 30))
+                scroll_amount = event.y * 30
+                self.scroll_y = min(0, max(-total_height + height, self.scroll_y + scroll_amount))
         
         current_y = 50
         spacing = 50
         
-        # Title
+        # Center title with underline
         title = title_font.render("Settings", True, self.WHITE)
-        content_surface.blit(title, (center_x - title.get_width()//2, current_y))
-        current_y += spacing * 1.5
+        title_x = width//2 - title.get_width()//2
+        content_surface.blit(title, (title_x, current_y))
         
+        # Draw underline
+        pygame.draw.line(content_surface, self.WHITE,
+                        (title_x, current_y + title.get_height() + 5),
+                        (title_x + title.get_width(), current_y + title.get_height() + 5), 2)
+        current_y += spacing * 2.5
+
         button = get_button()
         
         # Resolution settings
         current_res = f"{self.screen_sizes[self.current_size_index][0]}x{self.screen_sizes[self.current_size_index][1]}"
         res_label = font.render("Resolution:", True, self.WHITE)
-        content_surface.blit(res_label, (center_x - 200, current_y))
-        res_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        content_surface.blit(res_label, (left_column_x - res_label.get_width()//2, current_y))
+        res_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
         button.draw(content_surface, res_btn_rect, current_res, font,
-                   is_hovered=res_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+                    is_hovered=self._check_button_hover(res_btn_rect, mouse_pos))
         current_y += spacing
-        
+
         # Player name
         name_label = font.render("Player Name:", True, self.WHITE)
-        content_surface.blit(name_label, (center_x - 200, current_y))
-        name_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        content_surface.blit(name_label, (left_column_x - name_label.get_width()//2, current_y))
+        name_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
         button.draw(content_surface, name_btn_rect, self.player_name, font,
-                   is_hovered=name_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+                     is_hovered=self._check_button_hover(name_btn_rect, mouse_pos))
         current_y += spacing
-        
+
         # Shader toggle
         shader_label = font.render("Shader Effects:", True, self.WHITE)
-        content_surface.blit(shader_label, (center_x - 200, current_y))
-        shader_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        content_surface.blit(shader_label, (left_column_x - shader_label.get_width()//2, current_y))
+        shader_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
         button.draw(content_surface, shader_btn_rect, "On" if self.shader_enabled else "Off", font,
-                   is_hovered=shader_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+                    is_hovered=self._check_button_hover(shader_btn_rect, mouse_pos))
+        current_y += spacing
+
+        # Draw section separator
+        pygame.draw.line(content_surface, self.WHITE,
+                        (width//4, current_y),
+                        (width * 3//4, current_y), 1)
+        current_y += spacing * 0.5
+
+        # Volume controls section header
+        volume_text = font.render("Volume Controls", True, self.WHITE)
+        content_surface.blit(volume_text, (width//2 - volume_text.get_width()//2, current_y))
+        current_y += spacing * 1.5
+
+        # Add extra spacing after section headers
+        current_y += spacing * 0.5
+
+        # Master volume with +/- buttons
+        master_label = small_font.render("Master Volume:", True, self.WHITE)
+        content_surface.blit(master_label, (left_column_x - master_label.get_width()//2, current_y))
+        
+        # Create three parts: minus button, display, plus button
+        # Calculate button widths and positions
+        vol_btn_width = button_width // 4
+        display_width = vol_btn_width * 2
+        padding = 5  # Add padding between buttons
+        
+        # Position the buttons with padding
+        minus_x = right_column_x - (vol_btn_width + display_width + vol_btn_width + padding * 2) // 2
+        display_x = minus_x + vol_btn_width + padding
+        plus_x = display_x + display_width + padding
+        
+        master_vol_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        master_vol_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        master_vol_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
+        
+        # Draw the master volume controls
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, master_vol_minus_rect, "-", font,
+                   is_hovered=self._check_button_hover(master_vol_minus_rect, mouse_pos))
+        button.draw(content_surface, master_vol_display_rect, f"{self.master_volume}%", font,
+                   is_hovered=False)  # Display is not interactive
+        button.draw(content_surface, master_vol_plus_rect, "+", font,
+                   is_hovered=self._check_button_hover(master_vol_plus_rect, mouse_pos))
+        current_y += spacing
+
+        # Effects volume with +/- buttons
+        effects_label = small_font.render("Effects Volume:", True, self.WHITE)
+        content_surface.blit(effects_label, (left_column_x - effects_label.get_width()//2, current_y))
+        effects_vol_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        effects_vol_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        effects_vol_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, effects_vol_minus_rect, "-", font,
+                   is_hovered=self._check_button_hover(effects_vol_minus_rect, mouse_pos))
+        button.draw(content_surface, effects_vol_display_rect, f"{self.effects_volume}%", font,
+                   is_hovered=False)
+        button.draw(content_surface, effects_vol_plus_rect, "+", font,
+                   is_hovered=self._check_button_hover(effects_vol_plus_rect, mouse_pos))
+        current_y += spacing * 0.8
+
+        # Music volume with +/- buttons
+        music_label = small_font.render("Music Volume:", True, self.WHITE)
+        content_surface.blit(music_label, (left_column_x - music_label.get_width()//2, current_y))
+        music_vol_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        music_vol_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        music_vol_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, music_vol_minus_rect, "-", font,
+                   is_hovered=self._check_button_hover(music_vol_minus_rect, mouse_pos))
+        button.draw(content_surface, music_vol_display_rect, f"{self.music_volume}%", font,
+                   is_hovered=False)
+        button.draw(content_surface, music_vol_plus_rect, "+", font,
+                   is_hovered=self._check_button_hover(music_vol_plus_rect, mouse_pos))
+        current_y += spacing * 1.2
+
+        # Score effect intensity with +/- buttons
+        score_effect_label = small_font.render("Score Effect Intensity:", True, self.WHITE)
+        content_surface.blit(score_effect_label, (left_column_x - score_effect_label.get_width()//2, current_y))
+        score_effect_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        score_effect_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        score_effect_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, score_effect_minus_rect, "-", font,
+                   is_hovered=self._check_button_hover(score_effect_minus_rect, mouse_pos))
+        button.draw(content_surface, score_effect_display_rect, f"{self.score_effect_intensity}%", font,
+                   is_hovered=False)
+        button.draw(content_surface, score_effect_plus_rect, "+", font,
+                   is_hovered=self._check_button_hover(score_effect_plus_rect, mouse_pos))
         current_y += spacing
         
-        # Retro effects settings section
+        # Draw section separator for Retro Effects
+        pygame.draw.line(content_surface, self.WHITE,
+                        (width//4, current_y),
+                        (width * 3//4, current_y), 1)
+        current_y += spacing * 0.5
+
+        # Retro effects settings section header
         retro_text = font.render("Retro Effects", True, self.WHITE)
-        content_surface.blit(retro_text, (center_x - retro_text.get_width()//2, current_y))
-        current_y += spacing
+        content_surface.blit(retro_text, (width//2 - retro_text.get_width()//2, current_y))
+        current_y += spacing * 1.5
         
         # Retro effects enabled toggle
         effects_label = small_font.render("Enable Effects:", True, self.WHITE)
-        content_surface.blit(effects_label, (center_x - 200, current_y))
-        effects_btn_rect = pygame.Rect(center_x - 50, current_y, 200, 30)
+        content_surface.blit(effects_label, (left_column_x - effects_label.get_width()//2, current_y))
+        effects_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+        # Draw effects toggle button
+        mouse_pos = pygame.mouse.get_pos()
         button.draw(content_surface, effects_btn_rect, "On" if self.retro_effects_enabled else "Off", font,
-                   is_hovered=effects_btn_rect.collidepoint((pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1] + self.scroll_y)))
+                   is_hovered=self._check_button_hover(effects_btn_rect, mouse_pos))
         current_y += spacing * 0.8
         
-        # Scanline intensity
-        scanline_text = small_font.render(
-            f"Scanline Intensity: {self.scanline_intensity}%", True, self.WHITE)
-        content_surface.blit(scanline_text, (center_x - scanline_text.get_width()//2, current_y))
+        # Scanline intensity with +/- buttons
+        scanline_label = small_font.render("Scanline Intensity:", True, self.WHITE)
+        content_surface.blit(scanline_label, (left_column_x - scanline_label.get_width()//2, current_y))
+        
+        # Scanline intensity controls
+        scanline_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        scanline_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        scanline_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, scanline_minus_rect, "-", font,
+                   is_hovered=self._check_button_hover(scanline_minus_rect, mouse_pos))
+        button.draw(content_surface, scanline_display_rect, f"{self.scanline_intensity}%", font,
+                   is_hovered=False)
+        button.draw(content_surface, scanline_plus_rect, "+", font,
+                   is_hovered=self._check_button_hover(scanline_plus_rect, mouse_pos))
         current_y += spacing * 0.8
         
-        # Glow intensity
-        glow_text = small_font.render(
-            f"Glow Intensity: {self.glow_intensity}%", True, self.WHITE)
-        content_surface.blit(glow_text, (center_x - glow_text.get_width()//2, current_y))
+        # Glow intensity with +/- buttons
+        glow_label = small_font.render("Glow Intensity:", True, self.WHITE)
+        content_surface.blit(glow_label, (left_column_x - glow_label.get_width()//2, current_y))
+        
+        # Glow intensity controls
+        glow_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        glow_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        glow_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, glow_minus_rect, "-", font,
+                   is_hovered=self._check_button_hover(glow_minus_rect, mouse_pos))
+        button.draw(content_surface, glow_display_rect, f"{self.glow_intensity}%", font,
+                   is_hovered=False)
+        button.draw(content_surface, glow_plus_rect, "+", font,
+                   is_hovered=self._check_button_hover(glow_plus_rect, mouse_pos))
         current_y += spacing * 1.2
         
         # Draw preview box
         preview_width = min(300, int(width * 0.4))  # Scale preview width with window
         preview_height = 100
-        preview_x = center_x - preview_width // 2
+        preview_x = width//2 - preview_width // 2
         preview_y = current_y
         preview_rect = pygame.Rect(preview_x, preview_y, preview_width, preview_height)
         
@@ -328,6 +477,20 @@ class SettingsScreen:
         
         current_y = preview_y + preview_height + spacing
         
+        # Draw vertical separator line between columns
+        separator_x = width // 2
+        separator_start = 50 + spacing * 2.5  # Start after title
+        separator_end = current_y - spacing  # End before hints
+        pygame.draw.line(content_surface, (100, 100, 100),  # Dimmer color for subtle effect
+                        (separator_x, separator_start),
+                        (separator_x, separator_end), 1)
+        
+        # Draw section separator before hints
+        pygame.draw.line(content_surface, self.WHITE,
+                        (width//4, current_y),
+                        (width * 3//4, current_y), 1)
+        current_y += spacing * 0.5
+        
         # Draw control hints
         hint_color = (180, 180, 180)  # Slightly dimmer white
         controls = [
@@ -335,6 +498,10 @@ class SettingsScreen:
             "R - Toggle Retro Effects",
             "← → - Adjust Scanline Intensity",
             "Shift + ← → - Adjust Glow Intensity",
+            "Ctrl + ← → - Adjust Master Volume",
+            "Alt + ← → - Adjust Effects Volume",
+            "M/Shift+M - Decrease/Increase Music Volume",
+            "Ctrl+Shift + ← → - Adjust Score Effect",
             "Mouse Wheel - Scroll Settings"
         ]
         
@@ -346,7 +513,7 @@ class SettingsScreen:
         hint_y = 0
         for hint in controls:
             hint_text = small_font.render(hint, True, hint_color)
-            hints_surface.blit(hint_text, (center_x - hint_text.get_width()//2, hint_y))
+            hints_surface.blit(hint_text, (width//2 - hint_text.get_width()//2, hint_y))
             hint_y += spacing * 0.7
         
         content_surface.blit(hints_surface, (0, hints_y))
@@ -357,52 +524,81 @@ class SettingsScreen:
         button = get_button()
         
         # Create button rectangles
-        save_btn_rect = pygame.Rect(center_x - 150, button_y, 100, 40)
-        back_btn_rect = pygame.Rect(center_x + 50, button_y, 100, 40)
+        save_btn_rect = pygame.Rect(width//2 - 150, button_y, 100, 40)
+        back_btn_rect = pygame.Rect(width//2 + 50, button_y, 100, 40)
         
-        # Draw the scrollable content to the screen
+        # Apply scroll offset and draw the scrollable content
         visible_rect = pygame.Rect(0, -self.scroll_y, width, height)
         screen.blit(content_surface, (0, 0), visible_rect)
         
-        # Draw buttons using Button instance (on main screen, not content surface)
+        # Reset scroll when content is shorter than window
+        if total_height <= height:
+            self.scroll_y = 0
+        
+        # Draw fixed buttons using Button instance (no scroll adjustment needed)
+        mouse_pos = pygame.mouse.get_pos()
         button.draw(screen, save_btn_rect, "Save", font,
-                   is_hovered=save_btn_rect.collidepoint(pygame.mouse.get_pos()))
+                   is_hovered=save_btn_rect.collidepoint(mouse_pos))
         button.draw(screen, back_btn_rect, "Back", font,
-                   is_hovered=back_btn_rect.collidepoint(pygame.mouse.get_pos()))
+                   is_hovered=back_btn_rect.collidepoint(mouse_pos))
         
         # Handle button actions
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button in (1, 2, 3):  # Only left, middle, right clicks
                 mouse_pos = pygame.mouse.get_pos()
-                # Adjust mouse position for scrolling when checking content surface buttons
-                scrolled_pos = (mouse_pos[0], mouse_pos[1] + self.scroll_y)
-                
-                if res_btn_rect.collidepoint(scrolled_pos):
+                # Use helper function for button collision checks
+                if self._check_button_hover(res_btn_rect, mouse_pos):
                     # Cycle through available resolutions
                     self.current_size_index = (self.current_size_index + 1) % len(self.screen_sizes)
                     # Force reset scroll position when changing resolution
-                    self.scroll_y = 0
+                    self.scroll_y = 0  # Reset scroll position to top
                     # Save and apply new resolution immediately
                     new_width, new_height = self.screen_sizes[self.current_size_index]
                     self.update_dimensions(new_width, new_height)
                     pygame.display.set_mode((new_width, new_height))
-                elif name_btn_rect.collidepoint(scrolled_pos):
+                elif self._check_button_hover(name_btn_rect, mouse_pos):
                     # Handle player name change
                     from ..Ping_UI import player_name_screen
                     new_name = player_name_screen(screen, pygame.time.Clock(), width, height)
                     if new_name:
                         self.player_name = new_name
-                elif shader_btn_rect.collidepoint(scrolled_pos):
+                elif self._check_button_hover(shader_btn_rect, mouse_pos):
                     # Toggle shader effects
                     self.shader_enabled = not self.shader_enabled
-                elif effects_btn_rect.collidepoint(scrolled_pos):
+                # Handle +/- button clicks for volume controls
+                elif self._check_button_hover(master_vol_minus_rect, mouse_pos):
+                    self.master_volume = max(0, self.master_volume - 5)
+                elif self._check_button_hover(master_vol_plus_rect, mouse_pos):
+                    self.master_volume = min(100, self.master_volume + 5)
+                elif self._check_button_hover(effects_vol_minus_rect, mouse_pos):
+                    self.effects_volume = max(0, self.effects_volume - 5)
+                elif self._check_button_hover(effects_vol_plus_rect, mouse_pos):
+                    self.effects_volume = min(100, self.effects_volume + 5)
+                elif self._check_button_hover(music_vol_minus_rect, mouse_pos):
+                    self.music_volume = max(0, self.music_volume - 5)
+                elif self._check_button_hover(music_vol_plus_rect, mouse_pos):
+                    self.music_volume = min(100, self.music_volume + 5)
+                elif self._check_button_hover(score_effect_minus_rect, mouse_pos):
+                    self.score_effect_intensity = max(0, self.score_effect_intensity - 5)
+                elif self._check_button_hover(score_effect_plus_rect, mouse_pos):
+                    self.score_effect_intensity = min(100, self.score_effect_intensity + 5)
+                elif self._check_button_hover(scanline_minus_rect, mouse_pos):
+                    self.scanline_intensity = max(0, self.scanline_intensity - 5)
+                elif self._check_button_hover(scanline_plus_rect, mouse_pos):
+                    self.scanline_intensity = min(100, self.scanline_intensity + 5)
+                elif self._check_button_hover(glow_minus_rect, mouse_pos):
+                    self.glow_intensity = max(0, self.glow_intensity - 5)
+                elif self._check_button_hover(glow_plus_rect, mouse_pos):
+                    self.glow_intensity = min(100, self.glow_intensity + 5)
+                elif self._check_button_hover(effects_btn_rect, mouse_pos):
                     # Toggle retro effects
                     self.retro_effects_enabled = not self.retro_effects_enabled
-                # These buttons are not on the content surface, so use original mouse pos
+                # Fixed buttons at bottom of screen (no scroll adjustment needed)
                 elif save_btn_rect.collidepoint(mouse_pos):
+                    # Handle save button click
                     if self.save_settings():
                         print("Settings saved successfully")
-                        # Apply resolution change immediately if needed
+                        # Check if resolution changed
                         if width != self.screen_sizes[self.current_size_index][0] or \
                            height != self.screen_sizes[self.current_size_index][1]:
                             return "title"  # Return to title to apply new resolution
@@ -419,13 +615,33 @@ class SettingsScreen:
                     self.retro_effects_enabled = not self.retro_effects_enabled
                 elif event.key == pygame.K_LEFT:
                     # Decrease values
-                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                    mods = pygame.key.get_mods()
+                    if mods & pygame.KMOD_CTRL and mods & pygame.KMOD_SHIFT:
+                        self.score_effect_intensity = max(0, self.score_effect_intensity - 5)
+                    elif mods & pygame.KMOD_CTRL:
+                        self.master_volume = max(0, self.master_volume - 5)
+                    elif mods & pygame.KMOD_ALT:
+                        self.effects_volume = max(0, self.effects_volume - 5)
+                    elif mods & pygame.KMOD_SHIFT:
                         self.glow_intensity = max(0, self.glow_intensity - 5)
                     else:
                         self.scanline_intensity = max(0, self.scanline_intensity - 5)
                 elif event.key == pygame.K_RIGHT:
                     # Increase values
-                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                    mods = pygame.key.get_mods()
+                    if mods & pygame.KMOD_CTRL and mods & pygame.KMOD_SHIFT:
+                        self.score_effect_intensity = min(100, self.score_effect_intensity + 5)
+                    elif mods & pygame.KMOD_CTRL:
+                        self.master_volume = min(100, self.master_volume + 5)
+                    elif mods & pygame.KMOD_ALT:
+                        self.effects_volume = min(100, self.effects_volume + 5)
+                    elif mods & pygame.KMOD_SHIFT:
                         self.glow_intensity = min(100, self.glow_intensity + 5)
                     else:
                         self.scanline_intensity = min(100, self.scanline_intensity + 5)
+                elif event.key == pygame.K_m:
+                    # Music volume control
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        self.music_volume = min(100, self.music_volume + 5)
+                    else:
+                        self.music_volume = max(0, self.music_volume - 5)
