@@ -20,11 +20,12 @@ class Arena:
         self._shader_warning_shown = False
         self._shader = None
         self._settings = None
+        self._shader_instance = None
         try:
             from .Submodules.Ping_Settings import SettingsScreen
             from .Submodules.Ping_Shader import get_shader
             self._settings = SettingsScreen
-            self._shader = get_shader
+            self._shader_instance = get_shader()  # Create shader instance once
         except ImportError as e:
             from .Submodules.Ping_DBConsole import get_console
             debug_console = get_console()
@@ -336,10 +337,9 @@ class Arena:
             self.draw_pause_overlay(intermediate, font)
 
         # Try to apply shader if enabled and available
-        if self._settings and self._shader and self._settings.get_shader_enabled():
+        if self._settings and self._shader_instance and self._settings.get_shader_enabled():
             try:
-                shader = self._shader()
-                processed = shader.apply_to_surface(intermediate)
+                processed = self._shader_instance.apply_to_surface(intermediate)
                 screen.blit(processed, (0, 0))
                 return
             except Exception as e:

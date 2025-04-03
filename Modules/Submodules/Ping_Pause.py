@@ -54,7 +54,7 @@ class PauseMenu:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                     mouse_pos = pygame.mouse.get_pos()
                     if resume_rect.collidepoint(mouse_pos):
                         return "resume"

@@ -2,6 +2,55 @@ import pygame
 import time
 from sys import exit
 from .Submodules.Ping_Settings import SettingsScreen
+from .Submodules.Ping_Fonts import get_pixel_font
+
+class GameCursor:
+    def __init__(self):
+        self.x = 0
+        self.y = 0
+        self.visible = True
+        self.is_text_select = False
+        
+        # Create cursor surfaces
+        self.normal_cursor = self._create_cursor((255, 255, 255))
+        self.text_cursor = self._create_text_cursor()
+    
+    def _create_cursor(self, color):
+        """Create a basic cursor surface."""
+        size = 20
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        pygame.draw.line(surface, color, (0, 0), (size-5, size-5), 2)
+        pygame.draw.line(surface, color, (0, size-5), (size-5, 0), 2)
+        return surface
+    
+    def _create_text_cursor(self):
+        """Create a text selection cursor surface."""
+        size = 20
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        pygame.draw.line(surface, (255, 255, 255), (size//2, 0), (size//2, size), 2)
+        return surface
+    
+    def update(self, mouse_pos, is_text_select=False):
+        """Update cursor position and state."""
+        self.x, self.y = mouse_pos
+        self.is_text_select = is_text_select
+    
+    def draw(self, screen):
+        """Draw the cursor on screen."""
+        if self.visible:
+            cursor = self.text_cursor if self.is_text_select else self.normal_cursor
+            screen.blit(cursor, (self.x - cursor.get_width()//2,
+                               self.y - cursor.get_height()//2))
+
+# Global cursor instance
+_game_cursor = None
+
+def get_game_cursor():
+    """Get the global cursor instance."""
+    global _game_cursor
+    if _game_cursor is None:
+        _game_cursor = GameCursor()
+    return _game_cursor
 from .Submodules.Ping_MainMenu import MainMenu
 from .Submodules.Ping_Pause import PauseMenu
 from .Submodules.Ping_LevelSelect import LevelSelect
@@ -72,7 +121,7 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                 if input_box.collidepoint(event.pos):
                     active = not active
                 else:
@@ -171,7 +220,7 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name, debug_co
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                 if continue_rect.collidepoint(event.pos):
                     return "title"
             if event.type == pygame.KEYDOWN:

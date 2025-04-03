@@ -96,9 +96,9 @@ class PixelShader:
         self._init_cache(width, height)
         
         try:
-            # Lock surfaces for faster pixel access
-            surface.lock()
-            self._cached_surface.lock()
+            # Create pixel arrays without explicit locking
+            pixels3d = pygame.surfarray.pixels3d(surface)
+            alpha = pygame.surfarray.pixels_alpha(surface)
             
             # Get pixel arrays using numpy and cache them
             if self._cache_pixels3d is None:
@@ -155,15 +155,22 @@ class PixelShader:
                                       (block_x, block_y, block_width, block_height), 1)
             
             # Update cached surface with processed data
-            pygame.surfarray.pixels3d(self._cached_surface)[:] = self._cache_pixels3d
-            pygame.surfarray.pixels_alpha(self._cached_surface)[:] = self._cache_alpha
+            # Update the surface pixels properly
+            pixels_surface = pygame.surfarray.pixels3d(self._cached_surface)
+            alpha_surface = pygame.surfarray.pixels_alpha(self._cached_surface)
+            pixels_surface[:] = self._cache_pixels3d
+            alpha_surface[:] = self._cache_alpha
+            del pixels_surface  # Release the surface lock
+            del alpha_surface
             
+            # Return a copy of the processed surface
             return self._cached_surface.copy()
             
         finally:
             try:
-                surface.unlock()
-                self._cached_surface.unlock()
+                # Clean up array views to release surface locks
+                del pixels3d
+                del alpha
             except:
                 pass
     

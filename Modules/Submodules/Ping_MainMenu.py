@@ -151,19 +151,13 @@ class MainMenu:
             events = pygame.event.get()
             
             if debug_console:
-                for event in events:
-                    if event.type == pygame.KEYDOWN and event.key == 96:
-                        debug_console.update([event])
-                        continue
-                    if debug_console.visible:
-                        if debug_console.handle_event(event):
-                            continue
+                debug_console.update(events)
 
             for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                     mouse_pos = event.pos
                     if pvp_rect.collidepoint(mouse_pos):
                         return False  # PvP mode
@@ -171,16 +165,17 @@ class MainMenu:
                         return True   # AI mode
                     elif settings_rect.collidepoint(mouse_pos):
                         return "settings"
-                    # Check for ball clicks
-                    for ball in self.balls[:]:
-                        if ball.get_rect().collidepoint(mouse_pos):
-                            self.ball_clicked = True
-                            ball.randomize_direction()
-                            ball.randomize_color()
-                            self.play_pitch_varied_wahahoo()
-                            new_ball = Ball(ball.ball_pos[:])
-                            self.balls.append(new_ball)
-                            break
+                    # Check for ball clicks (only on left click)
+                    if event.button == 1:  # Left click only
+                        for ball in self.balls[:]:
+                            if ball.get_rect().collidepoint(mouse_pos):
+                                self.ball_clicked = True
+                                ball.randomize_direction()
+                                ball.randomize_color()
+                                self.play_pitch_varied_wahahoo()
+                                new_ball = Ball(ball.ball_pos[:])
+                                self.balls.append(new_ball)
+                                break
 
             screen.fill(BLACK)
 

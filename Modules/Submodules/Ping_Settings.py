@@ -91,7 +91,6 @@ class SettingsScreen:
         except Exception as e:
             print(f"Error updating player name: {e}")
             return False
-    
     @classmethod
     def get_shader_enabled(cls):
         """Get current shader enabled state from settings."""
@@ -102,6 +101,24 @@ class SettingsScreen:
                 return settings.get('SHADER_ENABLED', 'true').lower() == 'true'
         except Exception as e:
             print(f"Error loading shader setting: {e}")
+            return cls.SHADER_ENABLED
+            
+    @classmethod
+    def update_shader_enabled(cls, enabled):
+        """Update shader enabled state in settings file."""
+        try:
+            current_settings = {}
+            with open("Game Parameters/settings.txt", "r") as f:
+                current_settings = dict(line.strip().split('=') for line in f
+                                   if '=' in line and not line.strip().startswith('#'))
+            current_settings['SHADER_ENABLED'] = str(enabled).lower()
+            with open("Game Parameters/settings.txt", "w") as f:
+                for key, value in current_settings.items():
+                    f.write(f"{key}={value}\n")
+            return True
+        except Exception as e:
+            print(f"Error updating shader setting: {e}")
+            return False
             return cls.SHADER_ENABLED
     
     def __init__(self):
@@ -295,14 +312,11 @@ class SettingsScreen:
                      is_hovered=self._check_button_hover(name_btn_rect, mouse_pos))
         current_y += spacing
 
-        # Shader toggle
-        shader_label = font.render("Shader Effects:", True, self.WHITE)
-        content_surface.blit(shader_label, (left_column_x - shader_label.get_width()//2, current_y))
-        shader_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
-        mouse_pos = pygame.mouse.get_pos()
-        button.draw(content_surface, shader_btn_rect, "On" if self.shader_enabled else "Off", font,
-                    is_hovered=self._check_button_hover(shader_btn_rect, mouse_pos))
-        current_y += spacing
+        # Draw section separator
+        pygame.draw.line(content_surface, self.WHITE,
+                        (width//4, current_y),
+                        (width * 3//4, current_y), 1)
+        current_y += spacing * 0.5
 
         # Draw section separator
         pygame.draw.line(content_surface, self.WHITE,
@@ -566,7 +580,7 @@ class SettingsScreen:
         
         # Handle button actions
         for event in events:
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button in (1, 2, 3):  # Only left, middle, right clicks
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Only left click
                 mouse_pos = pygame.mouse.get_pos()
                 # Use helper function for button collision checks
                 if self._check_button_hover(res_btn_rect, mouse_pos):
@@ -584,9 +598,6 @@ class SettingsScreen:
                     new_name = player_name_screen(screen, pygame.time.Clock(), width, height)
                     if new_name:
                         self.player_name = new_name
-                elif self._check_button_hover(shader_btn_rect, mouse_pos):
-                    # Toggle shader effects
-                    self.shader_enabled = not self.shader_enabled
                 # Handle +/- button clicks for volume controls
                 elif self._check_button_hover(master_vol_minus_rect, mouse_pos):
                     self.master_volume = max(0, self.master_volume - 5)
