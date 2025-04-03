@@ -58,10 +58,10 @@ class MainMenu:
         self.title_colors = [WHITE] * len(self.title_letters)
         self.balls = [Ball()]  # Start with one ball
         self.ball_clicked = False  # Track if ball has been clicked
+        # Get sound manager instance
+        from ping_base import sound_manager
+        self.sound_manager = sound_manager
         
-        # Initialize sound
-        self.wahahoo_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/wahahoo.wav")
-        self.wahahoo_sound.set_volume(0.5)
 
     def play_pitch_varied_wahahoo(self):
         """Play wahahoo sound at random pitch from predefined set."""
@@ -78,7 +78,7 @@ class MainMenu:
                 3.0    # Highest pitch
             ]
             speed = random.choice(pitch_speeds)
-            self.wahahoo_sound.play(maxtime=int(self.wahahoo_sound.get_length() * 1000 / speed))
+            self.sound_manager.play_wahahoo(speed)
 
     def handle_ball_collisions(self, ball, pvp_rect, ai_rect, settings_rect, title_rect, WINDOW_WIDTH, WINDOW_HEIGHT):
         """Handle all collision checks for a single ball."""

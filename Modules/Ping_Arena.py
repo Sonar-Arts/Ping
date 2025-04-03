@@ -16,6 +16,21 @@ class Arena:
         self.height = params['dimensions']['height']
         self.scoreboard_height = params['dimensions']['scoreboard_height']
         
+        # Set up shader handling
+        self._shader_warning_shown = False
+        self._shader = None
+        self._settings = None
+        try:
+            from .Submodules.Ping_Settings import SettingsScreen
+            from .Submodules.Ping_Shader import get_shader
+            self._settings = SettingsScreen
+            self._shader = get_shader
+        except ImportError as e:
+            from .Submodules.Ping_DBConsole import get_console
+            debug_console = get_console()
+            debug_console.log(f"Warning: Shader system unavailable: {e}")
+            self._shader_warning_shown = True
+        
         # Get colors from level configuration
         self.colors = params['colors']
         
@@ -282,39 +297,57 @@ class Arena:
     
     def draw(self, screen, game_objects, font, player_name, score_a, opponent_name, score_b, respawn_timer=None, paused=False):
         """Draw the complete game state."""
-        # Fill background
-        screen.fill(self.colors['BLACK'])
+        # Create intermediate surface for shader processing
+        intermediate = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        intermediate.fill(self.colors['BLACK'])
         
         # Draw center line if not disabled (0 width/height)
         if self.center_line_box_width > 0 and self.center_line_box_height > 0:
-            self.draw_center_line(screen)
+            self.draw_center_line(intermediate)
         
         # Draw portals first
         for portal in self.portals:
-            portal.draw(screen, self.colors['PORTAL'])
+            portal.draw(intermediate, self.colors['PORTAL'])
 
         # Draw manholes behind other objects
         for manhole in self.manholes:
-            manhole.draw(screen, self.colors['MANHOLE'])
+            manhole.draw(intermediate, self.colors['MANHOLE'])
 
         # Draw goals behind other objects
         for goal in self.goals:
-            goal.draw(screen, self.colors['WHITE'])
+            goal.draw(intermediate, self.colors['WHITE'])
         
         # Draw game objects
         for obj in game_objects:
-            obj.draw(screen, self.colors['WHITE'])
+            obj.draw(intermediate, self.colors['WHITE'])
         
         # Draw obstacle
-        self.obstacle.draw(screen, self.colors['WHITE'])
+        self.obstacle.draw(intermediate, self.colors['WHITE'])
         
         # Draw power-up if active
         if self.power_up:
-            self.power_up.draw(screen, self.colors['WHITE'])
+            self.power_up.draw(intermediate, self.colors['WHITE'])
         
         # Draw scoreboard
-        self.draw_scoreboard(screen, player_name, score_a, opponent_name, score_b, font, respawn_timer)
+        self.draw_scoreboard(intermediate, player_name, score_a, opponent_name, score_b, font, respawn_timer)
         
         # Draw pause overlay if paused
         if paused:
-            self.draw_pause_overlay(screen, font)
+            self.draw_pause_overlay(intermediate, font)
+
+        # Try to apply shader if enabled and available
+        if self._settings and self._shader and self._settings.get_shader_enabled():
+            try:
+                shader = self._shader()
+                processed = shader.apply_to_surface(intermediate)
+                screen.blit(processed, (0, 0))
+                return
+            except Exception as e:
+                if not self._shader_warning_shown:
+                    from .Submodules.Ping_DBConsole import get_console
+                    debug_console = get_console()
+                    debug_console.log(f"Warning: Shader processing failed, using fallback rendering: {e}")
+                    self._shader_warning_shown = True
+
+        # Fall back to direct rendering if shader is disabled or failed
+        screen.blit(intermediate, (0, 0))

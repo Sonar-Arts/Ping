@@ -92,6 +92,18 @@ class SettingsScreen:
             print(f"Error updating player name: {e}")
             return False
     
+    @classmethod
+    def get_shader_enabled(cls):
+        """Get current shader enabled state from settings."""
+        try:
+            with open("Game Parameters/settings.txt", "r") as f:
+                settings = dict(line.strip().split('=') for line in f
+                              if '=' in line and not line.strip().startswith('#'))
+                return settings.get('SHADER_ENABLED', 'true').lower() == 'true'
+        except Exception as e:
+            print(f"Error loading shader setting: {e}")
+            return cls.SHADER_ENABLED
+    
     def __init__(self):
         # Colors
         self.WHITE = (255, 255, 255)
@@ -176,9 +188,14 @@ class SettingsScreen:
         except Exception as e:
             print(f"Error saving settings: {e}")
             return False
-
     def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
         """Display the settings screen and handle its events."""
+        # Get reference to sound_manager from ping_base
+        from ping_base import sound_manager
+        
+        # Apply initial master volume
+        sound_manager.set_master_volume(self.master_volume)
+        
         while True:
             events = pygame.event.get()
             
@@ -197,7 +214,7 @@ class SettingsScreen:
                     exit()
                     
             # Draw settings and handle events
-            result = self.draw_settings_screen(screen, events, None, lambda: "title")
+            result = self.draw_settings_screen(screen, events, None, lambda: "title", sound_manager)
             
             # Draw debug console if active
             if debug_console:
@@ -209,12 +226,12 @@ class SettingsScreen:
             # Handle return to title screen
             if result == "title":
                 return result
-            
+    
     def _check_button_hover(self, rect, mouse_pos):
         """Helper function to check button hover with proper scroll offset"""
         return rect.collidepoint(mouse_pos[0], mouse_pos[1] - self.scroll_y)
 
-    def draw_settings_screen(self, screen, events, sound_test_fn=None, back_fn=None):
+    def draw_settings_screen(self, screen, events, sound_test_fn=None, back_fn=None, sound_manager=None):
         """Draw the settings screen with all options."""
         # Clear screen and reset states
         screen.fill(self.BLACK)
@@ -320,14 +337,25 @@ class SettingsScreen:
         master_vol_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
         master_vol_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
         
-        # Draw the master volume controls
+        # Draw and handle the master volume controls
         mouse_pos = pygame.mouse.get_pos()
-        button.draw(content_surface, master_vol_minus_rect, "-", font,
-                   is_hovered=self._check_button_hover(master_vol_minus_rect, mouse_pos))
-        button.draw(content_surface, master_vol_display_rect, f"{self.master_volume}%", font,
-                   is_hovered=False)  # Display is not interactive
-        button.draw(content_surface, master_vol_plus_rect, "+", font,
-                   is_hovered=self._check_button_hover(master_vol_plus_rect, mouse_pos))
+        master_minus_hover = self._check_button_hover(master_vol_minus_rect, mouse_pos)
+        master_plus_hover = self._check_button_hover(master_vol_plus_rect, mouse_pos)
+        
+        # Handle volume button clicks
+        if any(event.type == pygame.MOUSEBUTTONDOWN for event in events):
+            if master_minus_hover and self.master_volume > 0:
+                self.master_volume = max(0, self.master_volume - 5)
+                if sound_manager:
+                    sound_manager.set_master_volume(self.master_volume)
+            elif master_plus_hover and self.master_volume < 100:
+                self.master_volume = min(100, self.master_volume + 5)
+                if sound_manager:
+                    sound_manager.set_master_volume(self.master_volume)
+        
+        button.draw(content_surface, master_vol_minus_rect, "-", font, is_hovered=master_minus_hover)
+        button.draw(content_surface, master_vol_display_rect, f"{self.master_volume}%", font, is_hovered=False)
+        button.draw(content_surface, master_vol_plus_rect, "+", font, is_hovered=master_plus_hover)
         current_y += spacing
 
         # Effects volume with +/- buttons
