@@ -237,6 +237,18 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
+            elif event.type == pygame.VIDEORESIZE:
+                # Handle window resizing
+                width, height = event.w, event.h
+                screen = init_display(width, height)
+                settings.update_dimensions(width, height) # Update settings object and file
+                arena.update_scaling(width, height)     # Update arena scaling factors
+                update_game_objects()                   # Recreate/reposition game objects
+                scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y))) # Update font
+                # Reset scoreboard debug flag to show message after resize
+                arena.scoreboard._debug_shown = False
+                debug_console.log(f"Window resized to {width}x{height}")
+                # No need to redraw here, the main loop will handle it
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
                     paddle_a_up = True
@@ -432,10 +444,9 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
             # Cap the accumulated time to prevent spiral of death
             accumulated_time = min(accumulated_time, FRAME_TIME * 4)
         
-        # Update arena scaling based on window size
-        width, height = settings.get_dimensions()
-        arena.update_scaling(width, height)
-
+        # Arena scaling is now updated only on VIDEORESIZE event or settings change
+        # width, height = settings.get_dimensions() # Removed
+        # arena.update_scaling(width, height) # Removed
         # Create or update scaled font
         scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
         
