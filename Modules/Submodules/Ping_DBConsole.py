@@ -341,9 +341,19 @@ class DebugConsole:
         if not self.visible or mouse_pos[1] >= self.console_height:
             return None
             
-        relative_y = self.console_height - mouse_pos[1] - self.padding
-        visible_line = relative_y // self.line_height
-        return self.visible_start_idx + visible_line
+        # Calculate line index based on direct mouse Y position
+        # Account for padding and visible area offset
+        visible_line = (mouse_pos[1] - self.padding) // self.line_height
+        # Adjust for visible lines
+        max_visible_lines = (self.console_height - 3 * self.padding - self.line_height) // self.line_height
+        if visible_line >= max_visible_lines:
+            return None
+        
+        # Calculate actual line index from visible position
+        line_idx = len(self.wrapped_lines) - max_visible_lines + visible_line - self.scroll_offset
+        if 0 <= line_idx < len(self.wrapped_lines):
+            return line_idx
+        return None
     
     def _get_char_index(self, mouse_pos, line_idx):
         """Convert mouse X position to character index in the line."""
