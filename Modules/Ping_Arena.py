@@ -312,7 +312,7 @@ class Arena:
 
         # Draw manholes behind other objects
         for manhole in self.manholes:
-            manhole.draw(intermediate, self.colors['MANHOLE'])
+            manhole.draw(intermediate, self.colors)
 
         # Draw goals behind other objects
         for goal in self.goals:

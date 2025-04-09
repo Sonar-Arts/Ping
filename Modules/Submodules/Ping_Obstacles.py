@@ -170,8 +170,8 @@ class Manhole:
         self.is_bottom = is_bottom
         self.is_spouting = False
         
-        # Vertical slab is taller than horizontal
-        self.spout_height = height * 10  # Makes the vertical part much more visible
+        # Vertical slab is taller for more dramatic water effect
+        self.spout_height = height * 6  # Increased height for more dramatic effect
         
         # Define the two parts of the manhole
         # Horizontal slab stays at base position when dormant
@@ -181,8 +181,9 @@ class Manhole:
         vertical_y = y + height if is_bottom else y - self.spout_height
         self.vertical_rect = pygame.Rect(x, vertical_y, width, self.spout_height)
         
-        # Calculate position for horizontal slab when pushed
-        self.spout_position = y - height if is_bottom else y + height
+        # Calculate position for horizontal slab when pushed (reduced movement)
+        ejection_distance = height // 2  # Reduced from full height to half height
+        self.spout_position = y - ejection_distance if is_bottom else y + ejection_distance
         
         # Store initial position for resetting
         self.initial_y = y
@@ -248,23 +249,76 @@ class Manhole:
             return True
         return False
 
-    def draw(self, screen, color, scale_rect):
+    def draw(self, screen, colors, scale_rect):
         """Draw the manhole parts and water particles based on state."""
+        # Create base position for the hole and cover
+        base_rect = scale_rect(self.horizontal_rect)
+        
+        # Create oval effect for perspective (make height 60% of width)
+        oval_height = int(base_rect.height * 0.6)
+        base_oval = pygame.Rect(
+            base_rect.x,
+            base_rect.y + (base_rect.height - oval_height) // 2,
+            base_rect.width,
+            oval_height
+        )
+
+        # Always draw the dark hole in the wall first
+        pygame.draw.ellipse(screen, colors['MANHOLE_HOLE'], base_oval)
+        
         if self.is_spouting:
-            # Draw water particles first so they appear behind the manhole cover
+            # Draw water particles from the fixed hole position
             self.water_spout.draw(screen, scale_rect)
             
-            # Draw the vertical slab
-            scaled_vertical = scale_rect(self.vertical_rect)
-            pygame.draw.rect(screen, color, scaled_vertical)
+            # Draw the cover in its ejected position
+            cover_rect = base_oval.copy()
+            cover_rect.y = scale_rect(pygame.Rect(0, self.spout_position, 1, 1)).y
             
-            # Draw the horizontal slab in spouting position
-            scaled_horizontal = scale_rect(self.horizontal_rect)
-            pygame.draw.rect(screen, color, scaled_horizontal)
+            # Draw the ejected cover
+            # Shadow
+            shadow_rect = cover_rect.copy()
+            shadow_rect.y += 2
+            pygame.draw.ellipse(screen, colors['MANHOLE_DETAIL'], shadow_rect)
+            
+            # Cover parts
+            pygame.draw.ellipse(screen, colors['MANHOLE_OUTER'], cover_rect)
+            inner_rect = cover_rect.inflate(-8, -6)
+            pygame.draw.ellipse(screen, colors['MANHOLE_INNER'], inner_rect)
+            
+            # Cross pattern
+            center_x = inner_rect.centerx
+            center_y = inner_rect.centery
+            detail_width = inner_rect.width * 0.7
+            detail_height = inner_rect.height * 0.6
+            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
+                           (center_x - detail_width//2, center_y),
+                           (center_x + detail_width//2, center_y), 2)
+            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
+                           (center_x, center_y - detail_height//2),
+                           (center_x, center_y + detail_height//2), 2)
         else:
-            # When dormant, only draw the horizontal slab
-            scaled_horizontal = scale_rect(self.horizontal_rect)
-            pygame.draw.rect(screen, color, scaled_horizontal)
+            # Draw the cover in its normal position over the hole
+            # Shadow
+            shadow_rect = base_oval.copy()
+            shadow_rect.y += 2
+            pygame.draw.ellipse(screen, colors['MANHOLE_DETAIL'], shadow_rect)
+            
+            # Cover parts
+            pygame.draw.ellipse(screen, colors['MANHOLE_OUTER'], base_oval)
+            inner_rect = base_oval.inflate(-8, -6)
+            pygame.draw.ellipse(screen, colors['MANHOLE_INNER'], inner_rect)
+            
+            # Cross pattern
+            center_x = inner_rect.centerx
+            center_y = inner_rect.centery
+            detail_width = inner_rect.width * 0.7
+            detail_height = inner_rect.height * 0.6
+            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
+                           (center_x - detail_width//2, center_y),
+                           (center_x + detail_width//2, center_y), 2)
+            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
+                           (center_x, center_y - detail_height//2),
+                           (center_x, center_y + detail_height//2), 2)
 
 class PowerUpBall:
     def __init__(self, x, y, size=20):

@@ -23,7 +23,10 @@ class SewerLevel:
             'BLACK': (20, 20, 20),  # Darker black for atmosphere
             'DARK_BLUE': (30, 40, 50),  # Darker blue for sewer atmosphere
             'PORTAL': (0, 0, 0),  # Black for sewer portals
-            'MANHOLE': (139, 69, 19)  # Brown for sewer manholes
+            'MANHOLE_OUTER': (100, 100, 110),  # Dark metallic grey for outer ring
+            'MANHOLE_INNER': (140, 140, 150),  # Lighter metallic grey for inner part
+            'MANHOLE_DETAIL': (80, 80, 90),  # Darker grey for decorative details
+            'MANHOLE_HOLE': (15, 15, 20)  # Very dark color for the hole when cover is removed
         }
         
         # No center line in sewer level
@@ -65,19 +68,19 @@ class SewerLevel:
                 'bottom_right': {'x': self.width - portal_width, 'y': self.height - portal_height - 20}
             }
         }
-        
         # Manhole parameters
-        manhole_width = 80  # Made skinnier (was 80)
-        manhole_height = 10
-        margin = 120  # Distance from sides, closer to center
+        manhole_width = 60  # Square dimensions for proper perspective
+        manhole_height = 60
+        section_width = self.width // 3  # Divide arena into thirds
+        x_offset = section_width // 2 - manhole_width // 2  # Center in each third
         self.manholes = {
             'width': manhole_width,
             'height': manhole_height,
             'positions': {
-                'bottom_left': {'x': margin, 'y': self.height - manhole_height - 10},
-                'bottom_right': {'x': self.width - margin - manhole_width, 'y': self.height - manhole_height - 10},
-                'top_left': {'x': margin, 'y': self.scoreboard_height + 10},
-                'top_right': {'x': self.width - margin - manhole_width, 'y': self.scoreboard_height + 10}
+                'bottom_left': {'x': x_offset, 'y': self.height - manhole_height - 5},
+                'bottom_right': {'x': self.width - section_width + x_offset, 'y': self.height - manhole_height - 5},
+                'top_left': {'x': x_offset, 'y': self.scoreboard_height + 5},
+                'top_right': {'x': self.width - section_width + x_offset, 'y': self.scoreboard_height + 5}
             }
         }
 
