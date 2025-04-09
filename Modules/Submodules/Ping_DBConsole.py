@@ -38,7 +38,8 @@ class DebugConsole:
         self.commands = {
             'help': self.cmd_help,
             'clear': self.cmd_clear,
-            'toggle_shader': self.cmd_toggle_shader
+            'toggle_shader': self.cmd_toggle_shader,
+            'win_scores': self.cmd_win_scores
         }
     
     def update(self, events):
@@ -143,6 +144,22 @@ class DebugConsole:
         current = SettingsScreen.get_shader_enabled()
         SettingsScreen.update_shader_enabled(not current)
         self.log(f"Shader {'disabled' if current else 'enabled'}")
+
+    def cmd_win_scores(self, args):
+        """Set the number of scores needed to win."""
+        if not args:
+            self.log("Usage: win_scores <number>")
+            return
+        try:
+            new_score = int(args[0])
+            if new_score <= 0:
+                self.log("Error: Score must be greater than 0")
+                return
+            from ..Submodules.Ping_Settings import SettingsScreen
+            SettingsScreen.update_win_scores(new_score)
+            self.log(f"Win scores set to {new_score}")
+        except ValueError:
+            self.log("Error: Score must be a valid number")
 
     def handle_event(self, event):
         """Handle keyboard input."""

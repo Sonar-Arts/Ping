@@ -20,6 +20,7 @@ class SettingsScreen:
     EFFECTS_VOLUME = 100  # Default value
     MUSIC_VOLUME = 100  # Default value
     SCORE_EFFECT_INTENSITY = 50  # Default value
+    WIN_SCORES = 10  # Default value for scores needed to win
     
     @classmethod
     def get_dimensions(cls):
@@ -119,7 +120,35 @@ class SettingsScreen:
         except Exception as e:
             print(f"Error updating shader setting: {e}")
             return False
-            return cls.SHADER_ENABLED
+
+    @classmethod
+    def get_win_scores(cls):
+        """Get current win scores setting."""
+        try:
+            with open("Game Parameters/settings.txt", "r") as f:
+                settings = dict(line.strip().split('=') for line in f
+                           if '=' in line and not line.strip().startswith('#'))
+                return int(settings.get('WIN_SCORES', cls.WIN_SCORES))
+        except Exception as e:
+            print(f"Error loading win scores: {e}")
+            return cls.WIN_SCORES
+
+    @classmethod
+    def update_win_scores(cls, scores):
+        """Update win scores in settings file."""
+        try:
+            current_settings = {}
+            with open("Game Parameters/settings.txt", "r") as f:
+                current_settings = dict(line.strip().split('=') for line in f
+                                   if '=' in line and not line.strip().startswith('#'))
+            current_settings['WIN_SCORES'] = scores
+            with open("Game Parameters/settings.txt", "w") as f:
+                for key, value in current_settings.items():
+                    f.write(f"{key}={value}\n")
+            return True
+        except Exception as e:
+            print(f"Error updating win scores: {e}")
+            return False
     
     def __init__(self):
         # Colors

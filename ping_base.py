@@ -65,7 +65,6 @@ PADDLE_HEIGHT = 120
 BALL_SIZE = 20
 FRAME_TIME = 1.0 / 60.0  # Target 60 FPS
 MAX_FRAME_TIME = FRAME_TIME * 4  # Cap for frame time to prevent spiral of death
-MAX_SCORE = 10  # Score needed to win the game
 
 pygame.display.set_caption("Ping")
 
@@ -408,10 +407,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     sound_manager.play_sound('score')
                     
                     # Check for win condition
-                    if score_a >= MAX_SCORE:
+                    win_score = settings.get_win_scores()
+                    if score_a >= win_score:
                         width, height = settings.get_dimensions()
                         return win_screen(screen, clock, width, height, current_player_name, debug_console)
-                    elif score_b >= MAX_SCORE:
+                    elif score_b >= win_score:
                         width, height = settings.get_dimensions()
                         return win_screen(screen, clock, width, height, player_b_name, debug_console)
                     
