@@ -267,7 +267,7 @@ class SettingsScreen:
         button_width = min(200, width // 4)  # Limit button width
         
         # Create a surface for scrollable content
-        total_height = 950  # Approximate total height of content
+        total_height = 1600  # Height for scrollable content
         content_surface = pygame.Surface((width, total_height))
         content_surface.fill(self.BLACK)
         
@@ -311,12 +311,6 @@ class SettingsScreen:
         button.draw(content_surface, name_btn_rect, self.player_name, font,
                      is_hovered=self._check_button_hover(name_btn_rect, mouse_pos))
         current_y += spacing
-
-        # Draw section separator
-        pygame.draw.line(content_surface, self.WHITE,
-                        (width//4, current_y),
-                        (width * 3//4, current_y), 1)
-        current_y += spacing * 0.5
 
         # Draw section separator
         pygame.draw.line(content_surface, self.WHITE,
@@ -417,67 +411,23 @@ class SettingsScreen:
                    is_hovered=self._check_button_hover(score_effect_plus_rect, mouse_pos))
         current_y += spacing
         
-        # Draw section separator for Retro Effects
+
+        # Draw section separator for UI Effects
         pygame.draw.line(content_surface, self.WHITE,
                         (width//4, current_y),
                         (width * 3//4, current_y), 1)
         current_y += spacing * 0.5
 
-        # Retro effects settings section header
-        retro_text = font.render("Retro Effects", True, self.WHITE)
-        content_surface.blit(retro_text, (width//2 - retro_text.get_width()//2, current_y))
+        # UI effects settings section header
+        effects_text = font.render("Additional UI Effects", True, self.WHITE)
+        content_surface.blit(effects_text, (width//2 - effects_text.get_width()//2, current_y))
         current_y += spacing * 1.5
-        
-        # Retro effects enabled toggle
-        effects_label = small_font.render("Enable Effects:", True, self.WHITE)
-        content_surface.blit(effects_label, (left_column_x - effects_label.get_width()//2, current_y))
-        effects_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
-        # Draw effects toggle button
-        mouse_pos = pygame.mouse.get_pos()
-        button.draw(content_surface, effects_btn_rect, "On" if self.retro_effects_enabled else "Off", font,
-                   is_hovered=self._check_button_hover(effects_btn_rect, mouse_pos))
-        current_y += spacing * 0.8
-        
-        # Scanline intensity with +/- buttons
-        scanline_label = small_font.render("Scanline Intensity:", True, self.WHITE)
-        content_surface.blit(scanline_label, (left_column_x - scanline_label.get_width()//2, current_y))
-        
-        # Scanline intensity controls
-        scanline_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
-        scanline_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
-        scanline_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
-        mouse_pos = pygame.mouse.get_pos()
-        button.draw(content_surface, scanline_minus_rect, "-", font,
-                   is_hovered=self._check_button_hover(scanline_minus_rect, mouse_pos))
-        button.draw(content_surface, scanline_display_rect, f"{self.scanline_intensity}%", font,
-                   is_hovered=False)
-        button.draw(content_surface, scanline_plus_rect, "+", font,
-                   is_hovered=self._check_button_hover(scanline_plus_rect, mouse_pos))
-        current_y += spacing * 0.8
-        
-        # Glow intensity with +/- buttons
-        glow_label = small_font.render("Glow Intensity:", True, self.WHITE)
-        content_surface.blit(glow_label, (left_column_x - glow_label.get_width()//2, current_y))
-        
-        # Glow intensity controls
-        glow_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
-        glow_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
-        glow_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
-        mouse_pos = pygame.mouse.get_pos()
-        button.draw(content_surface, glow_minus_rect, "-", font,
-                   is_hovered=self._check_button_hover(glow_minus_rect, mouse_pos))
-        button.draw(content_surface, glow_display_rect, f"{self.glow_intensity}%", font,
-                   is_hovered=False)
-        button.draw(content_surface, glow_plus_rect, "+", font,
-                   is_hovered=self._check_button_hover(glow_plus_rect, mouse_pos))
-        current_y += spacing * 1.2
-        
-        # Draw preview box
+
+        # Draw preview box right after the section header
         preview_width = min(300, int(width * 0.4))  # Scale preview width with window
         preview_height = 100
         preview_x = width//2 - preview_width // 2
-        preview_y = current_y
-        preview_rect = pygame.Rect(preview_x, preview_y, preview_width, preview_height)
+        preview_rect = pygame.Rect(preview_x, current_y, preview_width, preview_height)
         
         # Create preview surface
         preview_surf = pygame.Surface((preview_width + 20, preview_height + 20), pygame.SRCALPHA)
@@ -501,23 +451,76 @@ class SettingsScreen:
                                (0, y), (preview_width, y))
             preview_surf.blit(scanline_surface, (10, 10))
             
-            # Draw glow
+            # Draw glow effect in preview
             glow_alpha = int(self.glow_intensity * 2.55)  # Convert percentage to alpha (0-255)
             glow_color = tuple(map(int, self.score_glow_color.split(','))) + (glow_alpha,)
             pygame.draw.rect(preview_surf, glow_color, preview_surf.get_rect(), border_radius=10)
         
         # Draw preview content
         preview_surf.blit(preview_text,
-                         (10 + (preview_width - preview_text.get_width()) // 2,
-                          30))
+                          (10 + (preview_width - preview_text.get_width()) // 2,
+                           30))
         preview_surf.blit(preview_score,
-                         (10 + (preview_width - preview_score.get_width()) // 2,
-                          70))
+                          (10 + (preview_width - preview_score.get_width()) // 2,
+                           70))
         
-        # Blit preview surface to content surface
-        content_surface.blit(preview_surf, (preview_x - 10, preview_y - 10))
+        content_surface.blit(preview_surf, (preview_x - 10, current_y - 10))
+        current_y += preview_height + spacing * 1.5
+
+        # UI effects enabled toggle
+        effects_label = small_font.render("Enable Additional UI Effects:", True, self.WHITE)
+        content_surface.blit(effects_label, (left_column_x - effects_label.get_width()//2, current_y))
+        effects_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+
+        # Draw effects toggle button
+        mouse_pos = pygame.mouse.get_pos()
+        button.draw(content_surface, effects_btn_rect, "On" if self.retro_effects_enabled else "Off", font,
+                   is_hovered=self._check_button_hover(effects_btn_rect, mouse_pos))
+        current_y += spacing
+
+        # Create rectangles for intensity controls (but only draw them if effects are enabled)
+        scanline_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
+        scanline_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
+        scanline_plus_rect = pygame.Rect(plus_x, current_y, vol_btn_width, 30)
         
-        current_y = preview_y + preview_height + spacing
+        glow_minus_rect = pygame.Rect(minus_x, current_y + spacing * 0.8, vol_btn_width, 30)
+        glow_display_rect = pygame.Rect(display_x, current_y + spacing * 0.8, display_width, 30)
+        glow_plus_rect = pygame.Rect(plus_x, current_y + spacing * 0.8, vol_btn_width, 30)
+
+        if self.retro_effects_enabled:
+            # Scanline intensity with +/- buttons
+            scanline_label = small_font.render("Scanline Intensity:", True, self.WHITE)
+            content_surface.blit(scanline_label, (left_column_x - scanline_label.get_width()//2, current_y))
+            
+            # Draw scanline controls
+            mouse_pos = pygame.mouse.get_pos()
+            button.draw(content_surface, scanline_minus_rect, "-", font,
+                       is_hovered=self._check_button_hover(scanline_minus_rect, mouse_pos))
+            button.draw(content_surface, scanline_display_rect, f"{self.scanline_intensity}%", font,
+                       is_hovered=False)
+            button.draw(content_surface, scanline_plus_rect, "+", font,
+                       is_hovered=self._check_button_hover(scanline_plus_rect, mouse_pos))
+            current_y += spacing * 0.8
+            
+            # Glow intensity with +/- buttons
+            glow_label = small_font.render("Glow Intensity:", True, self.WHITE)
+            content_surface.blit(glow_label, (left_column_x - glow_label.get_width()//2, current_y))
+            
+            # Draw glow controls
+            mouse_pos = pygame.mouse.get_pos()
+            button.draw(content_surface, glow_minus_rect, "-", font,
+                       is_hovered=self._check_button_hover(glow_minus_rect, mouse_pos))
+            button.draw(content_surface, glow_display_rect, f"{self.glow_intensity}%", font,
+                       is_hovered=False)
+            button.draw(content_surface, glow_plus_rect, "+", font,
+                       is_hovered=self._check_button_hover(glow_plus_rect, mouse_pos))
+            current_y += spacing * 1.2
+        
+        # Draw glow effect in preview if enabled
+        if self.retro_effects_enabled:
+            glow_alpha = int(self.glow_intensity * 2.55)  # Convert percentage to alpha (0-255)
+            glow_color = tuple(map(int, self.score_glow_color.split(','))) + (glow_alpha,)
+            pygame.draw.rect(preview_surf, glow_color, preview_surf.get_rect(), border_radius=10)
         
         # Removed vertical separator line for cleaner UI
         
@@ -555,23 +558,50 @@ class SettingsScreen:
         content_surface.blit(hints_surface, (0, hints_y))
         current_y = hints_y + hints_height + spacing * 0.8
         
-        # Draw buttons (fixed at bottom of screen)
-        button_y = height - 100
-        button = get_button()
-        
-        # Create button rectangles
-        save_btn_rect = pygame.Rect(width//2 - 150, button_y, 100, 40)
-        back_btn_rect = pygame.Rect(width//2 + 50, button_y, 100, 40)
-        
-        # Apply scroll offset and draw the scrollable content
+        # Draw scrollable content first
         visible_rect = pygame.Rect(0, -self.scroll_y, width, height)
         screen.blit(content_surface, (0, 0), visible_rect)
         
         # Reset scroll when content is shorter than window
         if total_height <= height:
             self.scroll_y = 0
+
+        # Create brick pattern background for button area
+        button_area_height = 80  # Reduced height of brick area
+        button_area_surface = pygame.Surface((width, button_area_height))
+        brick_width = 30  # Smaller bricks
+        brick_height = 15
+        brick_color = (40, 40, 40)  # Darker gray for bricks
+        brick_outline = (70, 70, 70)  # Outline color
+        brick_highlight = (50, 50, 50)  # Slightly lighter for top edge
+
+        # Draw brick pattern
+        for y in range(0, button_area_height, brick_height):
+            offset = brick_width // 2 if (y // brick_height) % 2 == 1 else 0
+            for x in range(-offset, width + brick_width, brick_width):
+                # Main brick rectangle
+                brick_rect = pygame.Rect(x, y, brick_width - 1, brick_height - 1)
+                # Draw main brick
+                pygame.draw.rect(button_area_surface, brick_color, brick_rect)
+                # Draw outline
+                pygame.draw.rect(button_area_surface, brick_outline, brick_rect, 1)
+                # Draw highlight on top edge
+                pygame.draw.line(button_area_surface, brick_highlight,
+                               (brick_rect.left, brick_rect.top),
+                               (brick_rect.right, brick_rect.top))
+
+        # Draw button area background
+        screen.blit(button_area_surface, (0, height - button_area_height))
+
+        # Draw buttons over the brick pattern
+        button_y = height - 60  # Moved buttons up slightly to fit smaller area
+        button = get_button()
         
-        # Draw fixed buttons using Button instance (no scroll adjustment needed)
+        # Create button rectangles
+        save_btn_rect = pygame.Rect(width//2 - 150, button_y, 100, 40)
+        back_btn_rect = pygame.Rect(width//2 + 50, button_y, 100, 40)
+        
+        # Draw fixed buttons using Button instance
         mouse_pos = pygame.mouse.get_pos()
         button.draw(screen, save_btn_rect, "Save", font,
                    is_hovered=save_btn_rect.collidepoint(mouse_pos))
