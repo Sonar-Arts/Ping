@@ -155,6 +155,7 @@ class SettingsScreen:
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
+        self.dropdown_item_height = 25  # Height for dropdown menu items
         
         # Initialize settings with defaults
         self.current_size_index = 0
@@ -172,6 +173,31 @@ class SettingsScreen:
         self.score_effect_intensity = self.SCORE_EFFECT_INTENSITY
         
         self._load_settings()
+    
+    def _create_brick_pattern(self, width, height):
+        """Create a brick pattern background surface."""
+        surface = pygame.Surface((width, height))
+        brick_width = 30  # Smaller bricks
+        brick_height = 15
+        brick_color = (40, 40, 40)  # Darker gray for bricks
+        brick_outline = (70, 70, 70)  # Outline color
+        brick_highlight = (50, 50, 50)  # Slightly lighter for top edge
+
+        # Draw brick pattern
+        for y in range(0, height, brick_height):
+            offset = brick_width // 2 if (y // brick_height) % 2 == 1 else 0
+            for x in range(-offset, width + brick_width, brick_width):
+                # Main brick rectangle
+                brick_rect = pygame.Rect(x, y, brick_width - 1, brick_height - 1)
+                # Draw main brick
+                pygame.draw.rect(surface, brick_color, brick_rect)
+                # Draw outline
+                pygame.draw.rect(surface, brick_outline, brick_rect, 1)
+                # Draw highlight on top edge
+                pygame.draw.line(surface, brick_highlight,
+                               (brick_rect.left, brick_rect.top),
+                               (brick_rect.right, brick_rect.top))
+        return surface
 
     def _load_settings(self):
         """Load settings from the settings file."""
@@ -274,8 +300,19 @@ class SettingsScreen:
                 return result
     
     def _check_button_hover(self, rect, mouse_pos):
-        """Helper function to check button hover with proper scroll offset"""
-        return rect.collidepoint(mouse_pos[0], mouse_pos[1] - self.scroll_y)
+        """Helper function to check button hover with proper scroll offset and title area adjustment"""
+        title_area_height = 60  # Match the title area height used in draw_settings_screen
+        
+        # Calculate dropdown offset if open and button is below dropdown
+        dropdown_offset = 0
+        if hasattr(self, 'show_resolutions') and self.show_resolutions:
+            res_button_bottom = 20 + 35  # Initial y + button height
+            if rect.y > res_button_bottom:
+                dropdown_offset = len(self.screen_sizes) * self.dropdown_item_height
+        
+        # Adjust mouse position for scroll, title area, and dropdown if needed
+        adjusted_y = mouse_pos[1] - self.scroll_y - title_area_height + dropdown_offset
+        return rect.collidepoint(mouse_pos[0], adjusted_y)
 
     def draw_settings_screen(self, screen, events, sound_test_fn=None, back_fn=None, sound_manager=None):
         """Draw the settings screen with all options."""
@@ -300,45 +337,166 @@ class SettingsScreen:
         content_surface = pygame.Surface((width, total_height))
         content_surface.fill(self.BLACK)
         
-        # Handle scrolling with mouse wheel and clear any queued mouse motion events
-        for event in events:
-            if event.type == pygame.MOUSEWHEEL:
-                scroll_amount = event.y * 30
-                self.scroll_y = min(0, max(-total_height + height, self.scroll_y + scroll_amount))
-        
+        # Initialize positions
         current_y = 50
         spacing = 50
+        title_area_height = 60  # Smaller title area
         
-        # Center title with underline
+        # Handle scrolling with mouse wheel (but not when over dropdown)
+        for event in events:
+            if event.type == pygame.MOUSEWHEEL:
+                mouse_pos = pygame.mouse.get_pos()
+                # Don't scroll if mouse is over resolution dropdown
+                if hasattr(self, 'show_resolutions') and self.show_resolutions:
+                    real_y = current_y
+                    # Create rectangle for entire dropdown area including button
+                    dropdown_area = pygame.Rect(
+                        right_column_x - button_width//2,
+                        real_y + self.scroll_y + title_area_height,
+                        button_width,
+                        self.dropdown_item_height * (len(self.screen_sizes) + 1)  # +1 for button
+                    )
+                    if dropdown_area.collidepoint(mouse_pos):
+                        continue
+                
+                scroll_amount = event.y * 30
+                self.scroll_y = min(0, max(-total_height + height, self.scroll_y + scroll_amount))
+                print(f"[DEBUG] Scrolling: {self.scroll_y}")
+        
+        # Create title area with brick pattern
+        title_area = self._create_brick_pattern(width, title_area_height)
+        
+        # Draw title in brick area
         title = title_font.render("Settings", True, self.WHITE)
         title_x = width//2 - title.get_width()//2
-        content_surface.blit(title, (title_x, current_y))
+        title_y = (title_area_height - title.get_height()) // 2
+        title_area.blit(title, (title_x, title_y))
         
-        # Draw underline
-        pygame.draw.line(content_surface, self.WHITE,
-                        (title_x, current_y + title.get_height() + 5),
-                        (title_x + title.get_width(), current_y + title.get_height() + 5), 2)
-        current_y += spacing * 2.5
-
+        # Draw title area at top
+        screen.blit(title_area, (0, 0))
+        
+        # Adjust content surface start position
+        current_y = 20  # Reduced spacing since title is now separate
         button = get_button()
         
-        # Resolution settings
-        current_res = f"{self.screen_sizes[self.current_size_index][0]}x{self.screen_sizes[self.current_size_index][1]}"
+        # Resolution settings section
+        self.resolution_section_height = spacing  # Default height
         res_label = font.render("Resolution:", True, self.WHITE)
         content_surface.blit(res_label, (left_column_x - res_label.get_width()//2, current_y))
-        res_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+
+        # Current resolution button
+        current_res = f"{self.screen_sizes[self.current_size_index][0]}x{self.screen_sizes[self.current_size_index][1]}"
+        res_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 35)
         mouse_pos = pygame.mouse.get_pos()
-        button.draw(content_surface, res_btn_rect, current_res, font,
-                    is_hovered=self._check_button_hover(res_btn_rect, mouse_pos))
-        current_y += spacing
+        is_hovered = self._check_button_hover(res_btn_rect, mouse_pos)
+        
+        # Draw the resolution button (original style)
+        # Draw the main button
+        button.draw(content_surface, res_btn_rect, current_res, font, is_hovered=is_hovered)
+        
+        # Draw a small triangle that points up when open and down when closed
+        triangle_size = 6
+        triangle_margin = 10
+        triangle_x = res_btn_rect.right - triangle_margin - triangle_size
+        triangle_y = res_btn_rect.centery - triangle_size // 2
+        
+        is_open = hasattr(self, 'show_resolutions') and self.show_resolutions
+        if is_open:
+            # Pointing upward when open
+            triangle_points = [
+                (triangle_x, triangle_y + triangle_size),
+                (triangle_x + triangle_size, triangle_y + triangle_size),
+                (triangle_x + triangle_size // 2, triangle_y)
+            ]
+        else:
+            # Pointing downward when closed
+            triangle_points = [
+                (triangle_x, triangle_y),
+                (triangle_x + triangle_size, triangle_y),
+                (triangle_x + triangle_size // 2, triangle_y + triangle_size)
+            ]
+        pygame.draw.polygon(content_surface, self.WHITE, triangle_points)
+        
+        # Handle resolution dropdown
+        if hasattr(self, 'show_resolutions') and self.show_resolutions:
+            # Draw resolution options
+            dropdown_height = len(self.screen_sizes) * self.dropdown_item_height
+            self.resolution_section_height = spacing + dropdown_height
+            # Draw dropdown background
+            dropdown_bg = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom,
+                                res_btn_rect.width, dropdown_height)
+            pygame.draw.rect(content_surface, (30, 30, 50), dropdown_bg)
+            pygame.draw.rect(content_surface, (80, 80, 100), dropdown_bg, 1)
+            
+            # Draw options
+            for i, (w, h) in enumerate(self.screen_sizes):
+                # Calculate option rect with scroll position taken into account
+                real_y = res_btn_rect.bottom + i * self.dropdown_item_height
+                option_rect = pygame.Rect(res_btn_rect.x, real_y,
+                                        res_btn_rect.width, self.dropdown_item_height)
+                option_text = f"{w}x{h}"
+                
+                # Create hover detection rect that accounts for scroll
+                hover_rect = pygame.Rect(option_rect)
+                hover_rect.y = real_y + self.scroll_y + title_area_height
+                is_option_hovered = hover_rect.collidepoint(mouse_pos)
+                
+                # Draw option background (purplish-red for options only)
+                option_inner = pygame.Rect(option_rect.x + 2, option_rect.y + 2,
+                                        option_rect.width - 4, option_rect.height - 4)
+                bg_color = (80, 40, 60) if is_option_hovered else (60, 30, 50)
+                pygame.draw.rect(content_surface, bg_color, option_inner)
+                pygame.draw.rect(content_surface, (100, 60, 80), option_inner, 1)
+                pygame.draw.rect(content_surface, (100, 100, 140), option_rect, 1)
+                
+                # Draw option text with smaller font for dropdown items
+                small_font = get_pixel_font(16)  # Smaller font for dropdown options
+                text_surf = small_font.render(option_text, True, self.WHITE)
+                text_rect = text_surf.get_rect()
+                text_rect.center = option_inner.center
+                content_surface.blit(text_surf, text_rect)
+
+        # Handle resolution selection
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
+                # Handle resolution button and options
+                if self._check_button_hover(res_btn_rect, mouse_pos):
+                    # Toggle dropdown
+                    if not hasattr(self, 'show_resolutions'):
+                        self.show_resolutions = False
+                    self.show_resolutions = not self.show_resolutions
+                    print("[DEBUG] Resolution dropdown clicked")
+                elif hasattr(self, 'show_resolutions') and self.show_resolutions:
+                    # Check each option in the dropdown
+                    for i, _ in enumerate(self.screen_sizes):
+                        real_y = res_btn_rect.bottom + i * self.dropdown_item_height
+                        click_rect = pygame.Rect(res_btn_rect.x, real_y + self.scroll_y + title_area_height,
+                                              res_btn_rect.width, self.dropdown_item_height)
+                        if click_rect.collidepoint(mouse_pos):
+                            self.current_size_index = i
+                            self.show_resolutions = False
+                            width, height = self.screen_sizes[i]
+                            print(f"[DEBUG] Selected resolution: {width}x{height}")
+                            self.update_dimensions(width, height)
+                            pygame.display.set_mode((width, height))
+                            self.resolution_section_height = spacing
+                            return None  # Prevent other button clicks
+                else:
+                    self.show_resolutions = False  # Close when clicking outside
+
+        # Add spacing based on resolution dropdown state
+        current_y += self.resolution_section_height if hasattr(self, 'resolution_section_height') else spacing
 
         # Player name
         name_label = font.render("Player Name:", True, self.WHITE)
         content_surface.blit(name_label, (left_column_x - name_label.get_width()//2, current_y))
         name_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
         mouse_pos = pygame.mouse.get_pos()
+        # Update button position if dropdown is open
+        if hasattr(self, 'show_resolutions') and self.show_resolutions:
+            name_btn_rect.y += len(self.screen_sizes) * self.dropdown_item_height
         button.draw(content_surface, name_btn_rect, self.player_name, font,
-                     is_hovered=self._check_button_hover(name_btn_rect, mouse_pos))
+                   is_hovered=self._check_button_hover(name_btn_rect, mouse_pos))
         current_y += spacing
 
         # Draw section separator
@@ -588,8 +746,9 @@ class SettingsScreen:
         current_y = hints_y + hints_height + spacing * 0.8
         
         # Draw scrollable content first
-        visible_rect = pygame.Rect(0, -self.scroll_y, width, height)
-        screen.blit(content_surface, (0, 0), visible_rect)
+        # Draw scrollable content with offset for title area
+        visible_rect = pygame.Rect(0, -self.scroll_y, width, height - title_area_height)
+        screen.blit(content_surface, (0, title_area_height), visible_rect)
         
         # Reset scroll when content is shorter than window
         if total_height <= height:
@@ -638,26 +797,30 @@ class SettingsScreen:
                    is_hovered=back_btn_rect.collidepoint(mouse_pos))
         
         # Handle button actions
+        # Handle non-resolution button clicks
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Only left click
                 mouse_pos = pygame.mouse.get_pos()
-                # Use helper function for button collision checks
-                if self._check_button_hover(res_btn_rect, mouse_pos):
-                    # Cycle through available resolutions
-                    self.current_size_index = (self.current_size_index + 1) % len(self.screen_sizes)
-                    # Force reset scroll position when changing resolution
-                    self.scroll_y = 0  # Reset scroll position to top
-                    # Save and apply new resolution immediately
-                    new_width, new_height = self.screen_sizes[self.current_size_index]
-                    self.update_dimensions(new_width, new_height)
-                    pygame.display.set_mode((new_width, new_height))
-                elif self._check_button_hover(name_btn_rect, mouse_pos):
-                    # Handle player name change
+                # Skip other button processing if a resolution option was clicked
+                if (hasattr(self, 'show_resolutions') and self.show_resolutions and
+                    mouse_pos[1] >= res_btn_rect.bottom and
+                    mouse_pos[1] <= res_btn_rect.bottom + len(self.screen_sizes) * self.dropdown_item_height):
+                    continue
+
+                # Handle buttons below the resolution section
+                if hasattr(self, 'show_resolutions') and self.show_resolutions:
+                    # Adjust mouse position for dropdown offset
+                    mouse_pos = list(mouse_pos)
+                    mouse_pos[1] += len(self.screen_sizes) * self.dropdown_item_height
+
+                # Handle player name button
+                if self._check_button_hover(name_btn_rect, mouse_pos):
                     from ..Ping_UI import player_name_screen
                     new_name = player_name_screen(screen, pygame.time.Clock(), width, height)
                     if new_name:
                         self.player_name = new_name
-                # Handle +/- button clicks for volume controls
+                
+                # Handle other button clicks with adjusted position
                 elif self._check_button_hover(master_vol_minus_rect, mouse_pos):
                     self.master_volume = max(0, self.master_volume - 5)
                 elif self._check_button_hover(master_vol_plus_rect, mouse_pos):

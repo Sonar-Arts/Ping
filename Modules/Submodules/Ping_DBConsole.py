@@ -11,6 +11,13 @@ class DebugConsole:
         self.toggle_time = 0
         self.scroll_offset = 0
         
+        # Debug flags
+        self.debug_ai = False
+        self.debug_collisions = False
+        self.debug_input = False
+        self.debug_sound = False
+        self.debug_physics = False
+        
         # Visual settings
         self.bg_color = (0, 0, 0, 200)  # Semi-transparent background
         self.text_color = (0, 255, 0)  # Green text
@@ -39,7 +46,12 @@ class DebugConsole:
             'help': self.cmd_help,
             'clear': self.cmd_clear,
             'toggle_shader': self.cmd_toggle_shader,
-            'win_scores': self.cmd_win_scores
+            'win_scores': self.cmd_win_scores,
+            'debug_ai': self.cmd_debug_ai,
+            'debug_collisions': self.cmd_debug_collisions,
+            'debug_input': self.cmd_debug_input,
+            'debug_sound': self.cmd_debug_sound,
+            'debug_physics': self.cmd_debug_physics
         }
     
     def update(self, events):
@@ -130,8 +142,19 @@ class DebugConsole:
     def cmd_help(self, args):
         """Show available commands."""
         self.log("Available commands:")
-        for cmd in self.commands:
-            self.log(f"  {cmd}")
+        command_help = {
+            'help': 'Show this help message',
+            'clear': 'Clear console messages',
+            'toggle_shader': 'Toggle shader effects on/off',
+            'win_scores': 'Set number of scores needed to win (usage: win_scores <number>)',
+            'debug_ai': 'Toggle AI debug messages',
+            'debug_collisions': 'Toggle collision detection debug messages',
+            'debug_input': 'Toggle input processing debug messages',
+            'debug_sound': 'Toggle sound system debug messages',
+            'debug_physics': 'Toggle physics simulation debug messages'
+        }
+        for cmd, desc in command_help.items():
+            self.log(f"  {cmd:<16} - {desc}")
     
     def cmd_clear(self, args):
         """Clear console messages."""
@@ -160,6 +183,31 @@ class DebugConsole:
             self.log(f"Win scores set to {new_score}")
         except ValueError:
             self.log("Error: Score must be a valid number")
+    def cmd_debug_ai(self, args):
+        """Toggle AI debug messages."""
+        self.debug_ai = not self.debug_ai
+        self.log(f"AI debug messages {'enabled' if self.debug_ai else 'disabled'}")
+    
+    def cmd_debug_collisions(self, args):
+        """Toggle collision detection debug messages."""
+        self.debug_collisions = not self.debug_collisions
+        self.log(f"Collision debug messages {'enabled' if self.debug_collisions else 'disabled'}")
+    
+    def cmd_debug_input(self, args):
+        """Toggle input processing debug messages."""
+        self.debug_input = not self.debug_input
+        self.log(f"Input debug messages {'enabled' if self.debug_input else 'disabled'}")
+    
+    def cmd_debug_sound(self, args):
+        """Toggle sound system debug messages."""
+        self.debug_sound = not self.debug_sound
+        self.log(f"Sound debug messages {'enabled' if self.debug_sound else 'disabled'}")
+    
+    def cmd_debug_physics(self, args):
+        """Toggle physics simulation debug messages."""
+        self.debug_physics = not self.debug_physics
+        self.log(f"Physics debug messages {'enabled' if self.debug_physics else 'disabled'}")
+
 
     def handle_event(self, event):
         """Handle keyboard input."""
