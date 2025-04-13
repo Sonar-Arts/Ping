@@ -38,7 +38,8 @@ class LevelSelect:
     
     def _check_button_hover(self, rect, mouse_pos, title_area_height):
         """Helper function to check button hover with proper scroll offset and title area"""
-        return rect.collidepoint(mouse_pos[0], mouse_pos[1] - self.scroll_y - title_area_height)
+        adjusted_y = mouse_pos[1] - title_area_height - self.scroll_y
+        return rect.collidepoint(mouse_pos[0], adjusted_y)
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the level select screen with optional debug console."""
@@ -117,18 +118,17 @@ class LevelSelect:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                     mouse_pos = event.pos
                     
-                    # Adjust mouse position for content area
-                    content_mouse_pos = (mouse_pos[0], mouse_pos[1] - title_area_height)
+                    # Use raw mouse position for click detection
+                    content_mouse_pos = mouse_pos
                     
                     # Check buttons with scroll offset for level buttons
                     if self._check_button_hover(debug_rect, content_mouse_pos, title_area_height):
                         return DebugLevel()
                     elif self._check_button_hover(sewer_rect, content_mouse_pos, title_area_height):
                         return SewerLevel()
-                    # Back button doesn't need scroll offset since it's fixed
-                    elif back_button_y <= mouse_pos[1] <= back_button_y + button_height:
-                        if WINDOW_WIDTH//2 - button_width//2 <= mouse_pos[0] <= WINDOW_WIDTH//2 + button_width//2:
-                            return "back"
+                    # Back button uses same hover check for consistency
+                    elif back_rect.collidepoint(mouse_pos[0], mouse_pos[1]):
+                        return "back"
                             
                 if event.type == pygame.MOUSEWHEEL:
                     scroll_amount = event.y * 20  # Reduced scroll speed
@@ -163,7 +163,7 @@ class LevelSelect:
             back_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2, back_button_y,
                                   button_width, button_height)
             button.draw(screen, back_rect, "Back", option_font,
-                       is_hovered=back_rect.collidepoint(mouse_pos))
+                        is_hovered=back_rect.collidepoint(mouse_pos[0], mouse_pos[1]))
 
             # Draw debug console if provided
             if debug_console:
