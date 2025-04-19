@@ -1,6 +1,7 @@
 import pygame
 import time
 import random
+import math # Added for lightning bolt generation
 from sys import exit
 from .Submodules.Ping_Settings import SettingsScreen
 from .Submodules.Ping_Fonts import get_pixel_font
@@ -8,9 +9,13 @@ from .Submodules.Ping_Fonts import get_pixel_font
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-DARK_GREY = (40, 40, 40) # For clouds
+DARK_GREY = (40, 40, 40) # For clouds base
+MID_GREY = (60, 60, 60) # For cloud detail
 LIGHT_GREY = (100, 100, 100) # For city placeholder
+RUIN_GREY_DARK = (50, 55, 60) # Darker city color
+RUIN_GREY_LIGHT = (70, 75, 80) # Lighter city color
 YELLOW = (255, 255, 0) # For lightning
+LIGHTNING_GLOW = (200, 200, 255, 100) # Pale blue glow
 
 # Default window dimensions
 DEFAULT_WIDTH = 800
@@ -70,84 +75,273 @@ class AnimatedBackground:
         self.height = height
         self.clouds = []
         self.lightning_timer = 0
-        self.lightning_duration = 0.1 # seconds
+        self.lightning_duration = 0.15 # Slightly longer flash
         self.lightning_active = False
-        self.lightning_pos = (0, 0)
+        self.lightning_bolt = [] # Store points for the bolt
+        self.lightning_glow_surface = pygame.Surface((width, height), pygame.SRCALPHA)
         self.lightning_cooldown = random.uniform(2, 5) # Time between lightning strikes
 
-        # Placeholder for ruined city background (simple gradient or solid color)
-        self.city_surface = pygame.Surface((width, height))
-        # Simple gradient from dark grey to black
-        for y in range(height):
-            color_val = int(40 * (1 - y / height))
-            pygame.draw.line(self.city_surface, (color_val, color_val, color_val), (0, y), (width, y))
-        # Or just a solid color: self.city_surface.fill(LIGHT_GREY)
+        # Generate ruined city background
+        self.city_surface = self._create_ruined_city(width, height)
 
         # Initialize clouds
-        num_clouds = 15
+        num_clouds = 10 # Fewer, but more detailed clouds
         for _ in range(num_clouds):
-            self.add_cloud()
+            self.add_cloud(initial=True)
+
+    def _create_ruined_city(self, width, height):
+        """Creates a surface with a simple ruined city skyline."""
+        surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        surface.fill((20, 20, 30)) # Dark blue/grey sky base
+
+        building_bottom = height
+        skyline_height_base = int(height * 0.4) # How high the tallest buildings reach approx
+        skyline_height_variation = int(height * 0.2)
+
+        x = 0
+        while x < width:
+            building_width = random.randint(30, 100)
+            building_height = skyline_height_base + random.randint(-skyline_height_variation, skyline_height_variation // 2)
+            building_top = building_bottom - building_height
+
+            # Jagged tops for ruins
+            points = [(x, building_bottom)]
+            current_y = building_top
+            for i in range(x, x + building_width, 10):
+                current_y = building_top + random.randint(-15, 5)
+                points.append((i, current_y))
+            points.append((x + building_width, current_y)) # Last top point
+            points.append((x + building_width, building_bottom))
+
+            # Choose color
+            color = random.choice([RUIN_GREY_DARK, RUIN_GREY_LIGHT])
+            pygame.draw.polygon(surface, color, points)
+
+            # Add some simple window details (darker rectangles)
+            if building_width > 40: # Only on wider buildings
+                win_color = (max(0, color[0]-20), max(0, color[1]-20), max(0, color[2]-20))
+                for _ in range(random.randint(3, 10)):
+                    win_w = random.randint(5, 15)
+                    win_h = random.randint(8, 20)
+                    win_x = random.randint(x + 5, x + building_width - win_w - 5)
+                    win_y = random.randint(building_top + 10, building_bottom - win_h - 10)
+                    # Only draw if not overlapping jagged top too much
+                    if win_y > current_y + 5:
+                         pygame.draw.rect(surface, win_color, (win_x, win_y, win_w, win_h))
+
+
+            x += building_width + random.randint(-5, 15) # Overlap slightly or leave gaps
+
+        return surface
 
     def add_cloud(self, initial=True):
-        cloud_width = random.randint(50, 150)
-        cloud_height = random.randint(20, 60)
-        # Start clouds off-screen to the right or already on screen if initial
-        start_x = self.width + random.randint(50, 200) if not initial else random.randint(-cloud_width, self.width)
-        start_y = random.randint(0, int(self.height * 0.6)) # Clouds in upper 60%
-        speed = random.uniform(10, 40) # Pixels per second
+        num_puffs = random.randint(3, 7) # Number of ellipses per cloud
+        # Ensure base_x starts clouds fully off-screen when not initial
+        base_x = self.width + random.randint(10, 50) if not initial else random.randint(-100, self.width)
+        base_y = random.randint(0, int(self.height * 0.5)) # Clouds in upper 50%
+        speed = random.uniform(15, 50) # Pixels per second
+        base_color = (random.randint(30, 50), random.randint(30, 50), random.randint(35, 55)) # Darker greys base
+        detail_color = (base_color[0]+15, base_color[1]+15, base_color[2]+15) # Slightly lighter detail
+
+        cloud_puffs = []
+        min_puff_x = base_x # Track the leftmost point for reset logic
+        max_puff_right = base_x # Track the rightmost point for reset logic
+
+        for i in range(num_puffs):
+            # Make puffs more blocky/pixelated - use larger steps for size
+            puff_w = random.randrange(40, 101, 8) # Widths in steps of 8
+            puff_h = random.randrange(32, 71, 8) # Heights in steps of 8
+            # Offset puffs relative to the base_x, base_y, snap offsets
+            offset_x = random.randrange(-32, 33, 8) * i // 2
+            offset_y = random.randrange(-24, 25, 8)
+            # Ensure coordinates are integers for rects
+            puff_x = int(base_x + offset_x)
+            puff_y = int(base_y + offset_y)
+            puff_rect = pygame.Rect(puff_x, puff_y, puff_w, puff_h)
+            cloud_puffs.append({
+                'rect': puff_rect,
+                'color': random.choice([base_color, detail_color]) # Mix colors for texture
+            })
+            min_puff_x = min(min_puff_x, puff_rect.left)
+            max_puff_right = max(max_puff_right, puff_rect.right)
+
         self.clouds.append({
-            'rect': pygame.Rect(start_x, start_y, cloud_width, cloud_height),
+            'puffs': cloud_puffs,
             'speed': speed,
-            'color': (random.randint(30, 60), random.randint(30, 60), random.randint(30, 60)) # Darker greys
+            'base_x': base_x, # Store original base_x for reset calculation
+            'base_y': base_y,
+            # Use min/max calculated coords for more accurate reset logic
+            'min_x': min_puff_x,
+            'max_right': max_puff_right
         })
+
+    def _generate_lightning_bolt(self, start_pos, end_y):
+        """Generates a list of points for a pixelated lightning bolt."""
+        points = [start_pos]
+        current_pos = list(start_pos)
+        # Increased deviation for a more jagged look, step size for pixelation
+        max_deviation = 30
+        segment_length = random.randrange(8, 25, 4) # Vertical segment length (pixelated steps)
+        pixel_size = 4 # Controls the blockiness
+
+        while current_pos[1] < end_y:
+            # Calculate next y position with pixel steps
+            next_y = current_pos[1] + segment_length
+            next_y = min(end_y, next_y) # Don't go past the target end_y
+
+            # Calculate next x position with deviation and pixel steps
+            deviation = random.randrange(-max_deviation, max_deviation + 1, pixel_size)
+            next_x = current_pos[0] + deviation
+            # Clamp x within screen bounds slightly, aligned to pixel grid
+            next_x = max(pixel_size, min(self.width - pixel_size, next_x))
+            next_x = round(next_x / pixel_size) * pixel_size
+
+            points.append((next_x, next_y))
+            current_pos = [next_x, next_y]
+            segment_length = random.randrange(8, 25, 4) # New length for next segment
+
+            # Chance to fork (less frequent for cleaner look maybe)
+            if random.random() < 0.10 and len(points) > 2:
+                 # Forks also generate pixelated bolts
+                 fork_end_y = end_y + random.randint(-30, 60)
+                 fork_points = self._generate_lightning_bolt(current_pos, fork_end_y)
+                 points.append(None) # Separator
+                 points.extend(fork_points[1:])
+
+        return points
 
     def update(self, dt):
         # Move clouds
-        for cloud in self.clouds:
-            cloud['rect'].x -= cloud['speed'] * dt
-            # If cloud moves off-screen left, reset its position to the right
-            if cloud['rect'].right < 0:
-                cloud['rect'].width = random.randint(50, 150)
-                cloud['rect'].height = random.randint(20, 60)
-                cloud['rect'].x = self.width + random.randint(50, 200)
-                cloud['rect'].y = random.randint(0, int(self.height * 0.6))
-                cloud['speed'] = random.uniform(10, 40)
+        clouds_to_reset = []
+        for i, cloud in enumerate(self.clouds):
+            dx = cloud['speed'] * dt
+            cloud['base_x'] -= dx
+            current_max_right = -float('inf') # Reset max_right for this frame
+            for puff in cloud['puffs']:
+                puff['rect'].x -= dx
+                current_max_right = max(current_max_right, puff['rect'].right)
 
-        # Lightning logic
+            # Update the stored max_right for the cloud
+            cloud['max_right'] = current_max_right
+
+            # If the rightmost part of the cloud is off-screen left, mark for reset
+            if cloud['max_right'] < 0:
+                clouds_to_reset.append(i)
+
+        # Remove and re-add clouds that went off-screen
+        # Iterate backwards to avoid index issues when removing
+        for i in sorted(clouds_to_reset, reverse=True):
+            # Ensure index is still valid before popping (should be, but safe)
+            if i < len(self.clouds):
+                self.clouds.pop(i)
+                self.add_cloud(initial=False) # Add a new one starting off-screen right
+
+        # Lightning logic (mostly unchanged, relies on updated _generate_lightning_bolt and draw)
         if self.lightning_active:
             self.lightning_timer -= dt
             if self.lightning_timer <= 0:
                 self.lightning_active = False
+                self.lightning_bolt = [] # Clear the bolt path
+                self.lightning_glow_surface.fill((0, 0, 0, 0)) # Clear glow
         else:
             self.lightning_cooldown -= dt
             if self.lightning_cooldown <= 0:
                 self.lightning_active = True
                 self.lightning_timer = self.lightning_duration
-                # Choose a random cloud's position for the lightning origin (approx)
+                self.lightning_bolt = []
+
                 if self.clouds:
                     strike_cloud = random.choice(self.clouds)
-                    self.lightning_pos = (strike_cloud['rect'].centerx, strike_cloud['rect'].bottom)
-                else:
-                     self.lightning_pos = (random.randint(0, self.width), random.randint(0, int(self.height * 0.6)))
-                self.lightning_cooldown = random.uniform(3, 8) # Reset cooldown
+                    # Find the lowest, central point of the chosen cloud more accurately
+                    origin_x = 0
+                    origin_y = 0
+                    lowest_y = 0
+                    puff_centers_x = []
+                    for puff in strike_cloud['puffs']:
+                        lowest_y = max(lowest_y, puff['rect'].bottom)
+                        puff_centers_x.append(puff['rect'].centerx)
+                    # Use average center x of puffs for origin x
+                    if puff_centers_x:
+                        origin_x = sum(puff_centers_x) / len(puff_centers_x)
+                    origin_y = lowest_y # Start from the bottom of the lowest puff
+                    start_pos = (int(origin_x), int(origin_y)) # Ensure integer coords
+
+                    target_y = self.height
+                    city_hit_y = self.city_surface.get_height() * 0.7
+                    if start_pos[1] < city_hit_y:
+                        target_y = random.randint(int(city_hit_y), self.height)
+
+                    self.lightning_bolt = self._generate_lightning_bolt(start_pos, target_y)
+
+                else: # Fallback
+                     start_pos = (random.randint(0, self.width), random.randint(0, int(self.height * 0.5)))
+                     self.lightning_bolt = self._generate_lightning_bolt(start_pos, self.height)
+
+                self.lightning_cooldown = random.uniform(3, 8)
+
+                # Prepare glow effect (unchanged)
+                if self.lightning_bolt:
+                    valid_points = [p for p in self.lightning_bolt if p]
+                    if valid_points:
+                        avg_x = sum(p[0] for p in valid_points) / len(valid_points)
+                        avg_y = sum(p[1] for p in valid_points) / len(valid_points)
+                        glow_radius = random.randint(150, 300)
+                        glow_center = (int(avg_x), int(avg_y))
+                        # Draw radial gradient for glow (simplified)
+                        max_alpha = 150
+                        self.lightning_glow_surface.fill((0, 0, 0, 0)) # Clear previous glow before drawing new one
+                        for r in range(glow_radius, 0, -5):
+                            alpha = int(max_alpha * (1 - r / glow_radius)**2) # Use squared falloff for better look
+                            current_glow_color = LIGHTNING_GLOW[:3] + (alpha,)
+                            pygame.draw.circle(self.lightning_glow_surface, current_glow_color, glow_center, r)
 
     def draw(self, screen):
-        # Draw city background
+        # Draw city background first
         screen.blit(self.city_surface, (0, 0))
 
-        # Draw clouds
+        # Draw clouds (using rects for pixelated look)
+        pixel_size = 4 # Match lightning pixel size maybe
         for cloud in self.clouds:
-            pygame.draw.ellipse(screen, cloud['color'], cloud['rect']) # Use ellipse for softer cloud shape
+            for puff in cloud['puffs']:
+                 # Draw slightly darker outline rect
+                 outline_color = (max(0, puff['color'][0]-10), max(0, puff['color'][1]-10), max(0, puff['color'][2]-10))
+                 # Inflate slightly for outline effect
+                 outline_rect = puff['rect'].inflate(pixel_size, pixel_size)
+                 pygame.draw.rect(screen, outline_color, outline_rect)
+                 # Draw main puff rect
+                 pygame.draw.rect(screen, puff['color'], puff['rect'])
 
-        # Draw lightning flash (simple full screen flash)
+        # Draw lightning flash (glow + pixelated bolt)
         if self.lightning_active:
-            flash_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            # Intensity based on remaining time
-            intensity = int(200 * (self.lightning_timer / self.lightning_duration))
-            flash_surface.fill((255, 255, 200, intensity)) # Yellowish white flash
-            screen.blit(flash_surface, (0, 0))
-            # Optional: Draw a lightning bolt shape
-            # pygame.draw.line(screen, YELLOW, self.lightning_pos, (self.lightning_pos[0] + random.randint(-10, 10), self.height), 3)
+            screen.blit(self.lightning_glow_surface, (0, 0))
+
+            # Draw the lightning bolt using pixel-sized rects or thick lines
+            pixel_size = 4 # Size of the 'pixels' for the bolt
+            if len(self.lightning_bolt) > 1:
+                start_point = self.lightning_bolt[0]
+                for i in range(1, len(self.lightning_bolt)):
+                    end_point = self.lightning_bolt[i]
+                    if start_point and end_point:
+                        dx = end_point[0] - start_point[0]
+                        dy = end_point[1] - start_point[1]
+                        distance = max(abs(dx), abs(dy))
+                        if distance == 0: distance = 1 # Avoid division by zero
+
+                        for j in range(0, int(distance), pixel_size // 2): # Step along the line
+                            t = j / distance
+                            x = start_point[0] + t * dx
+                            y = start_point[1] + t * dy
+                            # Center the rect on the interpolated point
+                            px = int(x - pixel_size / 2)
+                            py = int(y - pixel_size / 2)
+                            # Snap to grid
+                            px = round(px / pixel_size) * pixel_size
+                            py = round(py / pixel_size) * pixel_size
+
+                            # Draw white core rect
+                            pygame.draw.rect(screen, WHITE, (px, py, pixel_size, pixel_size))
+
+                    start_point = end_point # Move to next segment
 
 from .Submodules.Ping_MainMenu import MainMenu
 from .Submodules.Ping_Pause import PauseMenu
