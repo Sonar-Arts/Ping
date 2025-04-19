@@ -4,11 +4,12 @@ from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 
 class PauseMenu:
-    def __init__(self):
+    def __init__(self, sound_manager):
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.HOVER_COLOR = (100, 100, 100)
-        
+        self.sound_manager = sound_manager
+
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the pause menu with options to resume, go to title screen, or settings."""
         scale_y = WINDOW_HEIGHT / 600  # Base height scale
@@ -69,6 +70,7 @@ class PauseMenu:
                     if resume_rect.collidepoint(mouse_pos):
                         return "resume"
                     elif title_rect.collidepoint(mouse_pos):
+                        self.sound_manager.stop_all_music() # Stop music
                         return "title"
                     elif settings_rect.collidepoint(mouse_pos):
                         return "settings"

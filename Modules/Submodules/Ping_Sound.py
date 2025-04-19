@@ -4,19 +4,30 @@ import random
 
 class SoundManager:
     """Handle all sound-related functionality for the game."""
+    # Class variable to track if main music has started
+    _main_music_started = False
     def __init__(self):
         """Initialize the sound manager."""
         # Load sound effects
         self.paddle_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Paddle.wav")
         self.score_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/Score.wav")
         self.wahahoo_sound = pygame.mixer.Sound("Ping_Sounds/Ping_FX/wahahoo.wav")
+        self.intro_music = pygame.mixer.Sound("Ping Assets/Music/PIntroMusicTemp.wav")
+        self.main_music = pygame.mixer.Sound("Ping Assets/Music/PMainMusicTemp.wav")
+        self.sewer_music = pygame.mixer.Sound("Ping Assets/Music/PSewerZoneTemp.wav")
         
         # Store base volumes for sounds (0-1 range)
         self.base_volumes = {
             'paddle': 0.5,
             'score': 0.5,
-            'wahahoo': 0.5
+            'wahahoo': 0.5,
+            'intro_music': 0.7,
+            'main_music': 0.7,
+            'sewer_music': 0.7
         }
+        
+        # Keep track of the music channel for looping
+        self.music_channel = None
         
         # Store master volume (0-1 range)
         self.master_volume = 1.0
@@ -63,6 +74,9 @@ class SoundManager:
         self.paddle_sound.set_volume(self.base_volumes['paddle'] * self.master_volume)
         self.score_sound.set_volume(self.base_volumes['score'] * self.master_volume)
         self.wahahoo_sound.set_volume(self.base_volumes['wahahoo'] * self.master_volume)
+        self.intro_music.set_volume(self.base_volumes['intro_music'] * self.master_volume)
+        self.main_music.set_volume(self.base_volumes['main_music'] * self.master_volume)
+        self.sewer_music.set_volume(self.base_volumes['sewer_music'] * self.master_volume)
     
     def play_sound(self, sound_type, collision_type=None):
         """
@@ -104,3 +118,28 @@ class SoundManager:
         """Play wahahoo sound with optional pitch variation."""
         thread = threading.Thread(target=lambda: self.wahahoo_sound.play(maxtime=int(self.wahahoo_sound.get_length() * 1000 / pitch_speed)))
         thread.start()
+    
+    def play_intro_music(self):
+        """Play the intro music."""
+        self.intro_music.play()
+    
+    def play_main_music(self):
+        """Stop current music channel and start playing the main menu music."""
+        if self.music_channel:
+            self.music_channel.stop() # Stop the tracked channel
+        self.music_channel = pygame.mixer.find_channel(True) # Force find a new channel
+        if self.music_channel:
+            self.music_channel.play(self.main_music, loops=-1)
+    
+    def play_sewer_music(self):
+        """Stop current music channel and start playing the sewer level music."""
+        if self.music_channel:
+            self.music_channel.stop() # Stop the tracked channel
+        self.music_channel = pygame.mixer.find_channel(True) # Force find a new channel
+        if self.music_channel:
+            self.music_channel.play(self.sewer_music, loops=-1)
+
+    def stop_all_music(self):
+        """Stop music on the tracked music channel."""
+        if self.music_channel:
+            self.music_channel.stop()

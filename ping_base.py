@@ -11,6 +11,7 @@ from Modules.Ping_GameObjects import PaddleObject, BallObject
 from Modules.Submodules.Ping_DBConsole import get_console
 from Modules.Submodules.Ping_Levels import SewerLevel  # Added for Sewer Level check
 from Modules.Submodules.Ping_Fonts import get_pixel_font  # Moved import here
+from Modules.Submodules.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
 
 """
 Ping Base Code
@@ -85,13 +86,19 @@ sound_manager = SoundManager()
 
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
-    with open("First_Names.txt") as f:
-        first_names = f.read().splitlines()
-    with open("Last_Name.txt") as f:
-        last_names = f.read().splitlines()
-    first_name = random.choice(first_names)
-    last_name = random.choice(last_names)
-    return f"{first_name} {last_name}"
+    try:
+        with open("First_Names.txt") as f:
+            first_names = f.read().splitlines()
+        with open("Last_Name.txt") as f:
+            last_names = f.read().splitlines()
+        if not first_names or not last_names:
+            return "Random Player"
+        first_name = random.choice(first_names)
+        last_name = random.choice(last_names)
+        return f"{first_name} {last_name}"
+    except FileNotFoundError:
+        debug_console.log("Error: Name files not found.")
+        return "Player X"
 
 def main_game(ai_mode, player_name, level, window_width, window_height, debug_console=debug_console):
     """Main game loop."""
@@ -325,7 +332,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     paused = True
                     while paused:  # Keep pause menu active until explicitly resumed or exited
                         width, height = SettingsScreen.get_dimensions()
-                        menu_result = pause_screen(screen, clock, width, height, debug_console)
+                        # Pass sound_manager to pause_screen
+                        menu_result = pause_screen(screen, clock, width, height, sound_manager, debug_console)
                         
                         if menu_result == "resume":
                             # Resume game
@@ -335,6 +343,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                             arena.scoreboard._debug_shown = False
                             paused = False
                         elif menu_result == "title":
+                            # Music is stopped within pause_screen now
                             # Return to title screen
                             return "title"
                         elif menu_result == "settings":
@@ -537,14 +546,36 @@ def get_player_name():
 
 
 if __name__ == "__main__":
+    # --- RUN STARTUP ANIMATION ---
+    # Moved here to run only once on startup
+    try:
+        current_width, current_height = settings.get_dimensions()
+        run_startup_animation(screen, clock, current_width, current_height)
+        debug_console.log("Startup animation finished.")
+    except Exception as e:
+        # Use debug console for logging errors if available
+        if 'debug_console' in globals():
+            debug_console.log(f"Error during startup animation: {e}")
+        else:
+            print(f"Error during startup animation: {e}")  # Fallback print
+    # --- END STARTUP ANIMATION ---
+
     running = True
     while running:
         player_name = get_player_name()
         while True:
             # Create and display title screen
-            title_screen_instance = TitleScreen()
+            # Pass the global sound_manager instance
+            title_screen_instance = TitleScreen(sound_manager)
             width, height = settings.get_dimensions()
-            game_mode = title_screen_instance.menu.display(screen, clock, width, height, debug_console)
+            # Corrected call: Use the TitleScreen's method to display the menu
+            game_mode = title_screen_instance.display(screen, clock, width, height, debug_console)
+            
+            # Handle quit action from title screen
+            if game_mode == "quit":
+                running = False
+                break
+                
             if game_mode == "settings":
                 settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
@@ -557,15 +588,21 @@ if __name__ == "__main__":
                         settings.update_dimensions(settings_result[0], settings_result[1])
                         screen = init_display(settings_result[0], settings_result[1])
                 continue
-            elif game_mode is None:
+            # Check if game_mode is None (which could happen if the display loop exits unexpectedly)
+            # or if it's False (for 2P mode) or True (for 1P mode)
+            elif game_mode is None: 
+                # If game_mode is None, assume user closed window or error occurred
                 running = False
                 break
             
-            # Show level selection screen
+            # Show level selection screen only if a game mode was selected (True or False)
             width, height = settings.get_dimensions()
-            level = level_select_screen(screen, clock, width, height, debug_console)
+            # Pass sound_manager to level_select_screen
+            level = level_select_screen(screen, clock, width, height, sound_manager, debug_console)
             if level == "back":
                 continue  # Go back to title screen
+            elif level is None: # Handle closing the level select screen
+                continue # Go back to title screen implicitly
             
             # Get the most up-to-date player name before starting the game
             current_player_name = settings.get_player_name()

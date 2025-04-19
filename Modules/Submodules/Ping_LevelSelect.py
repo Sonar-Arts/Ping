@@ -2,14 +2,16 @@ import pygame
 from .Ping_Levels import DebugLevel, SewerLevel  # Added Sewer Level import
 from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
+from .Ping_Sound import SoundManager
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
 class LevelSelect:
-    def __init__(self):
+    def __init__(self, sound_manager):
         self.scroll_y = 0  # Initialize scroll position for level list
+        self.sound_manager = sound_manager  # Use the passed instance
     
     def _create_brick_pattern(self, width, height):
         """Create a brick pattern background surface."""
@@ -123,11 +125,14 @@ class LevelSelect:
                     
                     # Check buttons with scroll offset for level buttons
                     if self._check_button_hover(debug_rect, content_mouse_pos, title_area_height):
-                        return DebugLevel()
+                        self.sound_manager.stop_all_music() # Stop music
+                        return DebugLevel(self.sound_manager) # Pass sound_manager
                     elif self._check_button_hover(sewer_rect, content_mouse_pos, title_area_height):
-                        return SewerLevel()
+                        self.sound_manager.stop_all_music() # Stop music
+                        return SewerLevel(self.sound_manager) # Pass sound_manager
                     # Back button uses same hover check for consistency
                     elif back_rect.collidepoint(mouse_pos[0], mouse_pos[1]):
+                        self.sound_manager.stop_all_music() # Stop music
                         return "back"
                             
                 if event.type == pygame.MOUSEWHEEL:

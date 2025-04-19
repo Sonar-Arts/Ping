@@ -8,10 +8,11 @@ from .Ping_Button import get_button
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+GREY = (150, 150, 150)
 
 def random_color():
-    """Generate a random color."""
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    """Generate a random bright color."""
+    return (random.randint(100, 255), random.randint(100, 255), random.randint(100, 255))
 
 class Ball:
     def __init__(self, pos=None):
@@ -52,175 +53,195 @@ class Ball:
                          self.ball_radius * 2, self.ball_radius * 2)
 
 class MainMenu:
-    def __init__(self):
-        self.last_color_change = time.time()
-        self.title_letters = list("Ping")
-        self.title_colors = [WHITE] * len(self.title_letters)
-        self.balls = [Ball()]  # Start with one ball
-        self.ball_clicked = False  # Track if ball has been clicked
-        # Get sound manager instance
-        from ping_base import sound_manager
-        self.sound_manager = sound_manager
-        
+    def __init__(self, sound_manager):
+        self.options = ["1P Game", "2P Game", "Settings", "Quit"]
+        self.selected_option = 0
+        self.button = get_button() # Get the button renderer instance
+        # Sound setup
+        self.sound_manager = sound_manager # Use the passed instance
+        # Title color randomization
+        self.title_chars = "PING"
+        self.title_char_colors = [random_color() for _ in self.title_chars]
+        self.last_color_change_time = time.time()
+        self.color_change_interval = 3.0 # seconds
+        # Start playing main menu music
+        self.sound_manager.play_main_music()
 
-    def play_pitch_varied_wahahoo(self):
-        """Play wahahoo sound at random pitch from predefined set."""
-        if self.ball_clicked:  # Only play if ball has been clicked
-            # List of distinct pitch speeds for variety
-            pitch_speeds = [
-                0.25,  # Very low pitch (2 octaves down)
-                0.5,   # Low pitch (1 octave down)
-                0.75,  # Slightly low pitch
-                1.0,   # Normal pitch
-                1.5,   # Medium high pitch
-                2.0,   # High pitch (1 octave up)
-                2.5,   # Very high pitch
-                3.0    # Highest pitch
-            ]
-            speed = random.choice(pitch_speeds)
-            self.sound_manager.play_wahahoo(speed)
-
-    def handle_ball_collisions(self, ball, pvp_rect, ai_rect, settings_rect, title_rect, WINDOW_WIDTH, WINDOW_HEIGHT):
-        """Handle all collision checks for a single ball."""
-        collision = False
-        
-        # Screen edge collisions
-        if (ball.ball_pos[0] - ball.ball_radius <= 0 or 
-            ball.ball_pos[0] + ball.ball_radius >= WINDOW_WIDTH or
-            ball.ball_pos[1] - ball.ball_radius <= 0 or 
-            ball.ball_pos[1] + ball.ball_radius >= WINDOW_HEIGHT):
-            collision = True
-        
-        # Ball collision rectangle
-        ball_rect = ball.get_rect()
-        
-        # Button collisions
-        for button in [pvp_rect, ai_rect, settings_rect]:
-            if ball_rect.colliderect(button):
-                collision = True
-                break
-        
-        # Title collision
-        if ball_rect.colliderect(title_rect):
-            collision = True
-        
-        # If any collision occurred, randomize direction and color
-        if collision:
-            ball.randomize_direction()
-            ball.randomize_color()
-            self.play_pitch_varied_wahahoo()
-
-    def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
-        """Display the title screen with game options and handle debug console."""
-        scale_y = WINDOW_HEIGHT / 600
-        scale_x = WINDOW_WIDTH / 800
+    def handle_input(self, events, width, height):
+        """Handles user input for menu navigation and selection."""
+        # --- Start: Calculation copied from draw method ---
+        scale_y = height / 600 # Base height for scaling calculations
+        scale_x = width / 800
         scale = min(scale_x, scale_y)
-        
-        # Calculate button dimensions
-        button_width = min(300, WINDOW_WIDTH // 3)
-        
-        # Calculate font sizes
-        title_font_size = max(12, int(56 * scale))
+
+        # Title calculations needed to determine options area
+        title_font_size = max(24, int(72 * scale))
         title_font = get_pixel_font(title_font_size)
-        
-        option_font_size = max(12, int(48 * scale))
-        option_font = get_pixel_font(option_font_size)
-        
-        # Test render to ensure text fits
-        test_text = option_font.render("Player vs Player", True, WHITE)
-        while test_text.get_width() > button_width - 20 and option_font_size > 12:
-            option_font_size -= 1
-            option_font = get_pixel_font(option_font_size)
-            test_text = option_font.render("Player vs Player", True, WHITE)
-        
-        while True:
-            button_width = min(300, WINDOW_WIDTH // 3)
-            button_height = min(50, WINDOW_HEIGHT // 12)
-            button_spacing = button_height + 20
-            
-            pvp_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2,
-                                WINDOW_HEIGHT//2 - button_height//2 - button_spacing,
-                                button_width, button_height)
-            ai_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2,
-                               WINDOW_HEIGHT//2 - button_height//2,
-                               button_width, button_height)
-            settings_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2,
-                                    WINDOW_HEIGHT//2 - button_height//2 + button_spacing,
-                                    button_width, button_height)
+        # Simplified title height estimation for layout (actual rendering done in draw)
+        title_char_height = title_font.render("P", True, WHITE).get_height()
+        title_y = height // 5
+        title_bottom = title_y + (title_char_height // 2)
 
-            events = pygame.event.get()
-            
-            if debug_console:
-                debug_console.update(events)
+        # Options layout calculations
+        option_font_size = max(12, int(28 * scale_y))
+        # option_font = get_pixel_font(option_font_size) # Font needed only for drawing
+        button_height = max(40, int(50 * scale_y))
+        button_width = max(200, int(width * 0.3))
+        options_area_top = title_bottom + 30 # Add some space below title
+        options_area_height = height - options_area_top
+        num_options = len(self.options)
+        total_options_height = num_options * button_height + (num_options - 1) * 15
+        start_y = options_area_top + (options_area_height - total_options_height) // 2
+        # --- End: Calculation copied from draw method ---
 
-            for event in events:
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    exit()
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
-                    mouse_pos = event.pos
-                    if pvp_rect.collidepoint(mouse_pos):
-                        return False  # PvP mode
-                    elif ai_rect.collidepoint(mouse_pos):
-                        return True   # AI mode
-                    elif settings_rect.collidepoint(mouse_pos):
+        mouse_pos = pygame.mouse.get_pos() # Get mouse position once
+
+        action = None
+
+        for event in events:
+            if event.type == pygame.QUIT:
+                return "quit" # Signal quit immediately
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP or event.key == pygame.K_w:
+                    self.selected_option = (self.selected_option - 1) % len(self.options)
+                elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                    self.selected_option = (self.selected_option + 1) % len(self.options)
+                elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                    # Action based on keyboard selection
+                    action = self.options[self.selected_option].lower().replace(" ", "_")
+                    if action == "1p_game":
+                        self.sound_manager.stop_all_music() # Stop music
+                        return True # AI mode
+                    if action == "2p_game":
+                        self.sound_manager.stop_all_music() # Stop music
+                        return False # Player vs Player
+                    if action == "settings":
+                        self.sound_manager.stop_all_music() # Stop music
                         return "settings"
-                    # Check for ball clicks (only on left click)
-                    if event.button == 1:  # Left click only
-                        for ball in self.balls[:]:
-                            if ball.get_rect().collidepoint(mouse_pos):
-                                self.ball_clicked = True
-                                ball.randomize_direction()
-                                ball.randomize_color()
-                                self.play_pitch_varied_wahahoo()
-                                new_ball = Ball(ball.ball_pos[:])
-                                self.balls.append(new_ball)
-                                break
+                    if action == "quit":
+                        self.sound_manager.stop_all_music() # Stop music
+                        return "quit"
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
+                 # Use event.pos which holds the position at the time of the click
+                 for i, option in enumerate(self.options):
+                    # *** Use the consistent button layout calculations ***
+                    button_rect = pygame.Rect(
+                        width // 2 - button_width // 2,
+                        start_y + i * (button_height + 15),
+                        button_width,
+                        button_height
+                    )
+                    # Check collision using the mouse position from the event
+                    if button_rect.collidepoint(event.pos):
+                        # Action based on clicked button
+                        self.selected_option = i # Update selection to the clicked item
+                        action = option.lower().replace(" ", "_")
+                        if action == "1p_game":
+                            self.sound_manager.stop_all_music() # Stop music
+                            return True # AI mode
+                        if action == "2p_game":
+                            self.sound_manager.stop_all_music() # Stop music
+                            return False # Player vs Player
+                        if action == "settings":
+                            self.sound_manager.stop_all_music() # Stop music
+                            return "settings"
+                        if action == "quit":
+                            self.sound_manager.stop_all_music() # Stop music
+                            return "quit"
+                        break # Found the clicked button, no need to check others
 
-            screen.fill(BLACK)
+        # Check for mouse hover *outside* the event loop using the latest mouse_pos
+        # This ensures hover effect updates every frame, not just on events
+        for i, option in enumerate(self.options):
+             # *** Use the consistent button layout calculations ***
+            button_rect = pygame.Rect(
+                width // 2 - button_width // 2,
+                start_y + i * (button_height + 15),
+                button_width,
+                button_height
+            )
+            if button_rect.collidepoint(mouse_pos):
+                self.selected_option = i # Update selection based on hover
+                break # Stop checking once hover is found
 
-            # Update title colors
-            current_time = time.time()
-            if current_time - self.last_color_change >= 3:
-                self.title_colors = [random_color() for _ in self.title_letters]
-                self.last_color_change = current_time
+        return None # No action taken this frame
 
-            # Draw title with rainbow effect
-            title_width = sum(title_font.render(letter, True, self.title_colors[i]).get_width() 
-                            for i, letter in enumerate(self.title_letters)) + (len(self.title_letters) - 1) * 5
-            x_offset = (WINDOW_WIDTH - title_width) // 2
-            
-            # Draw each letter with its color
-            for i, letter in enumerate(self.title_letters):
-                text = title_font.render(letter, True, self.title_colors[i])
-                screen.blit(text, (x_offset, WINDOW_HEIGHT//4))
-                x_offset += text.get_width() + 5
+    def draw(self, screen, width, height):
+        """Draws the main menu."""
+        scale_y = height / 600 # Base height for scaling calculations
+        scale_x = width / 800
+        scale = min(scale_x, scale_y)
 
-            # Get button renderer
-            button = get_button()
-            
-            # Draw stylish menu buttons
-            mouse_pos = pygame.mouse.get_pos()
-            button.draw(screen, pvp_rect, "Player vs Player", option_font,
-                       is_hovered=pvp_rect.collidepoint(mouse_pos))
-            button.draw(screen, ai_rect, "Player vs AI", option_font,
-                       is_hovered=ai_rect.collidepoint(mouse_pos))
-            button.draw(screen, settings_rect, "Settings", option_font,
-                       is_hovered=settings_rect.collidepoint(mouse_pos))
+        # Title
+        title_font_size = max(24, int(72 * scale))
+        title_font = get_pixel_font(title_font_size)
 
-            # Create title collision rect
-            title_rect = pygame.Rect(x_offset - title_width, WINDOW_HEIGHT//4,
-                                   title_width * 2,
-                                   title_font.get_height())
+        # Check if it's time to change colors
+        current_time = time.time()
+        if current_time - self.last_color_change_time > self.color_change_interval:
+            self.title_char_colors = [random_color() for _ in self.title_chars]
+            self.last_color_change_time = current_time
 
-            # Update and handle collisions for all balls
-            for ball in self.balls:
-                ball.update()
-                self.handle_ball_collisions(ball, pvp_rect, ai_rect, settings_rect, title_rect, WINDOW_WIDTH, WINDOW_HEIGHT)
-                ball.draw(screen)
+        # Render each character individually
+        char_surfaces = []
+        total_width = 0
+        char_spacing = int(title_font_size * 0.1) # Add small spacing between chars
 
-            if debug_console:
-                debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+        for i, char in enumerate(self.title_chars):
+            char_surface = title_font.render(char, True, self.title_char_colors[i])
+            char_surfaces.append(char_surface)
+            total_width += char_surface.get_width() + char_spacing
+        
+        total_width -= char_spacing # Remove spacing after the last char
 
-            pygame.display.flip()
+        # Calculate starting x position to center the whole title
+        start_x = width // 2 - total_width // 2
+        title_y = height // 5 # Use the adjusted higher position
+
+        # Blit each character
+        current_x = start_x
+        for surface in char_surfaces:
+            screen.blit(surface, (current_x, title_y - surface.get_height() // 2)) # Center vertically
+            current_x += surface.get_width() + char_spacing
+
+        # Options
+        option_font_size = max(12, int(28 * scale_y))
+        option_font = get_pixel_font(option_font_size)
+        button_height = max(40, int(50 * scale_y))
+        button_width = max(200, int(width * 0.3))
+        # Use the first character's surface to estimate title bottom for options positioning
+        title_bottom = title_y + (char_surfaces[0].get_height() // 2 if char_surfaces else 0)
+        options_area_top = title_bottom + 30 # Add some space below title
+        options_area_height = height - options_area_top
+        num_options = len(self.options)
+        total_options_height = num_options * button_height + (num_options - 1) * 15
+        start_y = options_area_top + (options_area_height - total_options_height) // 2
+
+        mouse_pos = pygame.mouse.get_pos() # Get current mouse position for hover effect
+
+        for i, option in enumerate(self.options):
+            button_rect = pygame.Rect(
+                width // 2 - button_width // 2,
+                start_y + i * (button_height + 15),
+                button_width,
+                button_height
+            )
+            is_selected = (i == self.selected_option)
+            # Use the current mouse_pos for hover detection during drawing
+            is_hovered = button_rect.collidepoint(mouse_pos)
+
+            self.button.draw(screen, button_rect, option, option_font, is_selected or is_hovered)
+
+    def display(self, screen, clock, width, height, debug_console=None):
+        """Main loop for displaying and handling the menu (kept for compatibility but logic moved)."""
+        print("Warning: MainMenu.display() called directly. Logic should be in TitleScreen.")
+        while True:
+            events = pygame.event.get()
+            action = self.handle_input(events, width, height)
+            if action is not None: # If an action occurred (selection or quit)
+                # Stop all music if starting a game or quitting
+                if action is True or action is False or action == "quit":  # True = 1P game, False = 2P game
+                    self.sound_manager.stop_all_music()
+                return action
+
             clock.tick(60)

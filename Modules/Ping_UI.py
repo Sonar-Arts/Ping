@@ -1,8 +1,20 @@
 import pygame
 import time
+import random
 from sys import exit
 from .Submodules.Ping_Settings import SettingsScreen
 from .Submodules.Ping_Fonts import get_pixel_font
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+DARK_GREY = (40, 40, 40) # For clouds
+LIGHT_GREY = (100, 100, 100) # For city placeholder
+YELLOW = (255, 255, 0) # For lightning
+
+# Default window dimensions
+DEFAULT_WIDTH = 800
+DEFAULT_HEIGHT = 600
 
 class GameCursor:
     def __init__(self):
@@ -51,19 +63,97 @@ def get_game_cursor():
     if _game_cursor is None:
         _game_cursor = GameCursor()
     return _game_cursor
+
+class AnimatedBackground:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.clouds = []
+        self.lightning_timer = 0
+        self.lightning_duration = 0.1 # seconds
+        self.lightning_active = False
+        self.lightning_pos = (0, 0)
+        self.lightning_cooldown = random.uniform(2, 5) # Time between lightning strikes
+
+        # Placeholder for ruined city background (simple gradient or solid color)
+        self.city_surface = pygame.Surface((width, height))
+        # Simple gradient from dark grey to black
+        for y in range(height):
+            color_val = int(40 * (1 - y / height))
+            pygame.draw.line(self.city_surface, (color_val, color_val, color_val), (0, y), (width, y))
+        # Or just a solid color: self.city_surface.fill(LIGHT_GREY)
+
+        # Initialize clouds
+        num_clouds = 15
+        for _ in range(num_clouds):
+            self.add_cloud()
+
+    def add_cloud(self, initial=True):
+        cloud_width = random.randint(50, 150)
+        cloud_height = random.randint(20, 60)
+        # Start clouds off-screen to the right or already on screen if initial
+        start_x = self.width + random.randint(50, 200) if not initial else random.randint(-cloud_width, self.width)
+        start_y = random.randint(0, int(self.height * 0.6)) # Clouds in upper 60%
+        speed = random.uniform(10, 40) # Pixels per second
+        self.clouds.append({
+            'rect': pygame.Rect(start_x, start_y, cloud_width, cloud_height),
+            'speed': speed,
+            'color': (random.randint(30, 60), random.randint(30, 60), random.randint(30, 60)) # Darker greys
+        })
+
+    def update(self, dt):
+        # Move clouds
+        for cloud in self.clouds:
+            cloud['rect'].x -= cloud['speed'] * dt
+            # If cloud moves off-screen left, reset its position to the right
+            if cloud['rect'].right < 0:
+                cloud['rect'].width = random.randint(50, 150)
+                cloud['rect'].height = random.randint(20, 60)
+                cloud['rect'].x = self.width + random.randint(50, 200)
+                cloud['rect'].y = random.randint(0, int(self.height * 0.6))
+                cloud['speed'] = random.uniform(10, 40)
+
+        # Lightning logic
+        if self.lightning_active:
+            self.lightning_timer -= dt
+            if self.lightning_timer <= 0:
+                self.lightning_active = False
+        else:
+            self.lightning_cooldown -= dt
+            if self.lightning_cooldown <= 0:
+                self.lightning_active = True
+                self.lightning_timer = self.lightning_duration
+                # Choose a random cloud's position for the lightning origin (approx)
+                if self.clouds:
+                    strike_cloud = random.choice(self.clouds)
+                    self.lightning_pos = (strike_cloud['rect'].centerx, strike_cloud['rect'].bottom)
+                else:
+                     self.lightning_pos = (random.randint(0, self.width), random.randint(0, int(self.height * 0.6)))
+                self.lightning_cooldown = random.uniform(3, 8) # Reset cooldown
+
+    def draw(self, screen):
+        # Draw city background
+        screen.blit(self.city_surface, (0, 0))
+
+        # Draw clouds
+        for cloud in self.clouds:
+            pygame.draw.ellipse(screen, cloud['color'], cloud['rect']) # Use ellipse for softer cloud shape
+
+        # Draw lightning flash (simple full screen flash)
+        if self.lightning_active:
+            flash_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            # Intensity based on remaining time
+            intensity = int(200 * (self.lightning_timer / self.lightning_duration))
+            flash_surface.fill((255, 255, 200, intensity)) # Yellowish white flash
+            screen.blit(flash_surface, (0, 0))
+            # Optional: Draw a lightning bolt shape
+            # pygame.draw.line(screen, YELLOW, self.lightning_pos, (self.lightning_pos[0] + random.randint(-10, 10), self.height), 3)
+
 from .Submodules.Ping_MainMenu import MainMenu
 from .Submodules.Ping_Pause import PauseMenu
 from .Submodules.Ping_LevelSelect import LevelSelect
 from .Submodules.Ping_Fonts import get_pixel_font
 from .Submodules.Ping_Button import get_button
-
-# Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-
-# Default window dimensions
-DEFAULT_WIDTH = 800
-DEFAULT_HEIGHT = 600
 
 def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     """Initialize the display with the given dimensions."""
@@ -172,12 +262,52 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console
         clock.tick(30)
 
 class TitleScreen:
-    def __init__(self):
-        self.menu = MainMenu()
+    def __init__(self, sound_manager):
+        self.menu = MainMenu(sound_manager) # Pass sound_manager to MainMenu
+        self.background = None
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the title screen with game options."""
-        return self.menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
+        if self.background is None or self.background.width != WINDOW_WIDTH or self.background.height != WINDOW_HEIGHT:
+            self.background = AnimatedBackground(WINDOW_WIDTH, WINDOW_HEIGHT)
+
+        last_time = time.time()
+
+        while True:
+            current_time = time.time()
+            dt = current_time - last_time
+            last_time = current_time
+
+            events = pygame.event.get()
+
+            if debug_console:
+                for event in events:
+                     if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKQUOTE:
+                         debug_console.toggle_visibility()
+                         events.remove(event)
+                         break
+
+                if debug_console.visible:
+                    processed_by_console = debug_console.update(events)
+                    pass
+
+            menu_action = self.menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+            if menu_action == "quit":
+                 pygame.quit()
+                 exit()
+            elif menu_action:
+                 return menu_action
+
+            self.background.update(dt)
+            self.background.draw(screen)
+            self.menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+            if debug_console and debug_console.visible:
+                debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+
+            pygame.display.flip()
+            clock.tick(60)
 
 def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name, debug_console=None):
     """Display the win screen with the winner's name."""
@@ -244,12 +374,12 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name, debug_co
         pygame.display.flip()
         clock.tick(60)
 
-def pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
+def pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager, debug_console=None):
     """Display the pause menu with options to resume, go to title screen, or settings."""
-    pause_menu = PauseMenu()
+    pause_menu = PauseMenu(sound_manager) # Pass sound_manager
     return pause_menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
 
-def level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
+def level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager, debug_console=None):
     """Display the level selection screen."""
-    level_select = LevelSelect()
+    level_select = LevelSelect(sound_manager) # Pass sound_manager
     return level_select.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)

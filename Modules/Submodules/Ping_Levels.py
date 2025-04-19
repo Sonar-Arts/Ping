@@ -10,11 +10,16 @@ DEFAULT_HEIGHT = 600
 
 import random
 import pygame  # Import pygame for color definitions if not already present
+from .Ping_Sound import SoundManager
 
 # Sewer Level Implementation
 class SewerLevel:
     """Sewer level configuration with goals instead of traditional scoring."""
-    def __init__(self):
+    def __init__(self, sound_manager):
+        # Use the passed sound manager instance
+        self.sound_manager = sound_manager
+        self.sound_manager.play_sewer_music() # Play music using the correct manager
+        
         # Arena dimensions - set to 1280x720 as specified
         self.width = 1280
         self.height = 720
@@ -143,7 +148,9 @@ class SewerLevel:
 
 class DebugLevel:
     """Debug level configuration with default arena parameters."""
-    def __init__(self):
+    def __init__(self, sound_manager):
+        # Store sound_manager even if not used, for consistency
+        self.sound_manager = sound_manager
         # Arena dimensions
         self.width = DEFAULT_WIDTH
         self.height = DEFAULT_HEIGHT
