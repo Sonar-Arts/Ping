@@ -10,6 +10,7 @@ from Modules.Ping_UI import init_display, settings_screen, player_name_screen, T
 from Modules.Ping_GameObjects import PaddleObject, BallObject
 from Modules.Submodules.Ping_DBConsole import get_console
 from Modules.Submodules.Ping_Levels import SewerLevel  # Added for Sewer Level check
+from Modules.Submodules.Ping_Fonts import get_pixel_font  # Moved import here
 
 """
 Ping Base Code
@@ -109,14 +110,12 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     width, height = settings.get_dimensions()
     arena.update_scaling(width, height)
     print("Arena successfully loaded and scaled")
-    
-    # Initialize scoreboard
-    arena.initialize_scoreboard()
-    
+
+    # --- Initialize Game Variables BEFORE Intro ---
     player_b_name = generate_random_name() if ai_mode else "Player B"
     # Initialize AI if in AI mode
     paddle_ai = PaddleAI(arena) if ai_mode else None
-    
+
     def update_game_objects():
         """Update game object positions based on arena dimensions"""
         nonlocal paddle_a, paddle_b, ball
@@ -181,20 +180,77 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         scale_rect=arena.scale_rect,
         size=BALL_SIZE
     )
-    
+
     # Score and game state
     score_a = 0
     score_b = 0
     width, height = settings.get_dimensions()
     scale_x = width / arena.width
     scale_y = height / arena.height
-    from Modules.Submodules.Ping_Fonts import get_pixel_font
     font = get_pixel_font(max(12, int(28 * scale_y)))
-    
-    # List to track all active balls - don't add the initial ball twice
-    balls = []
-    balls.append(ball)
 
+    # List to track all active balls
+    balls = [ball] # Initialize with the first ball
+
+    # --- Sonic-style Level Intro ---
+    if isinstance(level, SewerLevel):
+        # Define graphic properties
+        level_name = "Sewer Zone"
+        intro_font_size = max(24, int(60 * arena.scale_y)) # Scale font size
+        intro_font = get_pixel_font(intro_font_size)
+        text_surface = intro_font.render(level_name, True, (0, 200, 0)) # Green text
+        text_rect = text_surface.get_rect()
+
+        # Animation parameters
+        slide_speed = width / 1.0 # Pixels per second (adjust for desired speed)
+        pause_duration = 1.5 # Seconds to pause on screen
+
+        # Starting position (off-screen left)
+        text_rect.center = (-text_rect.width // 2, height // 2)
+        start_time = time.time()
+
+        # Slide in
+        while text_rect.centerx < width // 2:
+            elapsed_time = time.time() - start_time
+            text_rect.centerx = -text_rect.width // 2 + int(slide_speed * elapsed_time)
+            
+            # Draw background and game objects first
+            game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
+            arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
+            # Draw level name text on top
+            screen.blit(text_surface, text_rect)
+            pygame.display.flip()
+            clock.tick(60) # Limit FPS
+
+        # Pause on screen
+        text_rect.centerx = width // 2 # Ensure it's centered
+        # Draw background and game objects first
+        game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
+        arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
+        # Draw level name text on top
+        screen.blit(text_surface, text_rect)
+        pygame.display.flip()
+        time.sleep(pause_duration)
+
+        # Slide out (to the right)
+        start_time = time.time()
+        start_x = text_rect.centerx
+        while text_rect.left < width:
+            elapsed_time = time.time() - start_time
+            text_rect.centerx = start_x + int(slide_speed * elapsed_time)
+
+            # Draw background and game objects first
+            game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
+            arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
+            # Draw level name text on top
+            screen.blit(text_surface, text_rect)
+            pygame.display.flip()
+            clock.tick(60)
+    # --- End Level Intro ---
+
+    # Initialize scoreboard
+    arena.initialize_scoreboard()
+    
     # Game state flags
     paddle_a_up = False
     paddle_a_down = False
@@ -206,18 +262,25 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     
     # Initial countdown
     for i in range(3, 0, -1):
-        screen.fill(arena.colors['BLACK'])
+        # Draw the initial game state first
         width, height = settings.get_dimensions()
-        scale_x = width / arena.width
-        scale_y = height / arena.height
-        scaled_font = get_pixel_font(max(12, int(28 * scale_y)))
-        countdown_text = scaled_font.render(str(i), True, arena.colors['WHITE'])
+        arena.update_scaling(width, height) # Ensure scaling is correct
+        scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
+        game_objects = [paddle_a, paddle_b] + balls # Include all active balls
+        # Draw arena, scoreboard, paddles, ball (at initial positions)
+        arena.draw(screen, game_objects, scaled_font, current_player_name, score_a, player_b_name, score_b, None, False)
+
+        # Draw countdown number on top
+        countdown_font_size = max(48, int(100 * arena.scale_y)) # Larger font for countdown
+        countdown_font = get_pixel_font(countdown_font_size)
+        countdown_text = countdown_font.render(str(i), True, arena.colors['WHITE'])
         screen.blit(countdown_text, (width//2 - countdown_text.get_width()//2,
                                     height//2 - countdown_text.get_height()//2))
         pygame.display.flip()
         time.sleep(1)
     
     last_frame_time = time.time()
+    
     accumulated_time = 0
     
     while True:
