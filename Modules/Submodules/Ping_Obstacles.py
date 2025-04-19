@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 from Modules.Submodules.Ping_Ball import Ball
 from Modules.Submodules.Ping_Particles import WaterSpout
 
@@ -68,6 +69,21 @@ class Obstacle:
         self.x = x
         self.y = y
         self.rect = pygame.Rect(x, y, width, height)
+        self.shadow_offset = 4  # Pixels to offset shadow
+
+    def draw(self, screen, colors, scale_rect):
+        """Draw the obstacle with a drop shadow effect."""
+        # Scale the rectangle for display
+        scaled_rect = scale_rect(self.rect)
+        
+        # Create and draw shadow
+        shadow_rect = scaled_rect.copy()
+        shadow_rect.x += self.shadow_offset
+        shadow_rect.y += self.shadow_offset
+        pygame.draw.rect(screen, (20, 20, 20), shadow_rect)  # Dark shadow color
+        
+        # Draw main obstacle
+        pygame.draw.rect(screen, colors['BLACK'], scaled_rect)
 
     def handle_collision(self, ball):
         """Handle collision between obstacle and ball."""
@@ -264,61 +280,85 @@ class Manhole:
         )
 
         # Always draw the dark hole in the wall first
-        pygame.draw.ellipse(screen, colors['MANHOLE_HOLE'], base_oval)
+        # Draw dark hole with pixelated edges
+        hole_color = (20, 20, 20)  # Darker color for depth
+        shadow_offset = 4
+        
+        # Draw hole shadow
+        shadow_oval = base_oval.copy()
+        shadow_oval.y += shadow_offset
+        pygame.draw.ellipse(screen, (10, 10, 10), shadow_oval)  # Even darker shadow
+        
+        # Draw main hole
+        pygame.draw.ellipse(screen, hole_color, base_oval)
         
         if self.is_spouting:
-            # Draw water particles from the fixed hole position
+            # Draw water particles
             self.water_spout.draw(screen, scale_rect)
             
             # Draw the cover in its ejected position
             cover_rect = base_oval.copy()
             cover_rect.y = scale_rect(pygame.Rect(0, self.spout_position, 1, 1)).y
             
-            # Draw the ejected cover
-            # Shadow
-            shadow_rect = cover_rect.copy()
-            shadow_rect.y += 2
-            pygame.draw.ellipse(screen, colors['MANHOLE_DETAIL'], shadow_rect)
-            
-            # Cover parts
-            pygame.draw.ellipse(screen, colors['MANHOLE_OUTER'], cover_rect)
-            inner_rect = cover_rect.inflate(-8, -6)
-            pygame.draw.ellipse(screen, colors['MANHOLE_INNER'], inner_rect)
-            
-            # Cross pattern
-            center_x = inner_rect.centerx
-            center_y = inner_rect.centery
-            detail_width = inner_rect.width * 0.7
-            detail_height = inner_rect.height * 0.6
-            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
-                           (center_x - detail_width//2, center_y),
-                           (center_x + detail_width//2, center_y), 2)
-            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
-                           (center_x, center_y - detail_height//2),
-                           (center_x, center_y + detail_height//2), 2)
+            # Draw the ejected cover with more distinct sections
+            self._draw_pixelated_cover(screen, colors, cover_rect)
         else:
-            # Draw the cover in its normal position over the hole
-            # Shadow
-            shadow_rect = base_oval.copy()
-            shadow_rect.y += 2
-            pygame.draw.ellipse(screen, colors['MANHOLE_DETAIL'], shadow_rect)
+            # Draw the cover in its normal position
+            self._draw_pixelated_cover(screen, colors, base_oval)
+    
+    def _draw_pixelated_cover(self, screen, colors, cover_rect):
+        """Draw a pixelated manhole cover with distinct sections."""
+        # Draw drop shadow
+        shadow_rect = cover_rect.copy()
+        shadow_rect.y += 4
+        pygame.draw.ellipse(screen, (20, 20, 20), shadow_rect)
+        
+        # Draw outer border (dark outline)
+        pygame.draw.ellipse(screen, (30, 30, 30), cover_rect)
+        
+        # Draw main cover (slightly smaller)
+        main_rect = cover_rect.inflate(-4, -3)
+        pygame.draw.ellipse(screen, colors['MANHOLE_OUTER'], main_rect)
+        
+        # Draw inner section
+        inner_rect = main_rect.inflate(-8, -6)
+        pygame.draw.ellipse(screen, colors['MANHOLE_INNER'], inner_rect)
+        
+        # Draw concentric circles pattern
+        center_x = inner_rect.centerx
+        center_y = inner_rect.centery
+        
+        # Outer ring
+        outer_radius = inner_rect.width * 0.4
+        pygame.draw.circle(screen, colors['MANHOLE_DETAIL'],
+                         (int(center_x), int(center_y)),
+                         int(outer_radius), 2)
+        
+        # Middle ring
+        middle_radius = outer_radius * 0.7
+        pygame.draw.circle(screen, colors['MANHOLE_DETAIL'],
+                         (int(center_x), int(center_y)),
+                         int(middle_radius), 2)
+        
+        # Inner ring
+        inner_radius = outer_radius * 0.4
+        pygame.draw.circle(screen, colors['MANHOLE_DETAIL'],
+                         (int(center_x), int(center_y)),
+                         int(inner_radius), 2)
+        
+        # Draw grip dots in a circular pattern
+        num_dots = 8
+        dot_radius = 2
+        dot_distance = outer_radius * 0.85
+        
+        for i in range(num_dots):
+            angle = (i / num_dots) * 2 * 3.14159
+            dot_x = center_x + math.cos(angle) * dot_distance
+            dot_y = center_y + math.sin(angle) * dot_distance
             
-            # Cover parts
-            pygame.draw.ellipse(screen, colors['MANHOLE_OUTER'], base_oval)
-            inner_rect = base_oval.inflate(-8, -6)
-            pygame.draw.ellipse(screen, colors['MANHOLE_INNER'], inner_rect)
-            
-            # Cross pattern
-            center_x = inner_rect.centerx
-            center_y = inner_rect.centery
-            detail_width = inner_rect.width * 0.7
-            detail_height = inner_rect.height * 0.6
-            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
-                           (center_x - detail_width//2, center_y),
-                           (center_x + detail_width//2, center_y), 2)
-            pygame.draw.line(screen, colors['MANHOLE_DETAIL'],
-                           (center_x, center_y - detail_height//2),
-                           (center_x, center_y + detail_height//2), 2)
+            pygame.draw.circle(screen, colors['MANHOLE_DETAIL'],
+                             (int(dot_x), int(dot_y)),
+                             dot_radius)
 
 class PowerUpBall:
     def __init__(self, x, y, size=20):
@@ -332,12 +372,62 @@ class PowerUpBall:
         self.spawn_timer = 0
         self.active = True
         self.next_spawn_time = random.randint(3, 15) * 60  # 3-15 seconds (at 60 FPS)
+        self.glow_timer = 0
+        self.base_color = (0, 255, 0)  # Bright green
+        self.glow_speed = 0.05  # Speed of pulsing effect
+        self.shadow_offset = 4  # Pixels to offset shadow
 
     def draw(self, screen, color, scale_rect):
-        """Draw the power up as a circle if active."""
+        """Draw the power up with glowing effect, drop shadow, and symmetrical plus symbol if active."""
         if self.active:
             scaled_rect = scale_rect(self.rect)
-            pygame.draw.circle(screen, color, scaled_rect.center, scaled_rect.width // 2)
+            center = scaled_rect.center
+            radius = scaled_rect.width // 2
+
+            # Draw drop shadow
+            shadow_center = (center[0] + self.shadow_offset, center[1] + self.shadow_offset)
+            pygame.draw.circle(screen, (20, 20, 20), shadow_center, radius)  # Dark shadow
+
+            # Calculate glow color
+            glow_factor = abs(math.sin(self.glow_timer))
+            glow_color = (
+                int(max(0, min(255, self.base_color[0] * (0.5 + 0.5 * glow_factor)))),
+                int(max(0, min(255, self.base_color[1] * (0.5 + 0.5 * glow_factor)))),
+                int(max(0, min(255, self.base_color[2] * (0.5 + 0.5 * glow_factor))))
+            )
+
+            # Draw the glowing ball
+            pygame.draw.circle(screen, glow_color, center, radius)
+
+            # Draw symmetrical red plus symbol
+            plus_color = (255, 0, 0)  # Red
+            plus_size = radius * 0.6  # Consistent size relative to ball
+            plus_thickness = max(2, radius // 6)  # Scaled thickness
+
+            # Calculate plus dimensions
+            half_length = plus_size
+            half_thickness = plus_thickness // 2
+
+            # Draw horizontal rectangle of plus
+            plus_h_rect = pygame.Rect(
+                center[0] - half_length,
+                center[1] - half_thickness,
+                half_length * 2,
+                plus_thickness
+            )
+            pygame.draw.rect(screen, plus_color, plus_h_rect)
+
+            # Draw vertical rectangle of plus
+            plus_v_rect = pygame.Rect(
+                center[0] - half_thickness,
+                center[1] - half_length,
+                plus_thickness,
+                half_length * 2
+            )
+            pygame.draw.rect(screen, plus_color, plus_v_rect)
+
+            # Update glow timer
+            self.glow_timer += self.glow_speed
     
     def handle_collision(self, ball):
         """Handle collision by creating a duplicate ball with same trajectory."""

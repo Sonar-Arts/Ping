@@ -8,6 +8,9 @@ Each level class defines parameters that will be used by the Arena module to cre
 DEFAULT_WIDTH = 800
 DEFAULT_HEIGHT = 600
 
+import random
+import pygame  # Import pygame for color definitions if not already present
+
 # Sewer Level Implementation
 class SewerLevel:
     """Sewer level configuration with goals instead of traditional scoring."""
@@ -21,12 +24,23 @@ class SewerLevel:
         self.colors = {
             'WHITE': (255, 255, 255),
             'BLACK': (20, 20, 20),  # Darker black for atmosphere
-            'DARK_BLUE': (30, 40, 50),  # Darker blue for sewer atmosphere
+            'DARK_BLUE': (30, 40, 50),  # Darker blue for sewer atmosphere (Used as base background if needed)
             'PORTAL': (0, 0, 0),  # Black for sewer portals
             'MANHOLE_OUTER': (100, 100, 110),  # Dark metallic grey for outer ring
             'MANHOLE_INNER': (140, 140, 150),  # Lighter metallic grey for inner part
             'MANHOLE_DETAIL': (80, 80, 90),  # Darker grey for decorative details
-            'MANHOLE_HOLE': (15, 15, 20)  # Very dark color for the hole when cover is removed
+            'MANHOLE_HOLE': (15, 15, 20),  # Very dark color for the hole when cover is removed
+            # New Background Colors
+            'BRICK_DARK': (60, 60, 60),
+            'BRICK_LIGHT': (75, 75, 75),
+            'BRICK_MORTAR': (45, 45, 45),
+            'CRACK_COLOR': (30, 30, 30),
+            'VEGETATION_COLOR': (40, 80, 40),  # Mossy green
+            'RIVER_WATER_DARK': (20, 40, 80),  # Darker blue
+            'RIVER_WATER_LIGHT': (30, 60, 120),  # Medium blue
+            'RIVER_HIGHLIGHT': (40, 80, 160),  # Light blue highlight
+            'MANHOLE_BRICK_DARK': (80, 70, 60),
+            'MANHOLE_BRICK_LIGHT': (100, 90, 80),
         }
         
         # No center line in sewer level
@@ -97,6 +111,17 @@ class SewerLevel:
                 }
             }
         }
+
+        # Background Details
+        self.background_details = {
+            'brick_width': 40,
+            'brick_height': 20,
+            'crack_frequency': 0.05,  # Percentage of bricks with cracks
+            'vegetation_frequency': 0.02,  # Percentage of bricks with vegetation
+            'river_width_ratio': 0.25,  # Percentage of arena width
+            'river_animation_speed': 1,  # Slower water movement (was 2)
+            'manhole_brick_padding': 5  # Padding around manholes for special bricks
+        }
     
     def get_parameters(self):
         """Return all level parameters in a dictionary format."""
@@ -112,7 +137,8 @@ class SewerLevel:
             'goals': self.goals,
             'portals': self.portals,
             'manholes': self.manholes,
-            'power_ups': self.power_ups
+            'power_ups': self.power_ups,
+            'background_details': self.background_details  # Add background details
         }
 
 class DebugLevel:

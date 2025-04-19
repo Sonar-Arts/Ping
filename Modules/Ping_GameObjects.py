@@ -59,21 +59,32 @@ class PaddleObject(ArenaObject):
         self.paddle.move(delta_time, self.scoreboard_height, self.arena_height)
     
     def lerp_color(self, color1, color2, t):
-        """Linearly interpolate between two colors."""
-        return tuple(int(a + (b - a) * t) for a, b in zip(color1, color2))
+        """Linearly interpolate between two colors, clamping values between 0 and 255."""
+        t = max(0, min(1, t))  # Clamp t between 0 and 1
+        return tuple(max(0, min(255, int(a + (b - a) * t))) for a, b in zip(color1, color2))
     
     def draw(self, screen, color):
-        """Draw the paddle with retro Sega Genesis style and ultra-smooth gradient."""
+        """Draw the paddle with retro Sega Genesis style, gradient, border and drop shadow."""
         scaled_rect = self.scale_rect(self.rect)
+        
+        # Draw drop shadow
+        shadow_offset = 4
+        shadow_rect = pygame.Rect(
+            scaled_rect.left + shadow_offset,
+            scaled_rect.top + shadow_offset,
+            scaled_rect.width,
+            scaled_rect.height
+        )
+        pygame.draw.rect(screen, (20, 20, 20), shadow_rect, border_radius=3)  # Dark shadow
         
         # Define key colors
         light_brown = (205, 175, 149)  # Back side
         base_color = color             # Middle
-        green_shade = (30, 180, 30)    # Left paddle front
-        red_shade = (180, 30, 30)      # Right paddle front
+        green_shade = (60, 220, 60)    # Left paddle front (even brighter green)
+        red_shade = (220, 60, 60)      # Right paddle front (even brighter red)
         
-        # Number of gradient sections (more sections = smoother gradient)
-        num_sections = 12
+        # Reduced number of sections for more distinct pixelated look
+        num_sections = 5
         section_width = scaled_rect.width / num_sections
         
         if self.is_left_paddle:
@@ -83,11 +94,11 @@ class PaddleObject(ArenaObject):
                 
                 # First half: brown to base color
                 if i < num_sections // 2:
-                    t_adjusted = t * 2  # Adjust t for first half
+                    t_adjusted = t * 2.0  # Slightly gentler gradient for first half
                     current_color = self.lerp_color(light_brown, base_color, t_adjusted)
-                # Second half: base color to green
+                # Second half: base color to green (emphasized)
                 else:
-                    t_adjusted = (t - 0.5) * 2  # Adjust t for second half
+                    t_adjusted = (t - 0.5) * 2.0  # Adjusted transition point
                     current_color = self.lerp_color(base_color, green_shade, t_adjusted)
                 
                 # Draw section
@@ -100,16 +111,31 @@ class PaddleObject(ArenaObject):
                 
                 # Apply border radius consistently
                 if i == 0:  # Left-most section (back)
+                    # Draw section with border
+                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
+                                  border_radius=3,
+                                  border_top_right_radius=0,
+                                  border_bottom_right_radius=0)
+                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
                     pygame.draw.rect(screen, current_color, section_rect,
-                                   border_radius=4,
-                                   border_top_right_radius=0,
-                                   border_bottom_right_radius=0)
+                                  border_radius=3,
+                                  border_top_right_radius=0,
+                                  border_bottom_right_radius=0)
                 elif i == num_sections - 1:  # Right-most section (front)
+                    # Draw section with border
+                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
+                                  border_radius=3,
+                                  border_top_left_radius=0,
+                                  border_bottom_left_radius=0)
+                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
                     pygame.draw.rect(screen, current_color, section_rect,
-                                   border_radius=4,
-                                   border_top_left_radius=0,
-                                   border_bottom_left_radius=0)
+                                  border_radius=3,
+                                  border_top_left_radius=0,
+                                  border_bottom_left_radius=0)
                 else:  # Middle sections
+                    # Draw section with border
+                    pygame.draw.rect(screen, (30, 30, 30), section_rect)
+                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
                     pygame.draw.rect(screen, current_color, section_rect)
         else:
             # Right paddle gradient (brown → base → red)
@@ -118,11 +144,11 @@ class PaddleObject(ArenaObject):
                 
                 # First half: brown to base color
                 if i < num_sections // 2:
-                    t_adjusted = t * 2
+                    t_adjusted = t * 2.0  # Slightly gentler gradient for first half
                     current_color = self.lerp_color(light_brown, base_color, t_adjusted)
-                # Second half: base color to red
+                # Second half: base color to red (emphasized)
                 else:
-                    t_adjusted = (t - 0.5) * 2
+                    t_adjusted = (t - 0.5) * 2.0  # Adjusted transition point
                     current_color = self.lerp_color(base_color, red_shade, t_adjusted)
                 
                 # Draw section
@@ -135,16 +161,31 @@ class PaddleObject(ArenaObject):
                 
                 # Apply border radius consistently
                 if i == 0:  # Right-most section (back)
+                    # Draw section with border
+                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
+                                  border_radius=3,
+                                  border_top_left_radius=0,
+                                  border_bottom_left_radius=0)
+                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
                     pygame.draw.rect(screen, current_color, section_rect,
-                                   border_radius=4,
-                                   border_top_left_radius=0,
-                                   border_bottom_left_radius=0)
+                                  border_radius=3,
+                                  border_top_left_radius=0,
+                                  border_bottom_left_radius=0)
                 elif i == num_sections - 1:  # Left-most section (front)
+                    # Draw section with border
+                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
+                                  border_radius=3,
+                                  border_top_right_radius=0,
+                                  border_bottom_right_radius=0)
+                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
                     pygame.draw.rect(screen, current_color, section_rect,
-                                   border_radius=4,
-                                   border_top_right_radius=0,
-                                   border_bottom_right_radius=0)
+                                  border_radius=3,
+                                  border_top_right_radius=0,
+                                  border_bottom_right_radius=0)
                 else:  # Middle sections
+                    # Draw section with border
+                    pygame.draw.rect(screen, (30, 30, 30), section_rect)
+                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
                     pygame.draw.rect(screen, current_color, section_rect)
 
     def reset_position(self):
@@ -163,8 +204,18 @@ class BallObject(ArenaObject):
         return self.ball.rect
 
     def draw(self, screen, color):
-        """Override draw method to use ball's circular drawing."""
-        self.ball.draw(screen, color, self.scale_rect)
+        """Override draw method to use ball's circular drawing with drop shadow."""
+        scaled_rect = self.scale_rect(self.rect)
+        
+        # Draw drop shadow
+        shadow_offset = 4
+        shadow_center = (scaled_rect.center[0] + shadow_offset,
+                        scaled_rect.center[1] + shadow_offset)
+        pygame.draw.circle(screen, (20, 20, 20), shadow_center, scaled_rect.width // 2)
+        
+        # Draw ball with border
+        pygame.draw.circle(screen, (30, 30, 30), scaled_rect.center, scaled_rect.width // 2)  # Border
+        pygame.draw.circle(screen, color, scaled_rect.center, (scaled_rect.width - 4) // 2)  # Main ball
 
     def move(self, delta_time):
         """Move the ball based on its velocity and time delta."""
@@ -235,6 +286,41 @@ class GoalObject(ArenaObject):
     def handle_collision(self, ball):
         """Handle collision between goal and ball."""
         return self.goal.handle_collision(ball)
+    
+    def draw(self, screen, color):
+        """Draw the goal as a rusty grate with a subtle glow."""
+        scaled_rect = self.scale_rect(self.rect)
+
+        # Define colors
+        base_color = (70, 50, 30) # Dark rusty brown
+        bar_color = (180, 120, 80) # Lighter rusty color for bars
+        highlight_color = (255, 180, 100) # Bright highlight for visibility
+        glow_color = (100, 150, 100, 80) # Faint green glow (subtle)
+
+        # Draw the base rectangle (dark background)
+        pygame.draw.rect(screen, base_color, scaled_rect)
+
+        # Draw vertical bars for the grate effect
+        bar_width = 4 # Scaled width
+        bar_spacing = 10 # Scaled spacing
+        num_bars = scaled_rect.width // (bar_width + bar_spacing)
+
+        for i in range(num_bars):
+            bar_x = scaled_rect.left + bar_spacing + i * (bar_width + bar_spacing)
+            bar_rect = pygame.Rect(bar_x, scaled_rect.top, bar_width, scaled_rect.height)
+            pygame.draw.rect(screen, bar_color, bar_rect)
+            # Add a highlight to the top edge of bars for visibility
+            pygame.draw.line(screen, highlight_color, (bar_rect.left, bar_rect.top), (bar_rect.right, bar_rect.top), 1)
+
+        # Add a subtle glow effect behind the bars
+        glow_surface = pygame.Surface(scaled_rect.size, pygame.SRCALPHA)
+        glow_rect_inner = scaled_rect.inflate(-10, -10) # Smaller inner glow
+        # Draw the glow centered within the goal area
+        pygame.draw.rect(glow_surface, glow_color, glow_surface.get_rect().inflate(-5, -5), border_radius=5)
+        screen.blit(glow_surface, scaled_rect.topleft)
+
+        # Draw a border to make it stand out
+        pygame.draw.rect(screen, highlight_color, scaled_rect, 2, border_radius=3)
 
 class PortalObject(ArenaObject):
     """Portal object that allows ball teleportation between paired portals."""
@@ -261,9 +347,40 @@ class PortalObject(ArenaObject):
         self.portal.update_cooldown()
     
     def draw(self, screen, color):
-        """Draw the portal as a black rectangle."""
+        """Draw the portal as a retro sewer pipe opening."""
         scaled_rect = self.scale_rect(self.rect)
-        pygame.draw.rect(screen, color, scaled_rect)
+
+        # Define colors for the pipe and glow
+        pipe_color = (80, 80, 80)  # Dark grey for the pipe opening
+        brick_color = (100, 60, 40) # Brownish color for surrounding bricks
+        mortar_color = (60, 40, 30) # Darker mortar
+        glow_color = (0, 100, 0, 100) # Semi-transparent dark green glow
+
+        # Draw surrounding bricks (simple pattern)
+        brick_size = 10 # Scaled brick size
+        for r in range(-1, (scaled_rect.height // brick_size) + 1):
+            for c in range(-1, (scaled_rect.width // brick_size) + 1):
+                brick_x = scaled_rect.left + c * brick_size + (r % 2) * (brick_size // 2) # Staggered
+                brick_y = scaled_rect.top + r * brick_size
+                # Only draw bricks partially overlapping the portal area for effect
+                if abs(brick_x - scaled_rect.centerx) < scaled_rect.width and abs(brick_y - scaled_rect.centery) < scaled_rect.height:
+                    b_rect = pygame.Rect(brick_x, brick_y, brick_size - 1, brick_size - 1)
+                    pygame.draw.rect(screen, brick_color, b_rect)
+                    pygame.draw.rect(screen, mortar_color, b_rect, 1) # Mortar lines
+
+        # Draw the dark pipe opening (circle)
+        center_x = scaled_rect.centerx
+        center_y = scaled_rect.centery
+        radius = min(scaled_rect.width, scaled_rect.height) // 2 - 2 # Slightly smaller than rect
+
+        # Create a surface for the glow effect
+        glow_surface = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surface, glow_color, (radius, radius), radius)
+        screen.blit(glow_surface, (center_x - radius, center_y - radius))
+
+        # Draw the pipe opening itself
+        pygame.draw.circle(screen, pipe_color, (center_x, center_y), radius)
+        pygame.draw.circle(screen, (40, 40, 40), (center_x, center_y), radius, 2) # Darker border
 
 class ObstacleObject(ArenaObject):
     def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, width=20, height=60):
