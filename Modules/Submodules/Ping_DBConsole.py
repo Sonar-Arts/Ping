@@ -17,6 +17,7 @@ class DebugConsole:
         self.debug_input = False
         self.debug_sound = False
         self.debug_physics = False
+        self.debug_settings = False
         
         # Visual settings
         self.bg_color = (0, 0, 0, 200)  # Semi-transparent background
@@ -51,7 +52,8 @@ class DebugConsole:
             'debug_collisions': self.cmd_debug_collisions,
             'debug_input': self.cmd_debug_input,
             'debug_sound': self.cmd_debug_sound,
-            'debug_physics': self.cmd_debug_physics
+            'debug_physics': self.cmd_debug_physics,
+            'debug_settings': self.cmd_debug_settings
         }
     
     def update(self, events):
@@ -151,7 +153,8 @@ class DebugConsole:
             'debug_collisions': 'Toggle collision detection debug messages',
             'debug_input': 'Toggle input processing debug messages',
             'debug_sound': 'Toggle sound system debug messages',
-            'debug_physics': 'Toggle physics simulation debug messages'
+            'debug_physics': 'Toggle physics simulation debug messages',
+            'debug_settings': 'Toggle settings menu debug messages'
         }
         for cmd, desc in command_help.items():
             self.log(f"  {cmd:<16} - {desc}")
@@ -208,6 +211,10 @@ class DebugConsole:
         self.debug_physics = not self.debug_physics
         self.log(f"Physics debug messages {'enabled' if self.debug_physics else 'disabled'}")
 
+    def cmd_debug_settings(self, args):
+        """Toggle settings menu debug messages."""
+        self.debug_settings = not self.debug_settings
+        self.log(f"Settings menu debug messages {'enabled' if self.debug_settings else 'disabled'}")
 
     def handle_event(self, event):
         """Handle keyboard input."""

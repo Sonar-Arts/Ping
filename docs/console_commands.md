@@ -16,6 +16,7 @@ The debug console can be accessed by pressing the backtick key (\`). The console
 - `debug_input` - Toggle input processing debug messages
 - `debug_sound` - Toggle sound system debug messages
 - `debug_physics` - Toggle physics simulation debug messages
+- `debug_settings` - Toggle settings menu debug messages
 
 ## Console Controls
 

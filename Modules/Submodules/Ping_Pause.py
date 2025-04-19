@@ -40,14 +40,24 @@ class PauseMenu:
             
             # Handle debug console if provided
             if debug_console:
+                # Check for backtick key to toggle console visibility
                 for event in events:
-                    if event.type == pygame.KEYDOWN and event.key == 96:  # Backtick
+                    if event.type == pygame.KEYDOWN and event.key == 96:  # backtick key
                         debug_console.update([event])
-                        continue
-                    # Move the handle_event check inside the event loop
-                    if debug_console.visible:
-                        if debug_console.handle_event(event):
+                        break
+                
+                # Handle other events if console is visible
+                if debug_console.visible:
+                    # Create a copy of events to modify
+                    remaining_events = []
+                    for event in events:
+                        # Skip the backtick event since it's already handled
+                        if event.type == pygame.KEYDOWN and event.key == 96:
                             continue
+                        # If event is handled by console, don't add it to remaining events
+                        if not debug_console.handle_event(event):
+                            remaining_events.append(event)
+                    events = remaining_events
 
             # Process remaining events
             for event in events:
@@ -83,7 +93,11 @@ class PauseMenu:
             button.draw(screen, title_rect, "Back to Title", option_font,
                        is_hovered=title_rect.collidepoint(mouse_pos))
             button.draw(screen, settings_rect, "Settings", option_font,
-                       is_hovered=settings_rect.collidepoint(mouse_pos))
+                        is_hovered=settings_rect.collidepoint(mouse_pos))
+
+            # Draw debug console if active
+            if debug_console:
+                debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
 
             pygame.display.flip()
             clock.tick(60)

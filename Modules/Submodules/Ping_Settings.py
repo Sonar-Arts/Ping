@@ -261,6 +261,8 @@ class SettingsScreen:
             print(f"Error saving settings: {e}")
             return False
     def display(self, screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
+        # Store debug_console reference
+        self.debug_console = debug_console
         """Display the settings screen and handle its events."""
         # Get reference to sound_manager from ping_base
         from ping_base import sound_manager
@@ -272,13 +274,24 @@ class SettingsScreen:
             events = pygame.event.get()
             
             if debug_console:
+                # Check for backtick key to toggle console visibility
                 for event in events:
                     if event.type == pygame.KEYDOWN and event.key == 96:  # backtick key
                         debug_console.update([event])
-                        continue
+                        break
+
+                # Handle other events if console is visible
                 if debug_console.visible:
-                    if debug_console.handle_event(event):
-                        continue
+                    # Create a copy of events to modify
+                    remaining_events = []
+                    for event in events:
+                        # Skip the backtick event since it's already handled
+                        if event.type == pygame.KEYDOWN and event.key == 96:
+                            continue
+                        # If event is handled by console, don't add it to remaining events
+                        if not debug_console.handle_event(event):
+                            remaining_events.append(event)
+                    events = remaining_events
             
             for event in events:
                 if event.type == pygame.QUIT:
@@ -361,7 +374,9 @@ class SettingsScreen:
                 
                 scroll_amount = event.y * 30
                 self.scroll_y = min(0, max(-total_height + height, self.scroll_y + scroll_amount))
-                print(f"[DEBUG] Scrolling: {self.scroll_y}")
+                # Only print scroll debug if settings debug is enabled
+                if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
+                    print(f"[DEBUG] Scrolling: {self.scroll_y}")
         
         # Create title area with brick pattern
         title_area = self._create_brick_pattern(width, title_area_height)
@@ -465,7 +480,8 @@ class SettingsScreen:
                     if not hasattr(self, 'show_resolutions'):
                         self.show_resolutions = False
                     self.show_resolutions = not self.show_resolutions
-                    print("[DEBUG] Resolution dropdown clicked")
+                    if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
+                        print("[DEBUG] Resolution dropdown clicked")
                 elif hasattr(self, 'show_resolutions') and self.show_resolutions:
                     # Check each option in the dropdown
                     for i, _ in enumerate(self.screen_sizes):
@@ -476,7 +492,8 @@ class SettingsScreen:
                             self.current_size_index = i
                             self.show_resolutions = False
                             width, height = self.screen_sizes[i]
-                            print(f"[DEBUG] Selected resolution: {width}x{height}")
+                            if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
+                                print(f"[DEBUG] Selected resolution: {width}x{height}")
                             self.update_dimensions(width, height)
                             pygame.display.set_mode((width, height))
                             self.resolution_section_height = spacing
