@@ -70,7 +70,7 @@ class PauseMenu:
                     if resume_rect.collidepoint(mouse_pos):
                         return "resume"
                     elif title_rect.collidepoint(mouse_pos):
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method to stop music
                         return "title"
                     elif settings_rect.collidepoint(mouse_pos):
                         return "settings"

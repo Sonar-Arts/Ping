@@ -355,10 +355,12 @@ def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     pygame.display.set_caption("Ping")
     return screen
 
-def settings_screen(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
+# Added sound_manager parameter, removed paddle_sound, score_sound
+def settings_screen(screen, clock, sound_manager, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
     """Display the settings screen."""
     settings = SettingsScreen()
-    return settings.display(screen, clock, paddle_sound, score_sound, WINDOW_WIDTH, WINDOW_HEIGHT, in_game, debug_console)
+    # Pass sound_manager to the display method (will require updating SettingsScreen.display)
+    return settings.display(screen, clock, sound_manager, WINDOW_WIDTH, WINDOW_HEIGHT, in_game, debug_console)
 
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
     """Display the player name input screen."""
@@ -475,15 +477,21 @@ class TitleScreen:
             events = pygame.event.get()
 
             if debug_console:
-                for event in events:
-                     if event.type == pygame.KEYDOWN and event.key == pygame.K_BACKQUOTE:
-                         debug_console.toggle_visibility()
-                         events.remove(event)
-                         break
+                # Update the console first to handle toggle key press, etc.
+                processed_by_console = debug_console.update(events)
 
+                # Now check visibility for other potential console-specific logic (if any)
                 if debug_console.visible:
-                    processed_by_console = debug_console.update(events)
+                    # If the console processed an event (like Enter for command),
+                    # we might want to prevent the menu from processing it too.
+                    # Currently, update() returns True if it handled the toggle,
+                    # but doesn't indicate other event consumption.
+                    # For now, we'll assume the menu can still process events.
                     pass
+
+            # Filter out events potentially consumed by the console if needed
+            # (Requires debug_console.update to return more info or modify events list)
+            # Example: events = [e for e in events if not processed_by_console]
 
             menu_action = self.menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
 

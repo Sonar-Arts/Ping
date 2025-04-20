@@ -83,6 +83,8 @@ clock = pygame.time.Clock()
 # Initialize sound manager
 from Modules.Submodules.Ping_Sound import SoundManager
 sound_manager = SoundManager()
+# Provide the console with access to the sound manager instance
+debug_console.sound_manager = sound_manager
 
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
@@ -105,11 +107,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     global screen
     current_player_name = player_name  # Local variable to track current player name
     debug_console.log(f"Starting game: Mode={ai_mode}, Player={player_name}")  # Use global debug_console
-    
+
     # Validate level selection
     if not level:
         return "title"
-        
+
     # Create arena instance with selected level
     print(f"Loading arena for level: {level.__class__.__name__}...")
     arena = Arena(level)
@@ -220,7 +222,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         while text_rect.centerx < width // 2:
             elapsed_time = time.time() - start_time
             text_rect.centerx = -text_rect.width // 2 + int(slide_speed * elapsed_time)
-            
+
             # Draw background and game objects first
             game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
             arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
@@ -257,7 +259,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
     # Initialize scoreboard
     arena.initialize_scoreboard()
-    
+
     # Game state flags
     paddle_a_up = False
     paddle_a_down = False
@@ -266,7 +268,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     ball_frozen = False
     respawn_timer = None
     paused = False
-    
+
     # Initial countdown
     for i in range(3, 0, -1):
         # Draw the initial game state first
@@ -285,17 +287,17 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                                     height//2 - countdown_text.get_height()//2))
         pygame.display.flip()
         time.sleep(1)
-    
+
     last_frame_time = time.time()
-    
+
     accumulated_time = 0
-    
+
     while True:
         current_time = time.time()
         delta_time = current_time - last_frame_time
         last_frame_time = current_time
         accumulated_time += delta_time
-        
+
         # Get events and handle debug console first
         events = pygame.event.get()
         if debug_console.update(events):
@@ -303,7 +305,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
         # Handle regular game events
         for event in events:
+            # Let the sound manager handle its events first
+            sound_manager.handle_event(event) # Process sound events
+
             if event.type == pygame.QUIT:
+                # Shutdown is handled before final pygame.quit() at the end of the script
                 pygame.quit()
                 exit()
             elif event.type == pygame.VIDEORESIZE:
@@ -334,7 +340,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         width, height = SettingsScreen.get_dimensions()
                         # Pass sound_manager to pause_screen
                         menu_result = pause_screen(screen, clock, width, height, sound_manager, debug_console)
-                        
+
                         if menu_result == "resume":
                             # Resume game
                             last_frame_time = time.time()
@@ -348,7 +354,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                             return "title"
                         elif menu_result == "settings":
                             # Handle settings screen
-                            settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=True, debug_console=debug_console)
+                            # Added sound_manager argument
+                            settings_result = settings_screen(screen, clock, sound_manager, width, height, in_game=True, debug_console=debug_console)
                             if isinstance(settings_result, tuple):
                                 if settings_result[0] == "back_to_pause":
                                     # Update player name if it has changed
@@ -374,7 +381,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         paddle_b_up = False
                     if event.key == pygame.K_DOWN:
                         paddle_b_down = False
-                        
+
         if not paused:
             while accumulated_time >= FRAME_TIME:
                 # Update paddle movement flags
@@ -415,7 +422,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 # Handle all active balls
                 scored = None
                 balls_to_remove = []
-                
+
                 for current_ball in balls:
                     # Move ball if not frozen
                     if not ball_frozen:
@@ -423,14 +430,14 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
                         # Handle collisions
                         if current_ball.handle_wall_collision():
-                            sound_manager.play_paddle_hit('wall')
+                            sound_manager.play_sfx('paddle') # Use new method
 
                     if current_ball.handle_paddle_collision(paddle_a) or current_ball.handle_paddle_collision(paddle_b):
-                        sound_manager.play_paddle_hit('paddle')
+                        sound_manager.play_sfx('paddle') # Use new method
 
                     # Ball collision with obstacle
                     if arena.obstacle.handle_collision(current_ball):
-                        sound_manager.play_paddle_hit('obstacle')
+                        sound_manager.play_sfx('paddle') # Use new method (consider 'obstacle_hit' later)
                         # Create new obstacle after collision
                         arena.reset_obstacle()
 
@@ -441,18 +448,18 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     if isinstance(level, SewerLevel):
                         # Check manhole collisions first as they affect ball trajectory
                         if arena.check_manhole_collisions(current_ball):
-                            sound_manager.play_paddle_hit('manhole')
+                            sound_manager.play_sfx('paddle') # Use new method (consider 'manhole_hit' later)
 
                         # Power-up collision check
                         new_ball = arena.check_power_up_collision(current_ball, len(balls))
                         if new_ball:
                             balls.append(new_ball)
-                    
+
                     # Handle all wall collisions and scoring
                     if isinstance(level, SewerLevel):
                         # Sewer Level: bounce off all walls, score with goals
                         if current_ball.handle_wall_collision(bounce_walls=True):
-                            sound_manager.play_paddle_hit('wall')
+                            sound_manager.play_sfx('paddle') # Use new method
                         ball_scored = arena.check_goal_collisions(current_ball)
                         if ball_scored:
                             scored = ball_scored
@@ -460,24 +467,24 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     else:
                         # Debug Level: bounce off top/bottom, score on sides
                         if current_ball.handle_wall_collision(bounce_walls=False):
-                            sound_manager.play_paddle_hit('wall')
+                            sound_manager.play_sfx('paddle') # Use new method
                         ball_scored = current_ball.handle_scoring()
                         if ball_scored:
                             scored = ball_scored
-                 
+
                 # Remove scored balls
                 for ball_to_remove in balls_to_remove:
                     if ball_to_remove in balls:
                         balls.remove(ball_to_remove)
-                    
+
                 # Handle scoring results
                 if scored:
                     if scored == "right":
                         score_b += 1
                     else:
                         score_a += 1
-                    sound_manager.play_sound('score')
-                    
+                    sound_manager.play_sfx('score') # Use new method
+
                     # Check for win condition
                     win_score = settings.get_win_scores()
                     if score_a >= win_score:
@@ -486,7 +493,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     elif score_b >= win_score:
                         width, height = settings.get_dimensions()
                         return win_screen(screen, clock, width, height, player_b_name, debug_console)
-                    
+
                     # Reset balls and start AI paddle moving to center
                     if len(balls) == 0:
                         # Create new ball if all balls are gone
@@ -503,7 +510,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         # Reset remaining balls
                         for b in balls:
                             b.reset_position()
-                            
+
                     if ai_mode:
                         paddle_ai.reset_position()  # Start AI paddle moving to center
                     respawn_timer = 2.0  # 2 second respawn delay
@@ -511,17 +518,17 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     ball_frozen = True
                     last_frame_time = time.time()  # Reset frame time for accurate timing
                     continue  # Skip the rest of this frame's updates
-                
+
                 accumulated_time -= FRAME_TIME
             # Cap the accumulated time to prevent spiral of death
             accumulated_time = min(accumulated_time, FRAME_TIME * 4)
-        
+
         # Arena scaling is now updated only on VIDEORESIZE event or settings change
         # width, height = settings.get_dimensions() # Removed
         # arena.update_scaling(width, height) # Removed
         # Create or update scaled font
         scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
-        
+
         # Draw complete game state using arena
         game_objects = [paddle_a, paddle_b] + balls  # Include all active balls
         arena.draw(screen, game_objects, scaled_font, current_player_name, score_a, player_b_name, score_b, respawn_timer, paused)
@@ -536,12 +543,12 @@ def get_player_name():
     """Get the player name from settings or prompt for a new one."""
     global settings
     player_name = settings.get_player_name()
-    
+
     if not player_name or player_name == "Player":
         width, height = settings.get_dimensions()
         player_name = player_name_screen(screen, clock, width, height, debug_console)
         settings.update_player_name(player_name)
-        
+
     return player_name
 
 
@@ -570,15 +577,17 @@ if __name__ == "__main__":
             width, height = settings.get_dimensions()
             # Corrected call: Use the TitleScreen's method to display the menu
             game_mode = title_screen_instance.display(screen, clock, width, height, debug_console)
-            
+
             # Handle quit action from title screen
             if game_mode == "quit":
                 running = False
                 break
-                
+
             if game_mode == "settings":
-                settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=False, debug_console=debug_console)
+                # Added sound_manager argument
+                settings_result = settings_screen(screen, clock, sound_manager, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
+                    # Handle different return types from settings screen
                     if settings_result[0] == "name_change":
                         # Update player name
                         player_name = settings_result[1]
@@ -590,11 +599,11 @@ if __name__ == "__main__":
                 continue
             # Check if game_mode is None (which could happen if the display loop exits unexpectedly)
             # or if it's False (for 2P mode) or True (for 1P mode)
-            elif game_mode is None: 
+            elif game_mode is None:
                 # If game_mode is None, assume user closed window or error occurred
                 running = False
                 break
-            
+
             # Show level selection screen only if a game mode was selected (True or False)
             width, height = settings.get_dimensions()
             # Pass sound_manager to level_select_screen
@@ -603,7 +612,7 @@ if __name__ == "__main__":
                 continue  # Go back to title screen
             elif level is None: # Handle closing the level select screen
                 continue # Go back to title screen implicitly
-            
+
             # Get the most up-to-date player name before starting the game
             current_player_name = settings.get_player_name()
             width, height = settings.get_dimensions()
@@ -612,7 +621,8 @@ if __name__ == "__main__":
                 break  # Go back to title screen
             elif game_result == "settings":
                 width, height = settings.get_dimensions()
-                settings_result = settings_screen(screen, clock, sound_manager.paddle_sound, sound_manager.score_sound, width, height, in_game=False, debug_console=debug_console)
+                # Removed sound preview args - update settings_screen function later
+                settings_result = settings_screen(screen, clock, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
                     if settings_result[0] == "name_change":
                         player_name = settings_result[1]  # Update player name immediately
@@ -621,3 +631,7 @@ if __name__ == "__main__":
                         screen = init_display(settings_result[0], settings_result[1])
                 # After settings, return to title screen
                 break
+    # Ensure Pygame quits properly if the loop exits
+    sound_manager.shutdown() # Clean up sounds before quitting
+    pygame.quit()
+    exit()

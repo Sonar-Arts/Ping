@@ -42,6 +42,9 @@ class DebugConsole:
         self.command_history = deque(maxlen=20)
         self.history_index = -1
         
+        # Reference to other game systems (must be set externally)
+        self.sound_manager = None # Needs to be set to the SoundManager instance
+
         # Commands dictionary
         self.commands = {
             'help': self.cmd_help,
@@ -53,9 +56,10 @@ class DebugConsole:
             'debug_input': self.cmd_debug_input,
             'debug_sound': self.cmd_debug_sound,
             'debug_physics': self.cmd_debug_physics,
-            'debug_settings': self.cmd_debug_settings
+            'debug_settings': self.cmd_debug_settings,
+            'toggle_sound_debug': self.cmd_toggle_sound_debug # New command
         }
-    
+
     def update(self, events):
         """Update console state based on events."""
         current_time = time.time()
@@ -154,7 +158,8 @@ class DebugConsole:
             'debug_input': 'Toggle input processing debug messages',
             'debug_sound': 'Toggle sound system debug messages',
             'debug_physics': 'Toggle physics simulation debug messages',
-            'debug_settings': 'Toggle settings menu debug messages'
+            'debug_settings': 'Toggle settings menu debug messages',
+            'toggle_sound_debug': 'Toggle SoundManager debug messages' # New help entry
         }
         for cmd, desc in command_help.items():
             self.log(f"  {cmd:<16} - {desc}")
@@ -215,6 +220,18 @@ class DebugConsole:
         """Toggle settings menu debug messages."""
         self.debug_settings = not self.debug_settings
         self.log(f"Settings menu debug messages {'enabled' if self.debug_settings else 'disabled'}")
+
+    def cmd_toggle_sound_debug(self, args):
+        """Toggle SoundManager debug messages."""
+        if self.sound_manager:
+            try:
+                # The toggle_debug method in SoundManager already logs the change
+                self.sound_manager.toggle_debug()
+            except Exception as e:
+                self.log(f"Error toggling sound debug: {e}")
+        else:
+            self.log("Error: SoundManager instance not available to the console.")
+            self.log("Hint: Ensure the SoundManager instance is passed to the console.")
 
     def handle_event(self, event):
         """Handle keyboard input."""

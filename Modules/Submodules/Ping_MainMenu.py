@@ -65,7 +65,7 @@ class MainMenu:
         self.last_color_change_time = time.time()
         self.color_change_interval = 3.0 # seconds
         # Start playing main menu music
-        self.sound_manager.play_main_music()
+        self.sound_manager.play_music('main') # Use new method
 
     def handle_input(self, events, width, height):
         """Handles user input for menu navigation and selection."""
@@ -110,16 +110,16 @@ class MainMenu:
                     # Action based on keyboard selection
                     action = self.options[self.selected_option].lower().replace(" ", "_")
                     if action == "1p_game":
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return True # AI mode
                     if action == "2p_game":
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return False # Player vs Player
                     if action == "settings":
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return "settings"
                     if action == "quit":
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return "quit"
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
                  # Use event.pos which holds the position at the time of the click
@@ -137,16 +137,16 @@ class MainMenu:
                         self.selected_option = i # Update selection to the clicked item
                         action = option.lower().replace(" ", "_")
                         if action == "1p_game":
-                            self.sound_manager.stop_all_music() # Stop music
+                            self.sound_manager.stop_music() # Use new method
                             return True # AI mode
                         if action == "2p_game":
-                            self.sound_manager.stop_all_music() # Stop music
+                            self.sound_manager.stop_music() # Use new method
                             return False # Player vs Player
                         if action == "settings":
-                            self.sound_manager.stop_all_music() # Stop music
+                            self.sound_manager.stop_music() # Use new method
                             return "settings"
                         if action == "quit":
-                            self.sound_manager.stop_all_music() # Stop music
+                            self.sound_manager.stop_music() # Use new method
                             return "quit"
                         break # Found the clicked button, no need to check others
 
@@ -241,7 +241,7 @@ class MainMenu:
             if action is not None: # If an action occurred (selection or quit)
                 # Stop all music if starting a game or quitting
                 if action is True or action is False or action == "quit":  # True = 1P game, False = 2P game
-                    self.sound_manager.stop_all_music()
+                    self.sound_manager.stop_music() # Use new method
                 return action
 
             clock.tick(60)

@@ -18,8 +18,8 @@ class SewerLevel:
     def __init__(self, sound_manager):
         # Use the passed sound manager instance
         self.sound_manager = sound_manager
-        self.sound_manager.play_sewer_music() # Play music using the correct manager
-        
+        self.sound_manager.play_music('sewer') # Use new method
+
         # Arena dimensions - set to 1280x720 as specified
         self.width = 1280
         self.height = 720

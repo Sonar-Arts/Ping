@@ -125,16 +125,16 @@ class LevelSelect:
                     
                     # Check buttons with scroll offset for level buttons
                     if self._check_button_hover(debug_rect, content_mouse_pos, title_area_height):
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return DebugLevel(self.sound_manager) # Pass sound_manager
                     elif self._check_button_hover(sewer_rect, content_mouse_pos, title_area_height):
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return SewerLevel(self.sound_manager) # Pass sound_manager
                     # Back button uses same hover check for consistency
                     elif back_rect.collidepoint(mouse_pos[0], mouse_pos[1]):
-                        self.sound_manager.stop_all_music() # Stop music
+                        self.sound_manager.stop_music() # Use new method
                         return "back"
-                            
+
                 if event.type == pygame.MOUSEWHEEL:
                     scroll_amount = event.y * 20  # Reduced scroll speed
                     # Adjust scroll bounds to account for title area

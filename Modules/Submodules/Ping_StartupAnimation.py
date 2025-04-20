@@ -74,7 +74,7 @@ def run_startup_animation(screen, clock, width, height):
     
     # Add 1 second delay before playing intro music
     time.sleep(1)
-    sound_manager.play_intro_music()
+    sound_manager.play_music('intro', loops=0, fade_duration=0.1) # Use new method, no loop, quick fade
     sonar_radius = 0
     sub_x, sub_y = width // 2, height // 2
     sub_width, sub_height = 40, 20
