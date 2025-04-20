@@ -793,12 +793,12 @@ class SettingsScreen:
                     elif effects_vol_minus_rect.collidepoint(mouse_pos_rel):
                         self.effects_volume = max(0, self.effects_volume - 5)
                         if sound_manager:
-                            sound_manager.set_effects_volume(self.effects_volume)
+                            sound_manager.set_sfx_volume(self.effects_volume) # Corrected method name
                             sound_manager.play_sfx('paddle') # Play preview
                     elif effects_vol_plus_rect.collidepoint(mouse_pos_rel):
                         self.effects_volume = min(100, self.effects_volume + 5)
                         if sound_manager:
-                            sound_manager.set_effects_volume(self.effects_volume)
+                            sound_manager.set_sfx_volume(self.effects_volume) # Corrected method name
                             sound_manager.play_sfx('paddle') # Play preview
                     elif music_vol_minus_rect.collidepoint(mouse_pos_rel):
                         self.music_volume = max(0, self.music_volume - 5)
@@ -842,7 +842,7 @@ class SettingsScreen:
                     elif mods & pygame.KMOD_ALT:
                         self.effects_volume = max(0, self.effects_volume - 5)
                         if sound_manager:
-                            sound_manager.set_effects_volume(self.effects_volume)
+                            sound_manager.set_sfx_volume(self.effects_volume) # Corrected method name
                             sound_manager.play_sfx('paddle') # Play preview
                     elif mods & pygame.KMOD_SHIFT: self.glow_intensity = max(0, self.glow_intensity - 5)
                     else: self.scanline_intensity = max(0, self.scanline_intensity - 5)
@@ -855,7 +855,7 @@ class SettingsScreen:
                     elif mods & pygame.KMOD_ALT:
                         self.effects_volume = min(100, self.effects_volume + 5)
                         if sound_manager:
-                            sound_manager.set_effects_volume(self.effects_volume)
+                            sound_manager.set_sfx_volume(self.effects_volume) # Corrected method name
                             sound_manager.play_sfx('paddle') # Play preview
                     elif mods & pygame.KMOD_SHIFT: self.glow_intensity = min(100, self.glow_intensity + 5)
                     else: self.scanline_intensity = min(100, self.scanline_intensity + 5)
