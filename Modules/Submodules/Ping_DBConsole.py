@@ -44,7 +44,8 @@ class DebugConsole:
         
         # Reference to other game systems (must be set externally)
         self.sound_manager = None # Needs to be set to the SoundManager instance
-
+        self.game_state = None # Reference to hold game state for debug commands
+        
         # Commands dictionary
         self.commands = {
             'help': self.cmd_help,
@@ -57,7 +58,8 @@ class DebugConsole:
             'debug_sound': self.cmd_debug_sound,
             'debug_physics': self.cmd_debug_physics,
             'debug_settings': self.cmd_debug_settings,
-            'toggle_sound_debug': self.cmd_toggle_sound_debug # New command
+            'toggle_sound_debug': self.cmd_toggle_sound_debug,
+            'spawn_ball': self.cmd_spawn_ball # Command to spawn additional balls
         }
 
     def update(self, events):
@@ -159,7 +161,8 @@ class DebugConsole:
             'debug_sound': 'Toggle sound system debug messages',
             'debug_physics': 'Toggle physics simulation debug messages',
             'debug_settings': 'Toggle settings menu debug messages',
-            'toggle_sound_debug': 'Toggle SoundManager debug messages' # New help entry
+            'toggle_sound_debug': 'Toggle SoundManager debug messages',
+            'spawn_ball': 'Spawn a new ball in the game'
         }
         for cmd, desc in command_help.items():
             self.log(f"  {cmd:<16} - {desc}")
@@ -232,6 +235,26 @@ class DebugConsole:
         else:
             self.log("Error: SoundManager instance not available to the console.")
             self.log("Hint: Ensure the SoundManager instance is passed to the console.")
+
+    def cmd_spawn_ball(self, args):
+        """Spawn a new ball in the game."""
+        if self.game_state and hasattr(self.game_state, 'balls') and hasattr(self.game_state, 'arena'):
+            try:
+                from ..Ping_GameObjects import BallObject
+                new_ball = BallObject(
+                    arena_width=self.game_state.arena.width,
+                    arena_height=self.game_state.arena.height,
+                    scoreboard_height=self.game_state.arena.scoreboard_height,
+                    scale_rect=self.game_state.arena.scale_rect,
+                    size=20  # Standard ball size
+                )
+                new_ball.reset_position()
+                self.game_state.balls.append(new_ball)
+                self.log("Spawned a new ball")
+            except Exception as e:
+                self.log(f"Error spawning ball: {e}")
+        else:
+            self.log("Error: Game state not initialized or missing required attributes")
 
     def handle_event(self, event):
         """Handle keyboard input."""

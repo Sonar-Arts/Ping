@@ -34,6 +34,12 @@ from Modules.Submodules.Ping_Settings import SettingsScreen
 debug_console = get_console()
 debug_console.log("Game initialized")
 
+class MainGameObject:
+    """Container class to hold game state for debug commands."""
+    def __init__(self):
+        self.arena = None
+        self.balls = []
+
 def read_settings():
     """Read window dimensions from settings file."""
     try:
@@ -130,6 +136,8 @@ def _render_text_with_outline(font, text, text_color, outline_color=(0, 0, 0), o
 
     return outline_surface, outline_surface.get_rect()
 def main_game(ai_mode, player_name, level, window_width, window_height, debug_console=debug_console):
+    # Set the game state reference in the debug console
+    debug_console.game_state = MainGameObject()
     """Main game loop."""
     global screen
     current_player_name = player_name  # Local variable to track current player name
@@ -274,6 +282,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
     # List to track all active balls
     balls = [ball] # Initialize with the first ball
+    debug_console.game_state.balls = balls  # Update debug console reference to balls list
+    debug_console.game_state.arena = arena  # Update debug console reference to arena
 
     # --- Level Intro Animation ---
     level_name_for_intro = None
@@ -588,22 +598,17 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         sound_manager.stop_music() # Stop music before win screen
                         return win_screen(screen, clock, width, height, player_b_name, debug_console)
 
-                    # Reset balls and start AI paddle moving to center
-                    if len(balls) == 0:
-                        # Create new ball if all balls are gone
-                        new_ball = BallObject(
-                            arena_width=arena.width,
-                            arena_height=arena.height,
-                            scoreboard_height=arena.scoreboard_height,
-                            scale_rect=arena.scale_rect,
-                            size=BALL_SIZE
-                        )
-                        new_ball.reset_position()
-                        balls = [new_ball]
-                    else:
-                        # Reset remaining balls
-                        for b in balls:
-                            b.reset_position()
+                    # Clear all existing balls and create a new single ball
+                    balls.clear()
+                    new_ball = BallObject(
+                        arena_width=arena.width,
+                        arena_height=arena.height,
+                        scoreboard_height=arena.scoreboard_height,
+                        scale_rect=arena.scale_rect,
+                        size=BALL_SIZE
+                    )
+                    new_ball.reset_position()
+                    balls = [new_ball]
 
                     if ai_mode:
                         paddle_ai.reset_position()  # Start AI paddle moving to center
