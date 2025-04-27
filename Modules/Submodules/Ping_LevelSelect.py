@@ -157,9 +157,9 @@ class LevelSelect:
                             # Removed handling for class-based levels as they are deleted
 
                     # Check back button (fixed position, no scroll adjustment needed)
-                elif back_rect.collidepoint(mouse_pos): # Dedented
-                    # self.sound_manager.stop_music() # Removed - Let title screen handle music
-                    return "back"
+                    if back_rect.collidepoint(mouse_pos):
+                        # self.sound_manager.stop_music() # Removed - Let title screen handle music
+                        return "back"
 
                 if event.type == pygame.MOUSEWHEEL:
                     scroll_amount = event.y * 20  # Reduced scroll speed
