@@ -1,5 +1,6 @@
 import pygame
-from .Ping_Levels import DebugLevel, SewerLevel  # Added Sewer Level import
+import os # Import os for directory scanning
+# Removed import for DebugLevel, SewerLevel
 from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 from .Ping_Sound import SoundManager
@@ -12,7 +13,28 @@ class LevelSelect:
     def __init__(self, sound_manager):
         self.scroll_y = 0  # Initialize scroll position for level list
         self.sound_manager = sound_manager  # Use the passed instance
+        self.levels = [] # List to store level data (instance or path)
+        self._load_levels()
     
+    def _load_levels(self):
+        """Scans for levels (hardcoded and PMF files)."""
+        self.levels = []
+        # Add hardcoded levels first
+        # Removed hardcoded Debug and Sewer levels
+
+        # Scan for PMF files
+        level_dir = "Ping_Levels"
+        try:
+            if os.path.isdir(level_dir):
+                for filename in os.listdir(level_dir):
+                    if filename.lower().endswith(".pmf"):
+                        level_name = os.path.splitext(filename)[0].replace('_', ' ').title() # Nicer name
+                        level_path = os.path.join(level_dir, filename).replace('\\', '/') # Use forward slashes for consistency
+                        self.levels.append({'name': level_name, 'source': level_path})
+        except Exception as e:
+            print(f"Error scanning level directory '{level_dir}': {e}")
+            # Continue without PMF levels if scanning fails
+
     def _create_brick_pattern(self, width, height):
         """Create a brick pattern background surface."""
         surface = pygame.Surface((width, height))
@@ -47,7 +69,7 @@ class LevelSelect:
         """Display the level select screen with optional debug console."""
         scale_y = WINDOW_HEIGHT / 600  # Base height scale
         scale_x = WINDOW_WIDTH / 800   # Base width scale
-        scale = min(scale_x, scale_y)  # Use the smaller scale to ensure text fits
+        scale = min(scale_x, scale_y)  # Use the smaller scale
         
         button_width = min(300, WINDOW_WIDTH // 3)
         
@@ -56,10 +78,10 @@ class LevelSelect:
         option_font = get_pixel_font(option_font_size)
         
         # Test all texts to ensure they fit
-        test_texts = ["Debug Level", "Sewer Level", "Back"]
-        while any(option_font.render(text, True, WHITE).get_width() > button_width - 20 
+        test_texts = [level['name'] for level in self.levels] + ["Back"]
+        while any(option_font.render(text, True, WHITE).get_width() > button_width - 20
                  for text in test_texts) and option_font_size > 12:
-            option_font_size -= 1
+            option_font_size -= 2 # Decrease faster if needed
             option_font = get_pixel_font(option_font_size)
         
         while True:
@@ -70,7 +92,7 @@ class LevelSelect:
             
             # Adjust button dimensions and spacing
             button_height = min(40, WINDOW_HEIGHT // 15)  # Reduced button height
-            button_spacing = button_height + 10  # Reduced spacing between buttons
+            button_spacing = button_height + 15 # Slightly more spacing
             
             # Create title area with brick pattern
             title_area_height = 60  # Smaller title area
@@ -85,19 +107,23 @@ class LevelSelect:
             # Start positions for content (after title area)
             current_y = 40  # Give more initial space for better appearance
             
-            # Create rectangles for level buttons
-            debug_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2,
-                                   current_y,
-                                   button_width, button_height)
-            current_y += button_spacing
-            
-            sewer_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2,
-                                   current_y,
-                                   button_width, button_height)
-            current_y += button_spacing * 2  # Extra space before back button
-            
+            # Store button rects and associated level data
+            level_buttons = []
+            button_y_pos = current_y # Start position for buttons within the content surface
+            for level_data in self.levels:
+                rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2, button_y_pos, button_width, button_height)
+                level_buttons.append({'rect': rect, 'data': level_data})
+                button_y_pos += button_spacing
+
+            # Calculate total content height needed based on buttons drawn
+            total_content_height = button_y_pos + 40 # Add some padding at the bottom
+            # Recreate content surface with correct height
+            content_surface = pygame.Surface((WINDOW_WIDTH, total_content_height))
+            content_surface.fill(BLACK)
+
             # Back button stays fixed at bottom
             back_button_y = WINDOW_HEIGHT - button_height - 20
+            back_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2, back_button_y, button_width, button_height) # Define back_rect here for click check
 
             # Get events
             events = pygame.event.get()
@@ -120,25 +146,30 @@ class LevelSelect:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Left click only
                     mouse_pos = event.pos
                     
-                    # Use raw mouse position for click detection
-                    content_mouse_pos = mouse_pos
-                    
-                    # Check buttons with scroll offset for level buttons
-                    if self._check_button_hover(debug_rect, content_mouse_pos, title_area_height):
-                        self.sound_manager.stop_music() # Use new method
-                        return DebugLevel(self.sound_manager) # Pass sound_manager
-                    elif self._check_button_hover(sewer_rect, content_mouse_pos, title_area_height):
-                        self.sound_manager.stop_music() # Use new method
-                        return SewerLevel(self.sound_manager) # Pass sound_manager
-                    # Back button uses same hover check for consistency
-                    elif back_rect.collidepoint(mouse_pos[0], mouse_pos[1]):
-                        self.sound_manager.stop_music() # Use new method
-                        return "back"
+                    # Check level buttons (using adjusted hover check)
+                    for button_info in level_buttons:
+                        if self._check_button_hover(button_info['rect'], mouse_pos, title_area_height):
+                            # self.sound_manager.stop_music() # Removed - Let main_game handle music transition
+                            level_source = button_info['data']['source']
+                            if isinstance(level_source, str): # It's a PMF path
+                                print(f"Selected PMF Level: {level_source}") # Debug print
+                                return level_source # Return the path
+                            # Removed handling for class-based levels as they are deleted
+
+                    # Check back button (fixed position, no scroll adjustment needed)
+                elif back_rect.collidepoint(mouse_pos): # Dedented
+                    # self.sound_manager.stop_music() # Removed - Let title screen handle music
+                    return "back"
 
                 if event.type == pygame.MOUSEWHEEL:
                     scroll_amount = event.y * 20  # Reduced scroll speed
-                    # Adjust scroll bounds to account for title area
-                    max_scroll = -(total_height - (WINDOW_HEIGHT - title_area_height))
+                    # Adjust scroll bounds based on dynamic content height
+                    scrollable_area_height = WINDOW_HEIGHT - title_area_height
+                    # Only allow scrolling if content height exceeds visible area
+                    if total_content_height > scrollable_area_height:
+                        max_scroll = -(total_content_height - scrollable_area_height)
+                    else:
+                        max_scroll = 0 # No scrolling needed if content fits
                     self.scroll_y = min(0, max(max_scroll, self.scroll_y + scroll_amount))
 
             screen.fill(BLACK)
@@ -149,26 +180,26 @@ class LevelSelect:
             # Get button renderer
             button = get_button()
             
-            # Draw level buttons on content surface
-            for rect, text in [
-                (debug_rect, "Debug Level"),
-                (sewer_rect, "Sewer Level")
-            ]:
+            # Draw level buttons onto the dynamically sized content_surface
+            for button_info in level_buttons:
+                rect = button_info['rect']
+                text = button_info['data']['name']
+                # Hover check needs the *original* mouse position relative to the screen
+                # but the drawing happens on the content_surface at rect's coordinates
                 button.draw(content_surface, rect, text, option_font,
                            is_hovered=self._check_button_hover(rect, mouse_pos, title_area_height))
+
+            # Draw scrollable content area onto the main screen
+            # The source rect starts at (0, -self.scroll_y) to select the visible part
+            visible_content_rect = pygame.Rect(0, -self.scroll_y, WINDOW_WIDTH, WINDOW_HEIGHT - title_area_height)
+            screen.blit(content_surface, (0, title_area_height), visible_content_rect)
             
-            # Draw scrollable content with offset for title area
-            visible_rect = pygame.Rect(0, -self.scroll_y, WINDOW_WIDTH, WINDOW_HEIGHT - title_area_height)
-            screen.blit(content_surface, (0, title_area_height), visible_rect)
-            
-            # Draw title area (fixed position)
+            # Draw title area (fixed position, drawn after content blit)
             screen.blit(title_area, (0, 0))
-            
-            # Create and draw back button (fixed at bottom)
-            back_rect = pygame.Rect(WINDOW_WIDTH//2 - button_width//2, back_button_y,
-                                  button_width, button_height)
+
+            # Draw back button (fixed at bottom, drawn after content blit)
             button.draw(screen, back_rect, "Back", option_font,
-                        is_hovered=back_rect.collidepoint(mouse_pos[0], mouse_pos[1]))
+                        is_hovered=back_rect.collidepoint(mouse_pos)) # Use direct collision check
 
             # Draw debug console if provided
             if debug_console:

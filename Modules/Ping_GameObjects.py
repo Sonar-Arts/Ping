@@ -193,11 +193,23 @@ class PaddleObject(ArenaObject):
         self.paddle.reset_position(self.arena_width, self.arena_height)
 
 class BallObject(ArenaObject):
-    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, size=20):
-        """Initialize a ball object with arena properties."""
+    # Add optional initial_state parameter
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, size=20, initial_state=None):
+        """Initialize a ball object with arena properties and optional initial state."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
         self.ball = Ball(size)
-        self.reset_position()
+        if initial_state:
+            # Apply initial state if provided
+            self.ball.rect.x = initial_state['x']
+            self.ball.rect.y = initial_state['y']
+            self.ball.dx = initial_state['dx']
+            self.ball.dy = initial_state['dy']
+            self.ball.speed = initial_state['speed']
+            self.ball.velocity_x = initial_state['velocity_x']
+            self.ball.velocity_y = initial_state['velocity_y']
+        else:
+            # Reset position only if no initial state is given
+            self.reset_position()
 
     @property
     def rect(self):
@@ -346,58 +358,34 @@ class PortalObject(ArenaObject):
         """Update portal cooldown timer."""
         self.portal.update_cooldown()
     
-    def draw(self, screen, color):
-        """Draw the portal as a retro sewer pipe opening."""
-        scaled_rect = self.scale_rect(self.rect)
-
-        # Define colors for the pipe and glow
-        pipe_color = (80, 80, 80)  # Dark grey for the pipe opening
-        brick_color = (100, 60, 40) # Brownish color for surrounding bricks
-        mortar_color = (60, 40, 30) # Darker mortar
-        glow_color = (0, 100, 0, 100) # Semi-transparent dark green glow
-
-        # Draw surrounding bricks (simple pattern)
-        brick_size = 10 # Scaled brick size
-        for r in range(-1, (scaled_rect.height // brick_size) + 1):
-            for c in range(-1, (scaled_rect.width // brick_size) + 1):
-                brick_x = scaled_rect.left + c * brick_size + (r % 2) * (brick_size // 2) # Staggered
-                brick_y = scaled_rect.top + r * brick_size
-                # Only draw bricks partially overlapping the portal area for effect
-                if abs(brick_x - scaled_rect.centerx) < scaled_rect.width and abs(brick_y - scaled_rect.centery) < scaled_rect.height:
-                    b_rect = pygame.Rect(brick_x, brick_y, brick_size - 1, brick_size - 1)
-                    pygame.draw.rect(screen, brick_color, b_rect)
-                    pygame.draw.rect(screen, mortar_color, b_rect, 1) # Mortar lines
-
-        # Draw the dark pipe opening (circle)
-        center_x = scaled_rect.centerx
-        center_y = scaled_rect.centery
-        radius = min(scaled_rect.width, scaled_rect.height) // 2 - 2 # Slightly smaller than rect
-
-        # Create a surface for the glow effect
-        glow_surface = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(glow_surface, glow_color, (radius, radius), radius)
-        screen.blit(glow_surface, (center_x - radius, center_y - radius))
-
-        # Draw the pipe opening itself
-        pygame.draw.circle(screen, pipe_color, (center_x, center_y), radius)
-        pygame.draw.circle(screen, (40, 40, 40), (center_x, center_y), radius, 2) # Darker border
+    # Updated draw method to accept colors dictionary and scale_rect function
+    # and delegate drawing to the underlying Portal instance.
+    def draw(self, screen, colors, scale_rect):
+        """Delegate drawing to the underlying Portal object."""
+        # Call the draw method of the actual Portal instance from Ping_Obstacles.py
+        self.portal.draw(screen, colors, scale_rect)
 
 class ObstacleObject(ArenaObject):
-    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, width=20, height=60):
-        """Initialize an obstacle with arena properties."""
+    # Added x, y, and properties parameters
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x=None, y=None, width=20, height=60, properties=None):
+        """Initialize an obstacle with arena properties, position, and optional properties."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
-        # Calculate middle third boundaries
-        third_width = self.arena_width // 3
-        min_x = third_width
-        max_x = third_width * 2
-        
-        # Random position within middle third
-        x = random.randint(min_x, max_x - width)
-        y = random.randint(self.scoreboard_height, self.arena_height - height)
-        
-        # Create core obstacle
+        self.properties = properties if properties is not None else {} # Store properties
+
+        # Use provided x, y if available, otherwise calculate random position
+        if x is None or y is None:
+            # Calculate middle third boundaries
+            third_width = self.arena_width // 3
+            min_x = third_width
+            max_x = third_width * 2
+            # Random position within middle third
+            x = random.randint(min_x, max_x - width)
+            y = random.randint(self.scoreboard_height, self.arena_height - height)
+
+        # Create core obstacle, passing position and size
+        # Note: Base Obstacle class doesn't currently use properties, but we store them.
         self.obstacle = Obstacle(x, y, width, height)
-    
+
     @property
     def rect(self):
         return self.obstacle.rect
@@ -407,9 +395,19 @@ class ObstacleObject(ArenaObject):
         return self.obstacle.handle_collision(ball)
         
     def draw(self, screen, color):
-        """Draw the obstacle as a pixelated brick wall."""
+        """Draw the obstacle as a pixelated brick wall with drop shadow."""
         scaled_rect = self.scale_rect(self.rect)
-        
+
+        # Draw drop shadow first
+        shadow_offset = 4
+        shadow_rect = pygame.Rect(
+            scaled_rect.left + shadow_offset,
+            scaled_rect.top + shadow_offset,
+            scaled_rect.width,
+            scaled_rect.height
+        )
+        pygame.draw.rect(screen, (20, 20, 20), shadow_rect)  # Dark shadow
+
         # Create brick and mortar colors with brown tinting
         r, g, b = color
         # Mix with brown (139, 69, 19) for brick color
@@ -454,11 +452,12 @@ class ObstacleObject(ArenaObject):
 
 class ManHoleObject(ArenaObject):
     """Manhole obstacle that can spout upward and affect ball trajectory."""
-    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, width, height, is_bottom=True):
-        """Initialize a manhole object with arena properties."""
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, width, height, is_bottom=True, properties=None):
+        """Initialize a manhole object with arena properties, passing properties down."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
-        self.manhole = Manhole(x, y, width, height, is_bottom)
-    
+        # Pass the properties dictionary to the underlying Manhole constructor
+        self.manhole = Manhole(x, y, width, height, is_bottom, properties)
+
     @property
     def rect(self):
         return self.manhole.horizontal_rect
@@ -482,12 +481,15 @@ class ManHoleObject(ArenaObject):
 
 class PowerUpBallObject(ArenaObject):
     """Power-up that creates a duplicate ball on collision."""
-    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, size=20):
-        """Initialize a power-up ball object with arena properties."""
+    # Added properties parameter
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, size=20, properties=None):
+        """Initialize a power-up ball object with arena properties and optional properties."""
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
+        self.properties = properties if properties is not None else {} # Store properties
+        # Note: Base PowerUpBall class doesn't currently use properties, but we store them.
         self.power_up = PowerUpBall(x, y, size)
         self.color = (0, 255, 0)  # Green color for visibility
-    
+
     @property
     def rect(self):
         return self.power_up.rect

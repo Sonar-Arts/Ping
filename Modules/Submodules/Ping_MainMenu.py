@@ -65,7 +65,7 @@ class MainMenu:
         self.last_color_change_time = time.time()
         self.color_change_interval = 3.0 # seconds
         # Start playing main menu music
-        self.sound_manager.play_music('main') # Use new method
+        self.sound_manager.play_music('main_theme') # Use new method
 
     def handle_input(self, events, width, height):
         """Handles user input for menu navigation and selection."""

@@ -2,6 +2,7 @@ import pygame
 import pygame.sndarray
 import random
 import time
+from Modules.Submodules.Ping_Ball import Ball # Import Ball class for type checking
 import threading
 import numpy as np
 from sys import exit
@@ -9,9 +10,10 @@ from Modules.Ping_AI import PaddleAI
 from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
 from Modules.Ping_GameObjects import PaddleObject, BallObject
 from Modules.Submodules.Ping_DBConsole import get_console
-from Modules.Submodules.Ping_Levels import SewerLevel  # Added for Sewer Level check
+# Removed import for DebugLevel and SewerLevel as they no longer exist
 from Modules.Submodules.Ping_Fonts import get_pixel_font  # Moved import here
 from Modules.Submodules.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
+from Modules.Submodules.Ping_LevelIntro import play_level_intro # Import the level intro function
 
 """
 Ping Base Code
@@ -24,7 +26,8 @@ This will serve as our base code skeleton for Ping. It is where all the upper ti
 pygame.init()
 pygame.mixer.init()
 
-from Modules.Ping_Arena import Arena
+from Modules.Ping_Arena import Arena # Import the old Arena for specific levels
+from Modules.Ping_MCompile import LevelCompiler # Import the new compiler for PMF levels
 from Modules.Submodules.Ping_Settings import SettingsScreen
 
 # Initialize global debug console (singleton)
@@ -102,6 +105,30 @@ def generate_random_name():
         debug_console.log("Error: Name files not found.")
         return "Player X"
 
+def _render_text_with_outline(font, text, text_color, outline_color=(0, 0, 0), outline_px=2):
+    """Renders text with a simple outline by blitting offset background copies."""
+    # Render the main text
+    text_surface = font.render(text, True, text_color).convert_alpha()
+    w, h = text_surface.get_size()
+
+    # Create a slightly larger surface to accommodate the outline
+    outline_surface = pygame.Surface((w + outline_px * 2, h + outline_px * 2), pygame.SRCALPHA)
+    outline_surface.fill((0,0,0,0)) # Transparent background
+
+    # Render the outline text (multiple times for thicker outline)
+    outline_text = font.render(text, True, outline_color).convert_alpha()
+
+    # Blit outline copies shifted in 8 directions
+    for dx in range(-outline_px, outline_px + 1, outline_px):
+         for dy in range(-outline_px, outline_px + 1, outline_px):
+             if dx == 0 and dy == 0: # Skip the center position
+                 continue
+             outline_surface.blit(outline_text, (outline_px + dx, outline_px + dy))
+
+    # Blit the main text on top
+    outline_surface.blit(text_surface, (outline_px, outline_px))
+
+    return outline_surface, outline_surface.get_rect()
 def main_game(ai_mode, player_name, level, window_width, window_height, debug_console=debug_console):
     """Main game loop."""
     global screen
@@ -110,15 +137,62 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
     # Validate level selection
     if not level:
+        sound_manager.stop_music() # Stop music if no level selected
         return "title"
 
     # Create arena instance with selected level
-    print(f"Loading arena for level: {level.__class__.__name__}...")
-    arena = Arena(level)
-    # Update arena with current window dimensions
-    width, height = settings.get_dimensions()
-    arena.update_scaling(width, height)
-    print("Arena successfully loaded and scaled")
+    # Determine level name for logging (handle both class and path string)
+    # Determine how to load the level based on its type
+    # Removed check for DebugLevel/SewerLevel as they are deleted.
+    # Assuming all levels are now PMF files or handled by LevelCompiler.
+    if isinstance(level, str): # Now only check if it's a string (PMF path)
+        # Use the LevelCompiler for PMF file paths (strings)
+        level_name_for_log = level
+        print(f"Loading level compiler for level: {level_name_for_log}...")
+        arena = LevelCompiler(level) # Instantiate the LevelCompiler
+        # Update arena with current window dimensions
+        width, height = settings.get_dimensions()
+        arena.update_scaling(width, height)
+        print("Level Compiler successfully loaded and scaled")
+# Play level music if specified
+        # --- Play Level Music ---
+        if arena.level_music: # Check if a music path string exists
+            try:
+                pmf_music_value = arena.level_music
+                logical_music_name = None
+
+                # 1. Check if the PMF value is directly a known logical name
+                if pmf_music_value in sound_manager._sound_paths['music']:
+                    logical_music_name = pmf_music_value
+                    print(f"Found logical music name directly in PMF: {logical_music_name}")
+                else:
+                    # 2. If not a direct logical name, try converting it as a filename/path
+                    print(f"PMF value '{pmf_music_value}' not a direct logical name. Attempting path conversion...")
+                    # Normalize path separators for the lookup function
+                    normalized_path_for_lookup = pmf_music_value.replace("\\", "/")
+                    logical_music_name = sound_manager.get_music_name_from_path(normalized_path_for_lookup)
+
+                # 3. Play music if a logical name was found either way
+                if logical_music_name:
+                    print(f"Attempting to play music: {logical_music_name} (from PMF value: {pmf_music_value})")
+                    sound_manager.play_music(logical_music_name)
+                    debug_console.log(f"Playing level music: {logical_music_name} (PMF Value: {pmf_music_value})")
+                else:
+                    # 4. Log warning if no logical name could be determined
+                    debug_console.log(f"Warning: Could not determine logical name for music value '{pmf_music_value}' from PMF. Music will not play.")
+                    print(f"Warning: Could not determine logical name for music value '{pmf_music_value}' from PMF.")
+            except Exception as e:
+                # Log error but avoid crashing if music path is problematic but present
+                debug_console.log(f"Error processing or playing music '{arena.level_music}': {e}")
+        else:
+            # Stop music if no level music is defined for this level
+            sound_manager.stop_music()
+            debug_console.log("No level music defined, stopping music.")
+    else:
+        # Handle unexpected level type
+        print(f"Error: Unexpected level type received: {type(level)}")
+        sound_manager.stop_music() # Stop music on error
+        return "title" # Or handle error appropriately
 
     # --- Initialize Game Variables BEFORE Intro ---
     player_b_name = generate_random_name() if ai_mode else "Player B"
@@ -201,63 +275,47 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     # List to track all active balls
     balls = [ball] # Initialize with the first ball
 
-    # --- Sonic-style Level Intro ---
-    if isinstance(level, SewerLevel):
-        # Define graphic properties
-        level_name = "Sewer Zone"
-        intro_font_size = max(24, int(60 * arena.scale_y)) # Scale font size
-        intro_font = get_pixel_font(intro_font_size)
-        text_surface = intro_font.render(level_name, True, (0, 200, 0)) # Green text
-        text_rect = text_surface.get_rect()
+    # --- Level Intro Animation ---
+    level_name_for_intro = None
+    # Try to get the level name using the new method first
+    if hasattr(arena, 'get_level_name'):
+        level_name_for_intro = arena.get_level_name()
+    else:
+        # Fallback for older Arena instances or if method is missing
+        level_instance = getattr(arena, 'level_instance', None) # Get original level object if available
+        if hasattr(level_instance, 'display_name'):
+            level_name_for_intro = level_instance.display_name
+        # Removed elif check for non-DebugLevel instances as DebugLevel is removed.
+        # Assuming level_instance will have display_name if it's a compiled level.
+        # The 'else' block below handles the fallback if display_name isn't available.
+        # Need to import re here if it's not already imported globally
+        import re
+        class_name = level_instance.__class__.__name__
+        formatted_name = re.sub(r'(?<!^)(?=[A-Z])', ' ', class_name)
+        level_name_for_intro = formatted_name.replace(" Level", " Zone")
 
-        # Animation parameters
-        slide_speed = width / 1.0 # Pixels per second (adjust for desired speed)
-        pause_duration = 1.5 # Seconds to pause on screen
+    # Play intro if a name was determined
+    if level_name_for_intro:
+        # Define a function to draw the background during the intro
+        # This includes the arena background and static game objects
+        def draw_intro_background(target_screen):
+            # Ensure game_objects list is up-to-date if balls change during intro (unlikely but safe)
+            current_game_objects = [paddle_a, paddle_b] + balls
+            arena.draw(target_screen, current_game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
 
-        # Starting position (off-screen left)
-        text_rect.center = (-text_rect.width // 2, height // 2)
-        start_time = time.time()
-
-        # Slide in
-        while text_rect.centerx < width // 2:
-            elapsed_time = time.time() - start_time
-            text_rect.centerx = -text_rect.width // 2 + int(slide_speed * elapsed_time)
-
-            # Draw background and game objects first
-            game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
-            arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
-            # Draw level name text on top
-            screen.blit(text_surface, text_rect)
-            pygame.display.flip()
-            clock.tick(60) # Limit FPS
-
-        # Pause on screen
-        text_rect.centerx = width // 2 # Ensure it's centered
-        # Draw background and game objects first
-        game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
-        arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
-        # Draw level name text on top
-        screen.blit(text_surface, text_rect)
-        pygame.display.flip()
-        time.sleep(pause_duration)
-
-        # Slide out (to the right)
-        start_time = time.time()
-        start_x = text_rect.centerx
-        while text_rect.left < width:
-            elapsed_time = time.time() - start_time
-            text_rect.centerx = start_x + int(slide_speed * elapsed_time)
-
-            # Draw background and game objects first
-            game_objects = [paddle_a, paddle_b] + balls # Ensure game_objects are defined here
-            arena.draw(screen, game_objects, font, current_player_name, score_a, player_b_name, score_b, None, False)
-            # Draw level name text on top
-            screen.blit(text_surface, text_rect)
-            pygame.display.flip()
-            clock.tick(60)
+        play_level_intro(
+            screen=screen,
+            clock=clock,
+            level_name=level_name_for_intro,
+            width=width,
+            height=height,
+            scale_y=arena.scale_y,
+            colors=arena.colors, # Pass the arena's color dict
+            draw_background_func=draw_intro_background
+        )
     # --- End Level Intro ---
 
-    # Initialize scoreboard
+    # Initialize scoreboard (can happen after intro)
     arena.initialize_scoreboard()
 
     # Game state flags
@@ -282,9 +340,18 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         # Draw countdown number on top
         countdown_font_size = max(48, int(100 * arena.scale_y)) # Larger font for countdown
         countdown_font = get_pixel_font(countdown_font_size)
-        countdown_text = countdown_font.render(str(i), True, arena.colors['WHITE'])
-        screen.blit(countdown_text, (width//2 - countdown_text.get_width()//2,
-                                    height//2 - countdown_text.get_height()//2))
+        outline_px = max(1, int(3 * arena.scale_y)) # Scale outline thickness
+        # Render countdown number with outline
+        countdown_surf, countdown_rect = _render_text_with_outline(
+            countdown_font,
+            str(i),
+            arena.colors.get('WHITE', (255, 255, 255)), # Use .get() for safety
+            outline_color=(0, 0, 0),
+            outline_px=outline_px
+        )
+        # Center the outlined text rect
+        countdown_rect.center = (width // 2, height // 2)
+        screen.blit(countdown_surf, countdown_rect)
         pygame.display.flip()
         time.sleep(1)
 
@@ -414,10 +481,13 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         respawn_timer = None
                         ball_frozen = False
 
-                # Update power-up and manhole states for Sewer Level
-                if isinstance(level, SewerLevel):
+                # Update power-up state if allowed and powerup exists
+                if arena.can_spawn_powerups and arena.power_up:
                     arena.update_power_up(len(balls))
-                    arena.update_manholes(FRAME_TIME)  # Pass frame time for smooth particle animation
+
+                # Update manhole states if they exist
+                if arena.manholes:
+                    arena.update_manholes(FRAME_TIME) # Pass frame time for smooth particle animation
 
                 # Handle all active balls
                 scored = None
@@ -435,8 +505,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     if current_ball.handle_paddle_collision(paddle_a) or current_ball.handle_paddle_collision(paddle_b):
                         sound_manager.play_sfx('paddle') # Use new method
 
-                    # Ball collision with obstacle
-                    if arena.obstacle.handle_collision(current_ball):
+                    # Ball collision with obstacle (check if obstacle exists first)
+                    if arena.obstacle and arena.obstacle.handle_collision(current_ball):
                         sound_manager.play_sfx('paddle') # Use new method (consider 'obstacle_hit' later)
                         # Create new obstacle after collision
                         arena.reset_obstacle()
@@ -444,33 +514,55 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     # Check portal collisions
                     arena.check_portal_collisions(current_ball)
 
-                    # Sewer Level specific collisions
-                    if isinstance(level, SewerLevel):
-                        # Check manhole collisions first as they affect ball trajectory
-                        if arena.check_manhole_collisions(current_ball):
-                            sound_manager.play_sfx('paddle') # Use new method (consider 'manhole_hit' later)
+                    # Check manhole collisions (applies if manholes exist)
+                    if arena.check_manhole_collisions(current_ball):
+                        sound_manager.play_sfx('paddle') # Use new method (consider 'manhole_hit' later)
 
-                        # Power-up collision check
-                        new_ball = arena.check_power_up_collision(current_ball, len(balls))
-                        if new_ball:
-                            balls.append(new_ball)
+                    # Power-up collision check (applies if powerups allowed and exist)
+                    # Arena.check_power_up_collision returns a raw Ball instance or None
+                    new_ball_result = arena.check_power_up_collision(current_ball, len(balls))
+                    # Check if the collision result is a raw Ball instance
+                    if isinstance(new_ball_result, Ball):
+                        # Prepare initial state from the raw Ball instance
+                        initial_state = {
+                            'x': new_ball_result.rect.x, # Use position from the raw ball
+                            'y': new_ball_result.rect.y,
+                            'dx': new_ball_result.dx,
+                            'dy': new_ball_result.dy,
+                            'speed': new_ball_result.speed,
+                            'velocity_x': new_ball_result.velocity_x,
+                            'velocity_y': new_ball_result.velocity_y
+                        }
+                        # Wrap the raw Ball instance in a BallObject, passing initial state
+                        new_ball_object = BallObject(
+                            arena_width=arena.width,
+                            arena_height=arena.height,
+                            scoreboard_height=arena.scoreboard_height,
+                            scale_rect=arena.scale_rect,
+                            size=new_ball_result.size, # Use size from the raw ball
+                            initial_state=initial_state # Pass the prepared state
+                        )
+                        balls.append(new_ball_object) # Append the wrapped object
+                    # No need for an elif here, as Arena won't return a BallObject anymore
 
-                    # Handle all wall collisions and scoring
-                    if isinstance(level, SewerLevel):
-                        # Sewer Level: bounce off all walls, score with goals
-                        if current_ball.handle_wall_collision(bounce_walls=True):
-                            sound_manager.play_sfx('paddle') # Use new method
+                    # Handle wall collisions and scoring based on arena properties
+                    # Use arena.bounce_walls and arena.use_goals flags parsed from PMF/level
+                    if current_ball.handle_wall_collision(bounce_walls=arena.bounce_walls):
+                         sound_manager.play_sfx('paddle') # Use new method
+
+                    # Check goals only if they are used in this level
+                    if arena.use_goals:
                         ball_scored = arena.check_goal_collisions(current_ball)
                         if ball_scored:
                             scored = ball_scored
                             balls_to_remove.append(current_ball)
-                    else:
-                        # Debug Level: bounce off top/bottom, score on sides
-                        if current_ball.handle_wall_collision(bounce_walls=False):
-                            sound_manager.play_sfx('paddle') # Use new method
-                        ball_scored = current_ball.handle_scoring()
-                        if ball_scored:
-                            scored = ball_scored
+                    # If goals are not used, check for side scoring (unless walls bounce)
+                    elif not arena.bounce_walls:
+                         ball_scored = current_ball.handle_scoring() # Original side scoring
+                         if ball_scored:
+                             scored = ball_scored
+                             # If side scoring happens, remove the ball
+                             balls_to_remove.append(current_ball)
 
                 # Remove scored balls
                 for ball_to_remove in balls_to_remove:
@@ -489,9 +581,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     win_score = settings.get_win_scores()
                     if score_a >= win_score:
                         width, height = settings.get_dimensions()
+                        sound_manager.stop_music() # Stop music before win screen
                         return win_screen(screen, clock, width, height, current_player_name, debug_console)
                     elif score_b >= win_score:
                         width, height = settings.get_dimensions()
+                        sound_manager.stop_music() # Stop music before win screen
                         return win_screen(screen, clock, width, height, player_b_name, debug_console)
 
                     # Reset balls and start AI paddle moving to center

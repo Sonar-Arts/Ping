@@ -2,15 +2,19 @@ import pygame
 import random  # Import random for background generation
 import math  # Import math for river animation
 from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject
-from Modules.Submodules.Ping_Levels import DebugLevel, SewerLevel  # Import SewerLevel
+# Removed import for DebugLevel, SewerLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
+from Modules.ping_graphics import draw_sewer_background # Import the new graphics function
 
 class Arena:
     """Represents the game arena where the Ping game takes place."""
     def __init__(self, level=None):
         """Initialize the arena with parameters from a level configuration."""
-        # Load level parameters (use DebugLevel as default if none provided)
-        self.level_instance = level if level else DebugLevel()
+        # Load level parameters. Removed DebugLevel fallback.
+        # The 'level' parameter is now effectively required.
+        if not level:
+            raise ValueError("Arena must be initialized with a level instance.")
+        self.level_instance = level
         params = self.level_instance.get_parameters()
         
         # Set dimensions
@@ -273,15 +277,9 @@ class Arena:
     def check_power_up_collision(self, ball, ball_count):
         """Check for collisions between ball and power-up."""
         if self.power_up:
-            new_ball = self.power_up.handle_collision(ball)
-            if new_ball:
-                return BallObject(
-                    self.width,
-                    self.height,
-                    self.scoreboard_height,
-                    self.scale_rect,
-                    new_ball.size
-                )
+            # Directly return the result from the power-up's collision handler
+            # This will be either a raw Ball instance or None/False
+            return self.power_up.handle_collision(ball)
         return None
 
     def update_power_up(self, ball_count):
@@ -302,97 +300,7 @@ class Arena:
                 obstacles
             )
     
-    def _draw_sewer_background(self, surface):
-        """Draws the detailed sewer background with bricks, river, cracks, etc."""
-        if not self.background_details:
-            return  # Only draw if details are provided
-
-        details = self.background_details
-        colors = self.colors
-        
-        brick_w = details['brick_width']
-        brick_h = details['brick_height']
-        river_width = self.width * details['river_width_ratio']
-        river_x_start = (self.width - river_width) / 2
-        river_x_end = river_x_start + river_width
-        manhole_padding = details['manhole_brick_padding']
-
-        # Pre-calculate scaled values for efficiency
-        scaled_brick_w = brick_w * self.scale
-        scaled_brick_h = brick_h * self.scale
-        scaled_river_x_start = river_x_start * self.scale + self.offset_x
-        scaled_river_width = river_width * self.scale
-        scaled_river_y_start = self.scoreboard_height * self.scale + self.offset_y
-        scaled_river_height = (self.height - self.scoreboard_height) * self.scale
-        scaled_manhole_padding = manhole_padding * self.scale
-
-        # --- Draw Brick Pattern --- 
-        for y in range(self.scoreboard_height, self.height, brick_h):
-            row_offset = (y // brick_h) % 2 * (brick_w // 2)  # Staggered pattern
-            for x in range(0, self.width, brick_w):
-                brick_rect_logic = pygame.Rect(x - row_offset, y, brick_w, brick_h)
-                
-                # Skip drawing bricks fully covered by the river
-                if brick_rect_logic.right > river_x_start and brick_rect_logic.left < river_x_end:
-                    continue
-
-                # Check if near a manhole
-                is_near_manhole = False
-                manhole_brick_color_dark = colors['MANHOLE_BRICK_DARK']
-                manhole_brick_color_light = colors['MANHOLE_BRICK_LIGHT']
-                for manhole in self.manholes:
-                    manhole_rect_padded = manhole.rect.inflate(manhole_padding * 2, manhole_padding * 2)
-                    if brick_rect_logic.colliderect(manhole_rect_padded):
-                        is_near_manhole = True
-                        break
-
-                # Determine brick color
-                if is_near_manhole:
-                    brick_color = manhole_brick_color_light if (x // brick_w + y // brick_h) % 2 == 0 else manhole_brick_color_dark
-                else:
-                    brick_color = colors['BRICK_LIGHT'] if (x // brick_w + y // brick_h) % 2 == 0 else colors['BRICK_DARK']
-                
-                # Scale and draw the brick
-                scaled_brick_rect = self.scale_rect(brick_rect_logic)
-                pygame.draw.rect(surface, brick_color, scaled_brick_rect)
-                pygame.draw.rect(surface, colors['BRICK_MORTAR'], scaled_brick_rect, 1)  # Mortar outline
-
-                # Add cracks and vegetation (only on normal bricks)
-                if not is_near_manhole:
-                    if random.random() < details['crack_frequency']:
-                        crack_start = (scaled_brick_rect.left + random.randint(2, scaled_brick_rect.width - 3),
-                                       scaled_brick_rect.top + random.randint(2, scaled_brick_rect.height - 3))
-                        crack_end = (crack_start[0] + random.randint(-5, 5),
-                                     crack_start[1] + random.randint(-5, 5))
-                        pygame.draw.line(surface, colors['CRACK_COLOR'], crack_start, crack_end, 1)
-                    
-                    if random.random() < details['vegetation_frequency']:
-                        veg_x = scaled_brick_rect.left + random.randint(0, scaled_brick_rect.width - 5)
-                        veg_y = scaled_brick_rect.top + random.randint(0, scaled_brick_rect.height - 5)
-                        pygame.draw.rect(surface, colors['VEGETATION_COLOR'], (veg_x, veg_y, 5, 5))
-
-        # --- Draw Sewer River --- 
-        river_rect = pygame.Rect(scaled_river_x_start, scaled_river_y_start, scaled_river_width, scaled_river_height)
-        pygame.draw.rect(surface, colors['RIVER_WATER_DARK'], river_rect)
-
-        # Animate water flow (simple vertical lines)
-        num_lines = int(scaled_river_width / 4)  # Density of lines
-        line_speed = details['river_animation_speed'] * self.scale
-        self.river_animation_offset = (self.river_animation_offset + line_speed) % (scaled_brick_h * 2)  # Loop animation
-
-        for i in range(int(scaled_river_height / scaled_brick_h) + 2):  # Draw enough lines to cover height + offset
-            y_base = scaled_river_y_start + (i * scaled_brick_h) - self.river_animation_offset
-            
-            # Draw darker wave base
-            wave_rect_dark = pygame.Rect(scaled_river_x_start, y_base, scaled_river_width, scaled_brick_h * 0.6)
-            pygame.draw.rect(surface, colors['RIVER_WATER_LIGHT'], wave_rect_dark)
-
-            # Draw highlight lines
-            highlight_y = y_base + scaled_brick_h * 0.2
-            if highlight_y > scaled_river_y_start and highlight_y < scaled_river_y_start + scaled_river_height:
-                 pygame.draw.line(surface, colors['RIVER_HIGHLIGHT'], 
-                                 (scaled_river_x_start, highlight_y), 
-                                 (scaled_river_x_start + scaled_river_width, highlight_y), 2)
+    # Removed _draw_sewer_background method - logic moved to Modules/ping_graphics.py
 
     def draw(self, screen, game_objects, font, player_name, score_a, opponent_name, score_b, respawn_timer=None, paused=False):
         """Draw the complete game state."""
@@ -400,17 +308,16 @@ class Arena:
         intermediate = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         intermediate.fill(self.colors['BLACK'])  # Default background
 
-        # --- Draw Specific Level Background --- 
-        if isinstance(self.level_instance, SewerLevel):
-            self._draw_sewer_background(intermediate)
-        else:
-            # Draw default background elements like center line for other levels
-            if self.center_line_box_width > 0 and self.center_line_box_height > 0:
-                self.draw_center_line(intermediate)
+        # --- Draw Specific Level Background ---
+        # Draw default background elements like center line (Arena handles only basic backgrounds)
+        # Specific backgrounds like 'sewer' are handled by LevelCompiler's draw method when it's used.
+        if self.center_line_box_width > 0 and self.center_line_box_height > 0:
+            self.draw_center_line(intermediate)
         
         # Draw portals first (potentially over background elements)
         for portal in self.portals:
-            portal.draw(intermediate, self.colors['PORTAL'])
+            # Pass the full colors dictionary and scale_rect function
+            portal.draw(intermediate, self.colors, self.scale_rect)
 
         # Draw manholes behind other objects
         for manhole in self.manholes:

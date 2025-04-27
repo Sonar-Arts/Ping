@@ -81,7 +81,7 @@ class SoundManager:
         # Load initial debug state from settings
         self._debug_enabled = SettingsScreen.get_sound_debug_enabled()
         # Set initial logger level based on loaded setting
-        logger.setLevel(logging.INFO if self._debug_enabled else logging.WARNING)
+        logger.setLevel(logging.INFO if self._debug_enabled else logging.WARNING) # Restore original behavior
         logger.info(f"SoundManager Initialized. Logging Level: {'INFO' if self._debug_enabled else 'WARNING'}")
 
 
@@ -94,12 +94,50 @@ class SoundManager:
                 # Add more SFX here
             },
             'music': {
-                'intro': "Ping Assets/Music/PIntroMusicTemp.wav",
-                'main': "Ping Assets/Music/PMainMusicTemp.wav",
-                'sewer': "Ping Assets/Music/PSewerZoneTemp.wav",
+                'intro_theme': "Ping Assets/Music/PIntroMusicTemp.wav",
+                'main_theme': "Ping Assets/Music/PMainMusicTemp.wav",
+                'sewer_zone': "Ping Assets/Music/PSewerZoneTemp.wav",
                 # Add more music tracks here
             }
         }
+
+        # --- Automatic Music Discovery ---
+        music_dir = "Ping Assets/Music/"
+        allowed_extensions = {'.wav'} # Add other extensions like .ogg if needed
+        if os.path.isdir(music_dir):
+            logger.info(f"Scanning for music files in: {music_dir}")
+            for filename in os.listdir(music_dir):
+                file_path = os.path.join(music_dir, filename)
+                if os.path.isfile(file_path):
+                    name, ext = os.path.splitext(filename)
+                    if ext.lower() in allowed_extensions:
+                        logical_name = name # Use filename without extension as logical name
+                        # Normalize path separators for consistency
+                        normalized_path = file_path.replace("\\", "/")
+
+                        if logical_name in self._sound_paths['music']:
+                            # Check if the path is actually different before warning
+                            if os.path.normpath(self._sound_paths['music'][logical_name]) != os.path.normpath(normalized_path):
+                                logger.warning(f"Music discovery conflict: Logical name '{logical_name}' "
+                                               f"from file '{normalized_path}' already exists in manual definitions "
+                                               f"with a different path ('{self._sound_paths['music'][logical_name]}'). "
+                                               f"Keeping the manual entry.")
+                            # else: # If paths are the same, no need to warn or update
+                            #    pass
+                        else:
+                            # Check if this file path is already mapped (even with a different logical name)
+                            path_already_mapped = False
+                            for existing_path in self._sound_paths['music'].values():
+                                if os.path.normpath(existing_path) == os.path.normpath(normalized_path):
+                                    path_already_mapped = True
+                                    logger.info(f"Skipping discovered music '{logical_name}' -> '{normalized_path}' because path is already mapped (likely via manual definition).")
+                                    break
+                            if not path_already_mapped:
+                                self._sound_paths['music'][logical_name] = normalized_path
+                                logger.info(f"Discovered and mapped music: '{logical_name}' -> '{normalized_path}'")
+        else:
+             logger.warning(f"Music directory not found: {music_dir}. Skipping automatic discovery.")
+
 
         # Load initial volume settings (replace with your actual settings loading)
         self._load_volume_settings()
@@ -164,6 +202,20 @@ class SoundManager:
             # self._music_cache[name] = path
             return path
 
+    def get_music_name_from_path(self, file_path):
+        """Finds the logical music name corresponding to a given file path."""
+        # Normalize paths for comparison (optional but safer)
+        normalized_file_path = os.path.normpath(file_path)
+        with self._music_cache_lock: # Use the lock for consistency when accessing _sound_paths
+            for name, path in self._sound_paths['music'].items():
+                # Compare the basename of the stored path with the (assumed) basename input path
+                stored_filename = os.path.basename(os.path.normpath(path))
+                input_filename = os.path.basename(normalized_file_path) # Get basename just in case input is ever a full path
+                if stored_filename == input_filename:
+                    logger.info(f"Found music name '{name}' for path '{file_path}' by matching basename '{input_filename}'")
+                    return name
+        logger.warning(f"Could not find logical music name for path: {file_path}")
+        return None # Return None if no match found
     # --- Volume Control ---
 
     def _load_volume_settings(self):
@@ -489,16 +541,20 @@ class SoundManager:
             pass # Let the old thread finish, the new one will take over
 
         # --- Play in a separate thread ---
+        logger.info(f"Preparing music playback thread for '{name}' with path '{music_path}'") # Log before starting thread
         def music_playback_thread(target_path, target_name, target_loops, target_fade_duration):
-            logger.info(f"Starting music playback thread for '{target_name}'")
+            logger.info(f"Music playback thread started for '{target_name}' using path: {target_path}") # Log thread start
             from_channel = self._active_music_channel
             to_channel = self._music_channel_b if from_channel == self._music_channel_a else self._music_channel_a
 
             try:
                 # Start loading/playing the new track on the 'to' channel at volume 0
+                logger.info(f"Attempting to load sound for '{target_name}' from: {target_path}")
+                sound_object = pygame.mixer.Sound(target_path) # Load sound here for streaming
+                logger.info(f"Sound loaded successfully for '{target_name}'. Attempting to play...")
                 to_channel.set_volume(0)
-                to_channel.play(pygame.mixer.Sound(target_path), loops=target_loops) # Load sound here for streaming
-                logger.info(f"Started '{target_name}' on music channel (initially muted)")
+                to_channel.play(sound_object, loops=target_loops)
+                logger.info(f"Playback started for '{target_name}' on music channel (initially muted)")
 
                 # --- Perform Fade ---
                 start_time = time.monotonic()
@@ -786,14 +842,14 @@ if __name__ == '__main__':
                      print("Stopping all SFX...")
                      sound_manager.stop_sfx() # Stop all SFX
                 elif event.key == pygame.K_1:
-                    print("Playing intro music...")
-                    sound_manager.play_music('intro', loops=0, fade_duration=0.1) # No loop, quick fade
+                    print("Playing intro theme...")
+                    sound_manager.play_music('intro_theme', loops=0, fade_duration=0.1) # No loop, quick fade
                 elif event.key == pygame.K_2:
-                    print("Playing main music...")
-                    sound_manager.play_music('main')
+                    print("Playing main theme...")
+                    sound_manager.play_music('main_theme')
                 elif event.key == pygame.K_3:
-                    print("Playing sewer music...")
-                    sound_manager.play_music('sewer')
+                    print("Playing sewer zone music...")
+                    sound_manager.play_music('sewer_zone')
                 elif event.key == pygame.K_0:
                     print("Stopping music...")
                     sound_manager.stop_music()

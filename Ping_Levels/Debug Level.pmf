@@ -1,0 +1,40 @@
+{
+    "properties": {
+        "name": "Debug Level",
+        "width": 800,
+        "height": 450,
+        "background_color": [
+            0,
+            0,
+            0
+        ],
+        "bounce_walls": true,
+        "use_goals": true,
+        "can_spawn_obstacles": true,
+        "can_spawn_powerups": true,
+        "level_music": "main_theme",
+        "level_background": null
+    },
+    "objects": [
+        {
+            "id": 1,
+            "type": "paddle_spawn",
+            "is_left": true,
+            "x": 50,
+            "y": 175,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "id": 2,
+            "type": "paddle_spawn",
+            "is_left": false,
+            "x": 730,
+            "y": 175,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        }
+    ]
+}

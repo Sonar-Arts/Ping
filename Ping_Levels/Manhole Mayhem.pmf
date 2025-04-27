@@ -1,0 +1,132 @@
+{
+    "properties": {
+        "name": "Manhole Mayhem",
+        "width": 1280,
+        "height": 720,
+        "background_color": [
+            0,
+            0,
+            0
+        ],
+        "bounce_walls": true,
+        "use_goals": true,
+        "can_spawn_obstacles": true,
+        "can_spawn_powerups": true,
+        "level_music": "sewer_zone",
+        "level_background": "sewer"
+    },
+    "objects": [
+        {
+            "id": 1,
+            "type": "paddle_spawn",
+            "is_left": true,
+            "x": 50,
+            "y": 310,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "id": 2,
+            "type": "paddle_spawn",
+            "is_left": false,
+            "x": 1210,
+            "y": 310,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "type": "manhole",
+            "width": 50,
+            "height": 20,
+            "is_bottom": false,
+            "properties": {
+                "spout_min_interval_sec": 5,
+                "spout_max_interval_sec": 20,
+                "spout_duration_sec": 1.0
+            },
+            "x": 120,
+            "y": 120,
+            "id": 3
+        },
+        {
+            "type": "manhole",
+            "width": 50,
+            "height": 20,
+            "is_bottom": true,
+            "properties": {
+                "spout_min_interval_sec": 5,
+                "spout_max_interval_sec": 20,
+                "spout_duration_sec": 1.0
+            },
+            "x": 120,
+            "y": 600,
+            "id": 4
+        },
+        {
+            "type": "manhole",
+            "width": 50,
+            "height": 20,
+            "is_bottom": false,
+            "properties": {
+                "spout_min_interval_sec": 5,
+                "spout_max_interval_sec": 20,
+                "spout_duration_sec": 1.0
+            },
+            "x": 1080,
+            "y": 120,
+            "id": 5
+        },
+        {
+            "type": "manhole",
+            "width": 50,
+            "height": 20,
+            "is_bottom": true,
+            "properties": {
+                "spout_min_interval_sec": 5,
+                "spout_max_interval_sec": 20,
+                "spout_duration_sec": 1.0
+            },
+            "x": 1080,
+            "y": 600,
+            "id": 6
+        },
+        {
+            "type": "portal",
+            "width": 30,
+            "height": 80,
+            "target_id": 9,
+            "x": 20,
+            "y": 80,
+            "id": 7
+        },
+        {
+            "type": "portal",
+            "width": 30,
+            "height": 80,
+            "target_id": 10,
+            "x": 20,
+            "y": 580,
+            "id": 8
+        },
+        {
+            "type": "portal",
+            "width": 30,
+            "height": 80,
+            "target_id": 7,
+            "x": 1220,
+            "y": 80,
+            "id": 9
+        },
+        {
+            "type": "portal",
+            "width": 30,
+            "height": 80,
+            "target_id": 8,
+            "x": 1220,
+            "y": 580,
+            "id": 10
+        }
+    ]
+}
