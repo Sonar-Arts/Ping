@@ -10,6 +10,7 @@ class SettingsScreen:
     WINDOW_WIDTH = 800  # Default value
     WINDOW_HEIGHT = 600  # Default value
     PLAYER_NAME = "Player"  # Default value
+    PLAYER_B_NAME = "Player B"  # Default value for 2P mode
     SHADER_ENABLED = True  # Default value
     RETRO_EFFECTS_ENABLED = True  # Default value
     SCANLINE_INTENSITY = 40  # Default value
@@ -200,6 +201,7 @@ class SettingsScreen:
         # Initialize settings with defaults
         self.current_size_index = 0
         self.player_name = self.PLAYER_NAME
+        self.player_b_name = self.PLAYER_B_NAME
         self.shader_enabled = self.SHADER_ENABLED
         self.retro_effects_enabled = self.RETRO_EFFECTS_ENABLED
         self.scroll_y = 0  # Initialize scroll position
@@ -259,6 +261,7 @@ class SettingsScreen:
                         break
 
                 self.player_name = settings.get('PLAYER_NAME', self.PLAYER_NAME)
+                self.player_b_name = settings.get('PLAYER_B_NAME', self.PLAYER_B_NAME)
                 self.shader_enabled = settings.get('SHADER_ENABLED', 'true').lower() == 'true'
                 self.retro_effects_enabled = settings.get('RETRO_EFFECTS_ENABLED', 'true').lower() == 'true'
                 self.scanline_intensity = int(settings.get('SCANLINE_INTENSITY', self.SCANLINE_INTENSITY))
@@ -281,6 +284,7 @@ class SettingsScreen:
                 'WINDOW_WIDTH': width,
                 'WINDOW_HEIGHT': height,
                 'PLAYER_NAME': self.player_name,
+                'PLAYER_B_NAME': self.player_b_name,
                 'SHADER_ENABLED': str(self.shader_enabled).lower(),
                 'RETRO_EFFECTS_ENABLED': str(self.retro_effects_enabled).lower(),
                 'SCANLINE_INTENSITY': self.scanline_intensity,
@@ -527,6 +531,14 @@ class SettingsScreen:
         name_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
         button.draw(content_surface, name_btn_rect, self.player_name, font,
                    is_hovered=name_btn_rect.collidepoint(mouse_pos_rel)) # Use relative mouse pos
+        current_y += spacing
+
+        # Player B name (2P mode)
+        name_b_label = font.render("Player B Name:", True, self.WHITE)
+        content_surface.blit(name_b_label, (left_column_x - name_b_label.get_width()//2, current_y))
+        name_b_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
+        button.draw(content_surface, name_b_btn_rect, self.player_b_name, font,
+                   is_hovered=name_b_btn_rect.collidepoint(mouse_pos_rel))
         current_y += spacing
 
         # Draw section separator
@@ -784,6 +796,11 @@ class SettingsScreen:
                         new_name = player_name_screen(screen, pygame.time.Clock(), width, height, self.debug_console)
                         if new_name:
                             self.player_name = new_name
+                    elif name_b_btn_rect.collidepoint(mouse_pos_rel):
+                        from ..Ping_UI import player_name_screen
+                        new_name = player_name_screen(screen, pygame.time.Clock(), width, height, self.debug_console)
+                        if new_name:
+                            self.player_b_name = new_name
                     elif master_vol_minus_rect.collidepoint(mouse_pos_rel):
                         self.master_volume = max(0, self.master_volume - 5)
                         if sound_manager: sound_manager.set_master_volume(self.master_volume)

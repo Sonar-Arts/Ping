@@ -399,7 +399,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 if not ai_mode:
                     if event.key == pygame.K_UP:
                         paddle_b_up = True
-                    if event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_DOWN:
                         paddle_b_down = True
                 if event.key == pygame.K_ESCAPE:
                     paused = True
@@ -446,7 +446,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 if not ai_mode:
                     if event.key == pygame.K_UP:
                         paddle_b_up = False
-                    if event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_DOWN:
                         paddle_b_down = False
 
         if not paused:

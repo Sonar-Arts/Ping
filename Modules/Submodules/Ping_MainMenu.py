@@ -122,9 +122,8 @@ class MainMenu:
                         self.sound_manager.stop_music() # Use new method
                         return "quit"
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
-                 # Use event.pos which holds the position at the time of the click
-                 for i, option in enumerate(self.options):
-                    # *** Use the consistent button layout calculations ***
+                for i, option in enumerate(self.options):
+                    # Calculate button rect
                     button_rect = pygame.Rect(
                         width // 2 - button_width // 2,
                         start_y + i * (button_height + 15),
@@ -153,7 +152,6 @@ class MainMenu:
         # Check for mouse hover *outside* the event loop using the latest mouse_pos
         # This ensures hover effect updates every frame, not just on events
         for i, option in enumerate(self.options):
-             # *** Use the consistent button layout calculations ***
             button_rect = pygame.Rect(
                 width // 2 - button_width // 2,
                 start_y + i * (button_height + 15),

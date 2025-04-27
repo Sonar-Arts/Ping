@@ -496,10 +496,10 @@ class TitleScreen:
             menu_action = self.menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
 
             if menu_action == "quit":
-                 pygame.quit()
-                 exit()
-            elif menu_action:
-                 return menu_action
+                pygame.quit()
+                exit()
+            elif menu_action is not None:  # Keep the fixed condition
+                return menu_action
 
             self.background.update(dt)
             self.background.draw(screen)
