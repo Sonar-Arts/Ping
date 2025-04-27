@@ -135,12 +135,12 @@ def draw_casino_background(surface, compiler_instance):
     ]
 
     # --- Define Layout Parameters ---
-    border_thickness_ratio = 0.04
-    border_thickness_logic = arena_width * border_thickness_ratio
-    inner_x_start_logic = border_thickness_logic
-    inner_y_start_logic = scoreboard_height + border_thickness_logic
-    inner_width_logic = arena_width - (2 * border_thickness_logic)
-    inner_height_logic = arena_height - scoreboard_height - (2 * border_thickness_logic)
+    # border_thickness_ratio = 0.04 # Removed wood border
+    # border_thickness_logic = arena_width * border_thickness_ratio # Removed wood border
+    inner_x_start_logic = 0 # Start from edge
+    inner_y_start_logic = scoreboard_height # Start from scoreboard
+    inner_width_logic = arena_width # Use full width
+    inner_height_logic = arena_height - scoreboard_height # Use full height below scoreboard
     # inner_rect_logic = pygame.Rect(inner_x_start_logic, inner_y_start_logic, inner_width_logic, inner_height_logic) # Not directly used
     inner_center_x_logic = inner_x_start_logic + inner_width_logic / 2
 
@@ -190,20 +190,33 @@ def draw_casino_background(surface, compiler_instance):
             if light['on']:
                  light['color_index'] = random.randint(0, len(light_colors) - 1)
 
-    # --- Draw Base Background ---
+    # --- Draw Base Background and Retro Details ---
     full_area_rect_logic = pygame.Rect(0, scoreboard_height, arena_width, arena_height - scoreboard_height)
     scaled_full_area_rect = scale_rect_func(full_area_rect_logic)
     pygame.draw.rect(surface, base_color, scaled_full_area_rect)
 
-    # --- Draw Wooden Border ---
-    top_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height, arena_width, border_thickness_logic))
-    pygame.draw.rect(surface, wood_border_color, top_border_rect)
-    bottom_border_rect = scale_rect_func(pygame.Rect(0, arena_height - border_thickness_logic, arena_width, border_thickness_logic))
-    pygame.draw.rect(surface, wood_border_color, bottom_border_rect)
-    left_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
-    pygame.draw.rect(surface, wood_border_color, left_border_rect)
-    right_border_rect = scale_rect_func(pygame.Rect(arena_width - border_thickness_logic, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
-    pygame.draw.rect(surface, wood_border_color, right_border_rect)
+    # Add subtle grid lines for more retro detail
+    grid_spacing_logic = 50 # Logical pixels between grid lines
+    scaled_grid_spacing = max(1, int(grid_spacing_logic * scale))
+    grid_color = (base_color[0]+10, base_color[1]+10, base_color[2]+15, 50) # Slightly lighter, semi-transparent
+
+    # Vertical lines
+    for x in range(scaled_full_area_rect.left, scaled_full_area_rect.right, scaled_grid_spacing):
+        pygame.draw.line(surface, grid_color, (x, scaled_full_area_rect.top), (x, scaled_full_area_rect.bottom), 1)
+    # Horizontal lines
+    for y in range(scaled_full_area_rect.top, scaled_full_area_rect.bottom, scaled_grid_spacing):
+        pygame.draw.line(surface, grid_color, (scaled_full_area_rect.left, y), (scaled_full_area_rect.right, y), 1)
+
+
+    # --- Draw Wooden Border --- (Removed)
+    # top_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height, arena_width, border_thickness_logic))
+    # pygame.draw.rect(surface, wood_border_color, top_border_rect)
+    # bottom_border_rect = scale_rect_func(pygame.Rect(0, arena_height - border_thickness_logic, arena_width, border_thickness_logic))
+    # pygame.draw.rect(surface, wood_border_color, bottom_border_rect)
+    # left_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
+    # pygame.draw.rect(surface, wood_border_color, left_border_rect)
+    # right_border_rect = scale_rect_func(pygame.Rect(arena_width - border_thickness_logic, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
+    # pygame.draw.rect(surface, wood_border_color, right_border_rect)
 
     # --- Draw Small Details ---
     detail_radius_logic = inner_width_logic * 0.005
@@ -224,25 +237,27 @@ def draw_casino_background(surface, compiler_instance):
          pygame.draw.circle(surface, detail_color, scaled_center, scaled_detail_radius)
 
 
-    # --- Draw Pixelated Curved Lane Guides ---
+    # --- Draw Pixelated Curved Lane Guides with Shadows ---
     num_segments = 12 # Increase segments slightly for smoother pixel curve
     lane_thickness_logic = inner_width_logic * 0.018 # Make lanes thicker
     border_thickness_logic_lane = lane_thickness_logic * 1.5 # Border slightly thicker
+    shadow_offset_scale = 0.002 # How far to offset the shadow
+    shadow_color = (5, 5, 15, 150) # Dark semi-transparent shadow
 
-    # Define arc parameters (more centered)
-    arc_center_y = inner_y_start_logic + inner_height_logic * 0.45 # Move center up slightly
-    arc_radius_x = inner_width_logic * 0.25 # Narrower horizontal radius
-    arc_radius_y = inner_height_logic * 0.5 # Slightly shorter vertical radius
+    # Define arc parameters (smaller and more centered)
+    arc_center_y = inner_y_start_logic + inner_height_logic * 0.50 # Center vertically
+    arc_radius_x = inner_width_logic * 0.18 # Make curves narrower
+    arc_radius_y = inner_height_logic * 0.4 # Make curves shorter
 
     # Left Curve
     start_angle_left = math.pi * 0.75 # Start higher
     end_angle_left = math.pi * 1.25 # End lower
-    center_left_x = inner_center_x_logic - inner_width_logic * 0.15 # Shift center more left
+    center_left_x = inner_center_x_logic - inner_width_logic * 0.10 # Shift center less left
 
     # Right Curve (Symmetrical)
     start_angle_right = math.pi * 0.25 # Start higher
     end_angle_right = math.pi * -0.25 # End lower (equiv 1.75pi)
-    center_right_x = inner_center_x_logic + inner_width_logic * 0.15 # Shift center more right
+    center_right_x = inner_center_x_logic + inner_width_logic * 0.10 # Shift center less right
 
     # Generate points using helper function
     left_curve_points = get_arc_points(center_left_x, arc_center_y, arc_radius_x, arc_radius_y, start_angle_left, end_angle_left, num_segments)
@@ -252,28 +267,69 @@ def draw_casino_background(surface, compiler_instance):
     scaled_left_points = [scale_rect_func(pygame.Rect(p[0], p[1], 0, 0)).center for p in left_curve_points]
     scaled_right_points = [scale_rect_func(pygame.Rect(p[0], p[1], 0, 0)).center for p in right_curve_points]
 
-    # Draw lines (border first, then main color)
+    # Draw lines (shadow, then border, then main color)
     scaled_border_thickness = max(2, int(border_thickness_logic_lane * scale))
     scaled_lane_thickness = max(1, int(lane_thickness_logic * scale))
+    scaled_shadow_thickness = max(3, int(scaled_border_thickness * 1.2)) # Shadow slightly thicker
+    scaled_shadow_offset_x = max(1, int(arena_width * shadow_offset_scale * scale))
+    scaled_shadow_offset_y = max(1, int(arena_height * shadow_offset_scale * scale))
+
+    # Create a temporary surface for drawing shadows with alpha
+    shadow_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    shadow_surface.fill((0,0,0,0)) # Transparent
 
     if len(scaled_left_points) > 1:
+        # Shadow (offset down-right for left curve)
+        shadow_points_left = [(p[0] + scaled_shadow_offset_x, p[1] + scaled_shadow_offset_y) for p in scaled_left_points]
+        pygame.draw.lines(shadow_surface, shadow_color, False, shadow_points_left, scaled_shadow_thickness)
+        # Border
         pygame.draw.lines(surface, lane_border_color, False, scaled_left_points, scaled_border_thickness)
+        # Lane
         pygame.draw.lines(surface, lane_color, False, scaled_left_points, scaled_lane_thickness)
+
     if len(scaled_right_points) > 1:
+        # Shadow (offset down-left for right curve)
+        shadow_points_right = [(p[0] - scaled_shadow_offset_x, p[1] + scaled_shadow_offset_y) for p in scaled_right_points]
+        pygame.draw.lines(shadow_surface, shadow_color, False, shadow_points_right, scaled_shadow_thickness)
+        # Border
         pygame.draw.lines(surface, lane_border_color, False, scaled_right_points, scaled_border_thickness)
+        # Lane
         pygame.draw.lines(surface, lane_color, False, scaled_right_points, scaled_lane_thickness)
 
+    # Blit the shadow surface onto the main surface
+    surface.blit(shadow_surface, (0, 0))
 
-    # --- Draw Animated Lights (Circles, smaller, no glow) ---
-    scaled_light_radius = max(1, int(light_radius_logic * scale)) # Ensure radius is at least 1 pixel
+    # --- Draw Animated Lights (Glassy/Shining Effect) ---
+    scaled_light_radius = max(1, int(light_radius_logic * scale)) # Base radius
+    glass_radius = max(2, int(scaled_light_radius * 1.5)) # Outer glass slightly larger
+    inner_light_radius = max(1, int(scaled_light_radius * 0.7)) # Inner light source smaller
+    glint_radius = max(1, int(scaled_light_radius * 0.3)) # Small highlight
+    glint_offset_x = int(scaled_light_radius * 0.3)
+    glint_offset_y = -int(scaled_light_radius * 0.3)
+    glint_color = (255, 255, 255, 200) # Bright white glint
+    glass_color_off = (light_off_color[0]+10, light_off_color[1]+10, light_off_color[2]+10, 100) # Slightly lighter off glass
+
     for light in anim_state['pinball_lights']:
         scaled_center = scale_rect_func(pygame.Rect(light['pos_logic'][0], light['pos_logic'][1], 0, 0)).center
+        cx, cy = scaled_center
 
         if light['on']:
-            color = light_colors[light['color_index']]
-            pygame.draw.circle(surface, color, scaled_center, scaled_light_radius)
+            base_on_color = light_colors[light['color_index']]
+            # Glassy outer layer (semi-transparent version of base color)
+            glass_color_on = (base_on_color[0], base_on_color[1], base_on_color[2], 120)
+            pygame.draw.circle(surface, glass_color_on, scaled_center, glass_radius)
+            # Inner light source (brighter)
+            inner_color = (min(255, base_on_color[0]+50), min(255, base_on_color[1]+50), min(255, base_on_color[2]+50))
+            pygame.draw.circle(surface, inner_color, scaled_center, inner_light_radius)
+            # Glint
+            glint_pos = (cx + glint_offset_x, cy + glint_offset_y)
+            pygame.draw.circle(surface, glint_color, glint_pos, glint_radius)
         else:
-            pygame.draw.circle(surface, light_off_color, scaled_center, scaled_light_radius)
+            # Dim outer glass when off
+            pygame.draw.circle(surface, glass_color_off, scaled_center, glass_radius)
+            # Very dim inner circle when off
+            pygame.draw.circle(surface, light_off_color, scaled_center, inner_light_radius)
+
 # --- Background Definitions ---
 
 # Dictionary mapping background identifiers to their drawing functions.

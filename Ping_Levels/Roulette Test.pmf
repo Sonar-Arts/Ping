@@ -1,6 +1,6 @@
 {
     "properties": {
-        "name": "Pinball Level",
+        "name": "Pinball Test",
         "width": 1280,
         "height": 720,
         "background_color": [
@@ -43,8 +43,8 @@
                 "num_segments": 8,
                 "spin_speed_deg_s": 180
             },
-            "x": 580,
-            "y": 380,
+            "x": 640,
+            "y": 340,
             "width": 150,
             "height": 150,
             "id": 3
@@ -56,8 +56,8 @@
             "properties": {
                 "radius": 30
             },
-            "x": 360,
-            "y": 600,
+            "x": 340,
+            "y": 540,
             "id": 6
         },
         {
@@ -67,8 +67,8 @@
             "properties": {
                 "radius": 30
             },
-            "x": 620,
-            "y": 140,
+            "x": 640,
+            "y": 620,
             "id": 8
         },
         {
@@ -78,8 +78,8 @@
             "properties": {
                 "radius": 30
             },
-            "x": 900,
-            "y": 600,
+            "x": 920,
+            "y": 540,
             "id": 9
         },
         {
@@ -100,9 +100,20 @@
             "properties": {
                 "radius": 30
             },
-            "x": 880,
+            "x": 920,
             "y": 200,
             "id": 5
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 640,
+            "y": 100,
+            "id": 7
         }
     ]
 }
