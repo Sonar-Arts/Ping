@@ -1,0 +1,84 @@
+{
+    "properties": {
+        "name": "Bumper Test",
+        "width": 1280,
+        "height": 720,
+        "background_color": [
+            0,
+            0,
+            0
+        ],
+        "bounce_walls": true,
+        "use_goals": false,
+        "can_spawn_obstacles": true,
+        "can_spawn_powerups": true,
+        "level_music": "",
+        "level_background": null
+    },
+    "objects": [
+        {
+            "id": 1,
+            "type": "paddle_spawn",
+            "is_left": true,
+            "x": 50,
+            "y": 310,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "id": 2,
+            "type": "paddle_spawn",
+            "is_left": false,
+            "x": 1210,
+            "y": 310,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 480,
+            "y": 220,
+            "id": 3
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 840,
+            "y": 500,
+            "id": 4
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 840,
+            "y": 220,
+            "id": 5
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 560,
+            "y": 520,
+            "id": 6
+        }
+    ]
+}

@@ -8,7 +8,7 @@ import math  # Import math for river animation
 import json # Import JSON for PMF parsing (assuming JSON format)
 import threading
 import time
-from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject
+from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject
 # Removed import for DebugLevel, SewerLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
 # Import the generation function specifically
@@ -152,6 +152,7 @@ class LevelCompiler: # Renamed from Arena
         self.goals = []
         self.portals = []
         self.manholes = []
+        self.bumpers = []  # Added bumpers list
         self.power_up = None
 
         # --- Object Creation ---
@@ -449,6 +450,7 @@ class LevelCompiler: # Renamed from Arena
         self.obstacle = None # Use singular for now, assuming max 1 obstacle from PMF/default
         self.goals = []
         self.portals = []
+        self.bumpers = []  # Added bumpers list
         self.power_up = None # Use singular for now, assuming max 1 powerup from PMF/default
 
         # Flags to track if specific types were created from the list
@@ -489,6 +491,19 @@ class LevelCompiler: # Renamed from Arena
                                         obj_x, obj_y, obj_width, obj_height, is_bottom, properties) # Pass properties
                 self.manholes.append(manhole)
                 self._log_warning(f"Created ManHoleObject at ({obj_x},{obj_y}) with properties: {properties}")
+            
+            elif obj_type == 'bumper':
+                bumper = BumperObject(
+                    arena_width=self.width,
+                    arena_height=self.height,
+                    scoreboard_height=self.scoreboard_height,
+                    scale_rect=self.scale_rect,
+                    x=obj_x,
+                    y=obj_y,
+                    radius=properties.get('radius', 30)
+                )
+                self.bumpers.append(bumper)
+                self._log_warning(f"Created BumperObject at ({obj_x},{obj_y}) with properties: {properties}")
 
             elif obj_type == 'obstacle':
                 # Only create one obstacle for now, even if multiple are defined
@@ -798,6 +813,13 @@ class LevelCompiler: # Renamed from Arena
             if manhole.handle_collision(ball):
                 return True # Exit early once a manhole collision occurs
         return False
+        
+    def check_bumper_collisions(self, ball):
+        """Check for collisions between ball and bumpers."""
+        for bumper in self.bumpers:
+            if bumper.handle_collision(ball):
+                return True # Exit early once a bumper collision occurs
+        return False
 
     def reset_obstacle(self):
         """Resets the obstacle based on the initial parameters."""
@@ -1013,7 +1035,7 @@ class LevelCompiler: # Renamed from Arena
 
         # Pass arena dimensions and obstacles for valid spawn position
         # Ensure obstacle exists before adding
-        obstacles = [obs for obs in [self.obstacle] + self.goals + self.portals + self.manholes if obs is not None]
+        obstacles = [obs for obs in [self.obstacle] + self.goals + self.portals + self.manholes + self.bumpers if obs is not None]
 
         self.power_up.update(
             ball_count,
@@ -1078,9 +1100,13 @@ class LevelCompiler: # Renamed from Arena
         for portal in self.portals:
             portal.draw(target_surface, self.colors, self.scale_rect)
 
-        # Draw manholes
+        # Draw manholes and bumpers
         for manhole in self.manholes:
             manhole.draw(target_surface, self.colors)
+            
+        for bumper in self.bumpers:
+            bumper.update(1/60)  # Update animation with default delta time
+            bumper.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
 
         # Draw goals (only if they exist)
         for goal in self.goals:

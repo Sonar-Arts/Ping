@@ -4,6 +4,146 @@ import math
 from Modules.Submodules.Ping_Ball import Ball
 from Modules.Submodules.Ping_Particles import WaterSpout
 
+class Bumper:
+    def __init__(self, x, y, radius=30):
+        """Initialize a pinball bumper."""
+        self.x = x
+        self.y = y
+        self.base_radius = radius
+        self.current_radius = radius
+        self.rect = pygame.Rect(x - radius, y - radius, radius * 2, radius * 2)
+        
+        # Animation properties
+        self.hit_animation_time = 0
+        self.hit_animation_duration = 0.2  # seconds
+        self.max_scale = 1.2  # Maximum size during hit animation
+        self.flash_intensity = 0
+        self.color_transition = 0
+        
+        # Star properties
+        self.star_points = 5
+        self.star_inner_radius = radius * 0.3
+        self.star_outer_radius = radius * 0.5
+        
+    def update(self, delta_time=1/60):
+        """Update bumper animation state."""
+        if self.hit_animation_time > 0:
+            self.hit_animation_time = max(0, self.hit_animation_time - delta_time)
+            
+            # Calculate animation progress (0 to 1)
+            progress = self.hit_animation_time / self.hit_animation_duration
+            
+            # Smooth transition for size and flash
+            self.current_radius = self.base_radius * (1 + (self.max_scale - 1) * progress)
+            self.flash_intensity = progress
+            
+            # Update collision rect
+            self.rect = pygame.Rect(
+                self.x - self.current_radius,
+                self.y - self.current_radius,
+                self.current_radius * 2,
+                self.current_radius * 2
+            )
+            
+    def handle_collision(self, ball):
+        """Handle collision with the ball using circular collision detection."""
+        # Calculate distance between ball center and bumper center
+        ball_center = ball.rect.center
+        dx = ball_center[0] - self.x
+        dy = ball_center[1] - self.y
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        # Check for collision using current radius (which may be larger during animation)
+        if distance < self.current_radius + ball.rect.width/2:
+            # Start hit animation
+            self.hit_animation_time = self.hit_animation_duration
+            
+            # Calculate normalized direction vector from bumper center to ball
+            if distance > 0:  # Avoid division by zero
+                dx /= distance
+                dy /= distance
+            else:
+                dx, dy = 1, 0  # Default direction if centers overlap
+            
+            # Get previous ball direction to determine rotation
+            prev_dx = ball.ball.dx
+            prev_dy = ball.ball.dy
+            
+            # Adjust the angle by 1 degree
+            angle = math.radians(1)
+            
+            # Calculate rotation direction based on previous movement to avoid loops
+            cross_product = prev_dx * dy - prev_dy * dx
+            if cross_product > 0:
+                # Rotate clockwise
+                new_dx = dx * math.cos(angle) + dy * math.sin(angle)
+                new_dy = -dx * math.sin(angle) + dy * math.cos(angle)
+            else:
+                # Rotate counterclockwise
+                new_dx = dx * math.cos(angle) - dy * math.sin(angle)
+                new_dy = dx * math.sin(angle) + dy * math.cos(angle)
+                
+            # Increase ball speed but respect maximum speed limit
+            new_speed = min(ball.ball.speed * 1.5, ball.ball.max_speed)
+            ball.ball.speed = new_speed
+            ball.ball.dx = new_dx
+            ball.ball.dy = new_dy
+            ball.ball.velocity_x = ball.ball.speed * new_dx
+            ball.ball.velocity_y = ball.ball.speed * new_dy
+            
+            # Move ball outside bumper to prevent sticking
+            new_x = self.x + (self.current_radius + ball.rect.width/2 + 1) * dx
+            new_y = self.y + (self.current_radius + ball.rect.height/2 + 1) * dy
+            ball.rect.center = (new_x, new_y)
+            
+            return True
+        return False
+        
+    def draw(self, screen, colors, scale_rect):
+        """Draw the bumper with visual effects."""
+        # Scale the position and size for display
+        scaled_rect = scale_rect(self.rect)
+        scaled_center = scaled_rect.center
+        scaled_radius = scaled_rect.width // 2
+        
+        # Draw drop shadow
+        shadow_offset = 4
+        shadow_center = (scaled_center[0] + shadow_offset, scaled_center[1] + shadow_offset)
+        pygame.draw.circle(screen, (20, 20, 20), shadow_center, scaled_radius)
+        
+        # Base colors
+        red = (220, 60, 60)
+        gold = (255, 215, 0)
+        yellow = (255, 255, 0)
+        
+        # Calculate flash-adjusted colors
+        flash_color = (255, 255, 255)
+        current_red = tuple(int(c1 + (c2 - c1) * self.flash_intensity)
+                          for c1, c2 in zip(red, flash_color))
+        current_gold = tuple(int(c1 + (c2 - c1) * self.flash_intensity)
+                           for c1, c2 in zip(gold, flash_color))
+        current_yellow = tuple(int(c1 + (c2 - c1) * self.flash_intensity)
+                             for c1, c2 in zip(yellow, flash_color))
+        
+        # Draw main circle (red padding)
+        pygame.draw.circle(screen, current_red, scaled_center, scaled_radius)
+        
+        # Draw inner circle (gold center)
+        inner_radius = int(scaled_radius * 0.7)
+        pygame.draw.circle(screen, current_gold, scaled_center, inner_radius)
+        
+        # Draw star
+        star_points = []
+        for i in range(self.star_points * 2):
+            angle = (i * math.pi) / self.star_points
+            radius = self.star_outer_radius if i % 2 == 0 else self.star_inner_radius
+            scaled_radius = int(radius * (scaled_rect.width / (self.base_radius * 2)))
+            x = scaled_center[0] + math.cos(angle) * scaled_radius
+            y = scaled_center[1] + math.sin(angle) * scaled_radius
+            star_points.append((x, y))
+            
+        pygame.draw.polygon(screen, current_yellow, star_points)
+
 # Goals for Sewer Level - Added for new level implementation
 class Goal:
     def __init__(self, x, y, width, height, is_left_goal=True):
@@ -85,9 +225,18 @@ class Obstacle:
         # Draw main obstacle
         pygame.draw.rect(screen, colors['WHITE'], scaled_rect)
 
-    def handle_collision(self, ball):
-        """Handle collision between obstacle and ball."""
+    def handle_collision(self, ball, sound_manager=None):
+        """
+        Handle collision between obstacle and ball.
+        Args:
+            ball: The ball object that collided
+            sound_manager: Optional SoundManager instance to play collision sounds
+        """
         if ball.rect.colliderect(self.rect):
+            # Play wall break sound if sound manager is provided
+            if sound_manager:
+                sound_manager.play_sfx('wall_break')
+
             # Determine collision side and adjust ball direction
             collision_left = abs(ball.rect.right - self.rect.left)
             collision_right = abs(ball.rect.left - self.rect.right)

@@ -3,7 +3,7 @@ import math
 import random
 from .Submodules.Ping_Ball import Ball
 from .Submodules.Ping_Paddle import Paddle
-from .Submodules.Ping_Obstacles import Obstacle, Goal, Portal, PowerUpBall, Manhole  # Added Manhole for Sewer Level
+from .Submodules.Ping_Obstacles import Obstacle, Goal, Portal, PowerUpBall, Manhole, Bumper  # Added Bumper
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -390,9 +390,14 @@ class ObstacleObject(ArenaObject):
     def rect(self):
         return self.obstacle.rect
 
-    def handle_collision(self, ball):
-        """Handle collision between obstacle and ball."""
-        return self.obstacle.handle_collision(ball)
+    def handle_collision(self, ball, sound_manager=None):
+        """
+        Handle collision between obstacle and ball.
+        Args:
+            ball: The ball object that collided
+            sound_manager: Optional SoundManager instance to play collision sounds
+        """
+        return self.obstacle.handle_collision(ball, sound_manager)
         
     def draw(self, screen, color):
         """Draw the obstacle as a pixelated brick wall with drop shadow."""
@@ -478,6 +483,33 @@ class ManHoleObject(ArenaObject):
     def is_spouting(self):
         """Get the current spouting state."""
         return self.manhole.is_spouting
+
+class BumperObject(ArenaObject):
+    """Pinball bumper that repels the ball with increased velocity."""
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, radius=30):
+        """Initialize a bumper object with arena properties."""
+        super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
+        self.bumper = Bumper(x, y, radius)
+    
+    @property
+    def rect(self):
+        return self.bumper.rect
+    
+    def update(self, delta_time):
+        """Update bumper animation."""
+        self.bumper.update(delta_time)
+    
+    def handle_collision(self, ball, sound_manager=None):
+        """Handle collision between bumper and ball."""
+        collision = self.bumper.handle_collision(ball)
+        if collision and sound_manager:
+            sound_manager.play_sfx('bumper')
+        return collision
+    
+    def draw(self, screen, color):
+        """Draw the bumper with its visual effects."""
+        # We ignore the color parameter as the bumper uses its own color scheme
+        self.bumper.draw(screen, None, self.scale_rect)
 
 class PowerUpBallObject(ArenaObject):
     """Power-up that creates a duplicate ball on collision."""

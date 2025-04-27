@@ -506,8 +506,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         sound_manager.play_sfx('paddle') # Use new method
 
                     # Ball collision with obstacle (check if obstacle exists first)
-                    if arena.obstacle and arena.obstacle.handle_collision(current_ball):
-                        sound_manager.play_sfx('paddle') # Use new method (consider 'obstacle_hit' later)
+                    if arena.obstacle and arena.obstacle.handle_collision(current_ball, sound_manager):
+                        # Sound effect is now played inside handle_collision
                         # Create new obstacle after collision
                         arena.reset_obstacle()
 
@@ -517,6 +517,11 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     # Check manhole collisions (applies if manholes exist)
                     if arena.check_manhole_collisions(current_ball):
                         sound_manager.play_sfx('paddle') # Use new method (consider 'manhole_hit' later)
+
+                    # Check bumper collisions if they exist
+                    for bumper in arena.bumpers:
+                        if bumper.handle_collision(current_ball, sound_manager):
+                            sound_manager.play_sfx('bumper')  # Play bumper sound
 
                     # Power-up collision check (applies if powerups allowed and exist)
                     # Arena.check_power_up_collision returns a raw Ball instance or None
