@@ -81,6 +81,199 @@ def generate_sludge_texture(width, height, scale, colors):
     return sludge_texture
 
 
+import time # Import time for blinking animation
+
+import math # Ensure math is imported for angles
+
+# Helper function to generate points along an arc for pixelated look
+def get_arc_points(center_x, center_y, radius_x, radius_y, start_angle, end_angle, num_segments):
+    """ Calculates points along an elliptical arc segment. Angles in radians. """
+    points = []
+    # Ensure num_segments is at least 1 to avoid division by zero
+    num_segments = max(1, num_segments)
+    angle_step = (end_angle - start_angle) / num_segments
+    for i in range(num_segments + 1):
+        angle = start_angle + i * angle_step
+        x = center_x + radius_x * math.cos(angle)
+        y = center_y + radius_y * math.sin(angle)
+        points.append((x, y))
+    return points
+
+def draw_casino_background(surface, compiler_instance):
+    """
+    Draws a pixelated, dark retro pinball background (v4).
+    Features dark base, pixelated curved lanes with borders, corner lights, details.
+    Retrieves necessary parameters from the compiler_instance.
+
+    Args:
+        surface: The pygame surface to draw onto.
+        compiler_instance: The LevelCompiler instance containing level data,
+                           colors, scale, offsets, objects, and state.
+    """
+    # --- Extract parameters ---
+    colors = compiler_instance.colors
+    scale = compiler_instance.scale
+    scale_rect_func = compiler_instance.scale_rect
+    scoreboard_height = compiler_instance.scoreboard_height
+    arena_width = compiler_instance.width
+    arena_height = compiler_instance.height
+    dt = getattr(compiler_instance, 'dt', 1/60.0)
+    center_x_logic = arena_width / 2
+
+    # --- Define Pixelated Retro Pinball Colors ---
+    base_color = colors.get('PINBALL_BASE', (10, 5, 25))          # Even Darker Blue/Purple
+    lane_color = colors.get('PINBALL_LANE', (0, 200, 255))        # Bright Cyan
+    lane_border_color = colors.get('LANE_BORDER', (5, 5, 5))      # Near Black border
+    light_off_color = colors.get('PINBALL_LIGHT_OFF', (25, 15, 50)) # Dimmer Base Color
+    wood_border_color = colors.get('WOOD_BORDER', (85, 55, 30))  # Dark Brown
+    detail_color = colors.get('PINBALL_DETAIL', (40, 30, 65))    # Subtle detail color
+    light_colors = [
+        colors.get('PINBALL_LIGHT_1', (255, 255, 100)),  # Soft Yellow
+        colors.get('PINBALL_LIGHT_2', (255, 50, 50)),    # Soft Red
+        colors.get('PINBALL_LIGHT_3', (100, 255, 255)),  # Soft Cyan
+        colors.get('PINBALL_LIGHT_4', (255, 100, 255)),  # Soft Magenta
+    ]
+
+    # --- Define Layout Parameters ---
+    border_thickness_ratio = 0.04
+    border_thickness_logic = arena_width * border_thickness_ratio
+    inner_x_start_logic = border_thickness_logic
+    inner_y_start_logic = scoreboard_height + border_thickness_logic
+    inner_width_logic = arena_width - (2 * border_thickness_logic)
+    inner_height_logic = arena_height - scoreboard_height - (2 * border_thickness_logic)
+    # inner_rect_logic = pygame.Rect(inner_x_start_logic, inner_y_start_logic, inner_width_logic, inner_height_logic) # Not directly used
+    inner_center_x_logic = inner_x_start_logic + inner_width_logic / 2
+
+    # --- Initialize/Update Animation State ---
+    if 'background_animation_state' not in compiler_instance.__dict__:
+         compiler_instance.background_animation_state = {}
+    anim_state = compiler_instance.background_animation_state
+
+    num_lights = 8 # 2 per corner
+    light_radius_logic = inner_width_logic * 0.008 # Even smaller lights
+
+    if 'pinball_lights' not in anim_state:
+        anim_state['pinball_lights'] = []
+        # Define symmetrical positions near the four corners
+        corner_offset_x = 0.15 # Relative offset from corner edge
+        corner_offset_y = 0.15
+        corner_spread = 0.06 # Spread between the two lights in a corner
+        relative_light_positions = [
+            # Top Left
+            (corner_offset_x, corner_offset_y), (corner_offset_x + corner_spread, corner_offset_y + corner_spread),
+            # Top Right
+            (1.0 - corner_offset_x, corner_offset_y), (1.0 - (corner_offset_x + corner_spread), corner_offset_y + corner_spread),
+            # Bottom Left
+            (corner_offset_x, 1.0 - corner_offset_y), (corner_offset_x + corner_spread, 1.0 - (corner_offset_y + corner_spread)),
+            # Bottom Right
+            (1.0 - corner_offset_x, 1.0 - corner_offset_y), (1.0 - (corner_offset_x + corner_spread), 1.0 - (corner_offset_y + corner_spread)),
+        ]
+        relative_light_positions = relative_light_positions[:num_lights]
+
+        for i, (rel_x, rel_y) in enumerate(relative_light_positions):
+            abs_x = inner_x_start_logic + inner_width_logic * rel_x
+            abs_y = inner_y_start_logic + inner_height_logic * rel_y
+            anim_state['pinball_lights'].append({
+                "id": i, "pos_logic": (abs_x, abs_y),
+                "on": random.choice([True, False, False]),
+                "timer": random.uniform(0, 1.0),
+                "interval": random.uniform(0.8, 2.0),
+                "color_index": random.randint(0, len(light_colors) - 1)
+            })
+
+    # Update light timers and states
+    for light in anim_state['pinball_lights']:
+        light['timer'] += dt
+        if light['timer'] >= light['interval']:
+            light['timer'] %= light['interval']
+            light['on'] = not light['on']
+            if light['on']:
+                 light['color_index'] = random.randint(0, len(light_colors) - 1)
+
+    # --- Draw Base Background ---
+    full_area_rect_logic = pygame.Rect(0, scoreboard_height, arena_width, arena_height - scoreboard_height)
+    scaled_full_area_rect = scale_rect_func(full_area_rect_logic)
+    pygame.draw.rect(surface, base_color, scaled_full_area_rect)
+
+    # --- Draw Wooden Border ---
+    top_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height, arena_width, border_thickness_logic))
+    pygame.draw.rect(surface, wood_border_color, top_border_rect)
+    bottom_border_rect = scale_rect_func(pygame.Rect(0, arena_height - border_thickness_logic, arena_width, border_thickness_logic))
+    pygame.draw.rect(surface, wood_border_color, bottom_border_rect)
+    left_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
+    pygame.draw.rect(surface, wood_border_color, left_border_rect)
+    right_border_rect = scale_rect_func(pygame.Rect(arena_width - border_thickness_logic, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
+    pygame.draw.rect(surface, wood_border_color, right_border_rect)
+
+    # --- Draw Small Details ---
+    detail_radius_logic = inner_width_logic * 0.005
+    scaled_detail_radius = max(1, int(detail_radius_logic * scale))
+    detail_positions_relative = [
+        (0.5, 0.1), (0.5, 0.9), # Center top/bottom
+        (0.2, 0.5), (0.8, 0.5), # Mid left/right
+        (0.3, 0.2), (0.7, 0.2), # Upper mid
+        (0.3, 0.8), (0.7, 0.8), # Lower mid
+        # Add more details
+        (0.4, 0.3), (0.6, 0.3),
+        (0.4, 0.7), (0.6, 0.7),
+    ]
+    for rel_x, rel_y in detail_positions_relative:
+         abs_x = inner_x_start_logic + inner_width_logic * rel_x
+         abs_y = inner_y_start_logic + inner_height_logic * rel_y
+         scaled_center = scale_rect_func(pygame.Rect(abs_x, abs_y, 0, 0)).center
+         pygame.draw.circle(surface, detail_color, scaled_center, scaled_detail_radius)
+
+
+    # --- Draw Pixelated Curved Lane Guides ---
+    num_segments = 12 # Increase segments slightly for smoother pixel curve
+    lane_thickness_logic = inner_width_logic * 0.018 # Make lanes thicker
+    border_thickness_logic_lane = lane_thickness_logic * 1.5 # Border slightly thicker
+
+    # Define arc parameters (more centered)
+    arc_center_y = inner_y_start_logic + inner_height_logic * 0.45 # Move center up slightly
+    arc_radius_x = inner_width_logic * 0.25 # Narrower horizontal radius
+    arc_radius_y = inner_height_logic * 0.5 # Slightly shorter vertical radius
+
+    # Left Curve
+    start_angle_left = math.pi * 0.75 # Start higher
+    end_angle_left = math.pi * 1.25 # End lower
+    center_left_x = inner_center_x_logic - inner_width_logic * 0.15 # Shift center more left
+
+    # Right Curve (Symmetrical)
+    start_angle_right = math.pi * 0.25 # Start higher
+    end_angle_right = math.pi * -0.25 # End lower (equiv 1.75pi)
+    center_right_x = inner_center_x_logic + inner_width_logic * 0.15 # Shift center more right
+
+    # Generate points using helper function
+    left_curve_points = get_arc_points(center_left_x, arc_center_y, arc_radius_x, arc_radius_y, start_angle_left, end_angle_left, num_segments)
+    right_curve_points = get_arc_points(center_right_x, arc_center_y, arc_radius_x, arc_radius_y, start_angle_right, end_angle_right, num_segments)
+
+    # Scale points
+    scaled_left_points = [scale_rect_func(pygame.Rect(p[0], p[1], 0, 0)).center for p in left_curve_points]
+    scaled_right_points = [scale_rect_func(pygame.Rect(p[0], p[1], 0, 0)).center for p in right_curve_points]
+
+    # Draw lines (border first, then main color)
+    scaled_border_thickness = max(2, int(border_thickness_logic_lane * scale))
+    scaled_lane_thickness = max(1, int(lane_thickness_logic * scale))
+
+    if len(scaled_left_points) > 1:
+        pygame.draw.lines(surface, lane_border_color, False, scaled_left_points, scaled_border_thickness)
+        pygame.draw.lines(surface, lane_color, False, scaled_left_points, scaled_lane_thickness)
+    if len(scaled_right_points) > 1:
+        pygame.draw.lines(surface, lane_border_color, False, scaled_right_points, scaled_border_thickness)
+        pygame.draw.lines(surface, lane_color, False, scaled_right_points, scaled_lane_thickness)
+
+
+    # --- Draw Animated Lights (Circles, smaller, no glow) ---
+    scaled_light_radius = max(1, int(light_radius_logic * scale)) # Ensure radius is at least 1 pixel
+    for light in anim_state['pinball_lights']:
+        scaled_center = scale_rect_func(pygame.Rect(light['pos_logic'][0], light['pos_logic'][1], 0, 0)).center
+
+        if light['on']:
+            color = light_colors[light['color_index']]
+            pygame.draw.circle(surface, color, scaled_center, scaled_light_radius)
+        else:
+            pygame.draw.circle(surface, light_off_color, scaled_center, scaled_light_radius)
 # --- Background Definitions ---
 
 # Dictionary mapping background identifiers to their drawing functions.
@@ -329,6 +522,7 @@ def draw_sewer_background(surface, compiler_instance):
 # --- Populate Background Definitions ---
 # Add backgrounds to the dictionary *after* their functions are defined.
 AVAILABLE_BACKGROUNDS["sewer"] = draw_sewer_background
+AVAILABLE_BACKGROUNDS["casino"] = draw_casino_background # Add the new background
 # Add more backgrounds here in the future, e.g.:
 # AVAILABLE_BACKGROUNDS["factory"] = draw_factory_background
 

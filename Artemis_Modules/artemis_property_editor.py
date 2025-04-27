@@ -96,8 +96,8 @@ class PropertyEditorWidget(QWidget):
             self.form_layout.addRow("Type:", QLabel(str(game_object_data.get('type', 'N/A'))))
 
             # --- Add editable fields for relevant properties ---
-            # Order properties logically
-            editable_props = ['x', 'y', 'width', 'height', 'size', 'speed', 'is_left', 'is_bottom', 'target_id', 'properties']
+            # Order properties logically (Add 'radius' for RouletteSpinner)
+            editable_props = ['x', 'y', 'width', 'height', 'size', 'radius', 'speed', 'is_left', 'is_bottom', 'target_id', 'properties']
 
             for key in editable_props:
                 if key in game_object_data:
@@ -105,7 +105,7 @@ class PropertyEditorWidget(QWidget):
                     widget = None
 
                     # Create appropriate widget based on key/value type
-                    if key in ['x', 'y', 'width', 'height', 'size', 'speed']: # Numeric types
+                    if key in ['x', 'y', 'width', 'height', 'size', 'speed', 'radius']: # Numeric types (Added radius)
                         widget = QLineEdit(str(value))
                         widget.textChanged.connect(partial(self._handle_object_property_changed, key))
                     elif key in ['is_left', 'is_bottom', 'active']: # Boolean types
@@ -122,10 +122,13 @@ class PropertyEditorWidget(QWidget):
                         self.form_layout.addRow(QLabel(f"  <i>Sub-Properties:</i>"))
                         for sub_key, sub_value in value.items():
                              sub_widget = QLineEdit(str(sub_value))
-                             # Need a more complex handler for nested properties
-                             # sub_widget.textChanged.connect(partial(self._handle_nested_object_property_changed, key, sub_key))
-                             self.form_layout.addRow(f"    {sub_key}:", sub_widget)
-                             self.object_prop_widgets[f"{key}.{sub_key}"] = sub_widget # Store with compound key
+                             # Connect nested property changes using a compound key like "properties.sub_key"
+                             compound_key = f"{key}.{sub_key}"
+                             sub_widget.textChanged.connect(partial(self._handle_object_property_changed, compound_key))
+                             # Create a more user-friendly label for nested props
+                             sub_label_text = sub_key.replace('_', ' ').title() + ":"
+                             self.form_layout.addRow(f"    {sub_label_text}", sub_widget)
+                             self.object_prop_widgets[compound_key] = sub_widget # Store with compound key
                         continue # Skip adding main widget for 'properties' dict itself
 
                     # Add the widget to the layout if created
@@ -151,17 +154,33 @@ class PropertyEditorWidget(QWidget):
         new_value = None
         original_data = self.core_logic.get_object_by_id(self.current_object_id)
         if not original_data: return # Safety check
-        current_value = original_data.get(key)
+        current_value = original_data.get(key) # For top-level keys
+        is_nested = '.' in key # Check if it's a nested property like "properties.num_segments"
+        main_key = None
+        sub_key = None
+        current_nested_dict = None
+
+        if is_nested:
+            main_key, sub_key = key.split('.', 1)
+            current_nested_dict = original_data.get(main_key, {})
+            current_value = current_nested_dict.get(sub_key) # Get the specific nested value
 
         sender = self.sender()
         try:
             if isinstance(sender, QLineEdit):
                 value_str = str(value) # Value is the text
-                if isinstance(current_value, bool): # Should come from checkbox, but handle just in case
+                # Determine type based on current value (or guess if None)
+                target_type = type(current_value) if current_value is not None else str # Default to string
+                # Refine type guessing for known nested keys if current_value is None
+                if current_value is None:
+                    if sub_key in ['num_segments', 'spin_speed_deg_s']: target_type = int # Example
+                    # Add more specific type guesses if needed
+
+                if target_type is bool:
                     new_value = value_str.lower() in ['true', '1', 'yes']
-                elif isinstance(current_value, int):
+                elif target_type is int:
                     new_value = int(value_str) if value_str else 0
-                elif isinstance(current_value, float):
+                elif target_type is float:
                     new_value = float(value_str) if value_str else 0.0
                 elif key == 'target_id': # Special case: can be None or int
                     new_value = int(value_str) if value_str else None
@@ -177,8 +196,16 @@ class PropertyEditorWidget(QWidget):
             return
 
         if new_value is not None and current_value != new_value:
-            print(f"Object ID {self.current_object_id} property '{key}' updating to: {new_value}")
-            self.core_logic.update_object_properties(self.current_object_id, {key: new_value})
+            if is_nested:
+                # Update the nested dictionary
+                updated_nested_dict = copy.deepcopy(current_nested_dict) # Work on a copy
+                updated_nested_dict[sub_key] = new_value
+                print(f"Object ID {self.current_object_id} nested property '{key}' updating to: {new_value}")
+                self.core_logic.update_object_properties(self.current_object_id, {main_key: updated_nested_dict})
+            else:
+                # Update top-level property
+                print(f"Object ID {self.current_object_id} property '{key}' updating to: {new_value}")
+                self.core_logic.update_object_properties(self.current_object_id, {key: new_value})
             # Optionally signal core saved status changed
         elif new_value is not None and current_value == new_value:
              print(f"Object ID {self.current_object_id} property '{key}' value unchanged.")

@@ -21,6 +21,7 @@ DEFAULT_OBJECT_PROPERTIES = {
     "manhole": {"type": "manhole", "width": 50, "height": 20, "is_bottom": True,
                 "properties": {'spout_min_interval_sec': 5, 'spout_max_interval_sec': 20, 'spout_duration_sec': 1.0}},
     "bumper": {"type": "bumper", "width": 60, "height": 60, "properties": {"radius": 30}},
+    "roulette_spinner": {"type": "roulette_spinner", "radius": 50, "properties": {"num_segments": 8, "spin_speed_deg_s": 180}},
     # Add other object types and their defaults here as needed
 }
 # --- End Default Properties ---
@@ -63,7 +64,8 @@ class ObjectPaletteWidget(QWidget):
             "portal": "Portal",
             "powerup_ball": "Power-Up (Ball)",
             "manhole": "Manhole",
-            "bumper": "Pinball Bumper"
+            "bumper": "Pinball Bumper",
+            "roulette_spinner": "Roulette Spinner"
         }
 
         # Create buttons for each object type defined in defaults

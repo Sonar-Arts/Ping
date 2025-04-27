@@ -757,3 +757,342 @@ class PowerUpBall:
                 self.next_spawn_time = random.randint(3, 15) * 60  # 3-15 seconds (at 60 FPS)
                 return True
         return False
+import pygame
+import math
+import random
+from Modules.Submodules.Ping_Ball import Ball # Assuming Ball class is needed
+# Potentially need Font access later: from Modules.Submodules.Ping_Fonts import FontManager
+
+class RouletteSpinner:
+    """
+    A complex obstacle that captures the ball, spins, holds it for a duration
+    based on the hit segment, displays a timer, and releases it.
+    """
+    def __init__(self, x, y, radius=100, num_segments=38, spin_speed_deg_s=90): # Increased radius, set segments=38
+        """Initialize the Roulette Spinner."""
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.rect = pygame.Rect(x - radius, y - radius, radius * 2, radius * 2) # For potential spatial checks
+
+        # Roulette properties
+        # Filter out '0' and '00' from the standard sequence
+        standard_numbers = [
+            '0', '28', '9', '26', '30', '11', '7', '20', '32', '17', '5', '22', '34', '15', '3',
+            '24', '36', '13', '1', '00', '27', '10', '25', '29', '12', '8', '19', '31', '18', '6',
+            '21', '33', '16', '4', '23', '35', '14', '2'
+        ]
+        self.segment_numbers = [num for num in standard_numbers if num not in ('0', '00')]
+
+        # Update num_segments based on the filtered list
+        self.num_segments = len(self.segment_numbers)
+        if self.num_segments > 0:
+             self.segment_angle = 360 / self.num_segments
+        else:
+             self.segment_angle = 0 # Avoid division by zero if list is empty
+
+        # Standard Roulette Colors (0/00 Green, alternating Red/Black)
+        roulette_colors = {
+            # '0': (0, 150, 0), '00': (0, 150, 0), # Zeros removed
+            '1': (200, 0, 0), '2': (30, 30, 30), '3': (200, 0, 0), '4': (30, 30, 30), '5': (200, 0, 0),
+            '6': (30, 30, 30), '7': (200, 0, 0), '8': (30, 30, 30), '9': (200, 0, 0), '10': (30, 30, 30),
+            '11': (30, 30, 30), '12': (200, 0, 0), '13': (30, 30, 30), '14': (200, 0, 0), '15': (30, 30, 30),
+            '16': (200, 0, 0), '17': (30, 30, 30), '18': (200, 0, 0), '19': (200, 0, 0), '20': (30, 30, 30),
+            '21': (200, 0, 0), '22': (30, 30, 30), '23': (200, 0, 0), '24': (30, 30, 30), '25': (200, 0, 0),
+            '26': (30, 30, 30), '27': (200, 0, 0), '28': (30, 30, 30), '29': (30, 30, 30), '30': (200, 0, 0),
+            '31': (30, 30, 30), '32': (200, 0, 0), '33': (30, 30, 30), '34': (200, 0, 0), '35': (30, 30, 30),
+            '36': (200, 0, 0)
+        }
+        # Map numbers to colors based on the *filtered* sequence
+        self.segment_colors = [roulette_colors[num] for num in self.segment_numbers]
+
+
+        self.current_angle = 0  # Degrees
+        self.spin_speed = spin_speed_deg_s # Degrees per second
+
+        # State variables
+        self.captured_ball = None
+        self.is_spinning = False
+        self.hold_timer = 0.0  # Seconds remaining
+        self.max_hold_duration = 7.0 # Seconds - Max possible hold
+        self.target_hold_duration = 0.0 # Seconds - Duration for current capture
+
+        # Ball animation parameters
+        self.ball_orbit_radius_factor = 0.5 # Ball orbits at 50% of the spinner radius
+        self.ball_orbit_speed_factor = 2.0 # Ball orbits twice as fast as the spinner rotates
+
+        # Graphics / Timer Display
+        self.timer_font = None
+        self.number_font = None
+        self.timer_font_size = max(15, int(radius * 0.3)) # Scale font size with radius
+        self.number_font_size = max(10, int(radius * 0.15)) # Smaller font for numbers
+
+        try:
+            if not pygame.font.get_init():
+                pygame.font.init()
+            self.timer_font = pygame.font.SysFont(None, self.timer_font_size)
+            self.number_font = pygame.font.SysFont(None, self.number_font_size)
+        except Exception as e:
+            print(f"Warning: Could not load default system font for RouletteSpinner: {e}")
+            class DummyFont:
+                def render(self, *args, **kwargs):
+                    surf = pygame.Surface((1,1), pygame.SRCALPHA); surf.fill((0,0,0,0)); return surf
+            self.timer_font = self.timer_font or DummyFont()
+            self.number_font = self.number_font or DummyFont()
+
+
+        self.shadow_offset = 4
+
+    def update(self, delta_time):
+        """Update spinner state: rotation, timer, ball position."""
+        if self.is_spinning:
+            # Update rotation
+            self.current_angle = (self.current_angle + self.spin_speed * delta_time) % 360
+
+            # Update timer
+            if self.hold_timer > 0:
+                self.hold_timer -= delta_time
+                # Update captured ball position to orbit the center
+                if self.captured_ball:
+                    # Ensure ball object and its rect exist
+                    if hasattr(self.captured_ball, 'rect'):
+                        # Calculate orbital angle (faster than spinner)
+                        orbit_angle_rad = math.radians(self.current_angle * self.ball_orbit_speed_factor)
+                        # Calculate orbital radius
+                        orbit_radius = self.radius * self.ball_orbit_radius_factor
+                        # Calculate ball position relative to center
+                        ball_x = self.x + orbit_radius * math.cos(orbit_angle_rad)
+                        ball_y = self.y - orbit_radius * math.sin(orbit_angle_rad) # Pygame y-axis inverted
+                        # Update ball position
+                        self.captured_ball.rect.center = (int(ball_x), int(ball_y))
+
+                    # Ensure ball physics remain stopped
+                    if hasattr(self.captured_ball, 'ball'):
+                        self.captured_ball.ball.velocity_x = 0
+                        self.captured_ball.ball.velocity_y = 0
+                        self.captured_ball.ball.speed = 0
+
+            # Check for release
+            if self.hold_timer <= 0:
+                self.release_ball()
+
+    def handle_collision(self, ball):
+        """Detect collision, capture ball, and initiate spinning."""
+        if self.is_spinning or not hasattr(ball, 'rect') or not hasattr(ball, 'ball'): # Don't capture if already spinning or invalid ball
+            return False
+
+        # Circular collision detection
+        ball_center = ball.rect.center
+        dx = ball_center[0] - self.x
+        dy = ball_center[1] - self.y
+        distance_sq = dx*dx + dy*dy
+        # Ensure ball has width attribute for radius calculation
+        ball_radius = ball.rect.width / 2 if hasattr(ball.rect, 'width') else 0
+        radii_sum_sq = (self.radius + ball_radius) ** 2
+
+        if distance_sq < radii_sum_sq:
+            # --- Collision detected ---
+            self.captured_ball = ball
+            self.is_spinning = True
+
+            # Stop the ball's movement immediately
+            ball.ball.velocity_x = 0
+            ball.ball.velocity_y = 0
+            ball.ball.speed = 0
+            ball.rect.center = (self.x, self.y) # Snap to center
+
+            # Determine hit segment
+            # Angle of impact (0 degrees is right, increases counter-clockwise)
+            impact_angle = math.degrees(math.atan2(-dy, dx)) % 360 # Pygame y-axis is inverted
+
+            # Adjust impact angle by current spinner rotation to find relative hit angle
+            relative_impact_angle = (impact_angle - self.current_angle) % 360
+
+            # Determine which segment was hit (0 to num_segments - 1)
+            # Ensure num_segments is not zero to avoid division error
+            hit_segment_index = 0
+            if self.num_segments > 0:
+                 hit_segment_index = int(relative_impact_angle // self.segment_angle)
+
+
+            # Calculate hold duration based on segment index (example: linear mapping)
+            # Segment 0 = shortest duration, Segment N-1 = longest
+            # Handle potential division by zero if num_segments is 1
+            if self.num_segments > 1:
+                 self.target_hold_duration = (hit_segment_index / (self.num_segments - 1)) * self.max_hold_duration
+            elif self.num_segments == 1:
+                 self.target_hold_duration = self.max_hold_duration / 2 # Or some default
+            else: # num_segments is 0 or less, should not happen with init logic
+                 self.target_hold_duration = 0
+
+
+            self.hold_timer = self.target_hold_duration
+
+            # Optional: Add sound effect trigger here
+            # if sound_manager: sound_manager.play_sfx('roulette_capture')
+
+            return True # Collision handled
+
+        return False # No collision
+
+    def release_ball(self):
+        """Release the captured ball with velocity based on current angle."""
+        if not self.captured_ball or not hasattr(self.captured_ball, 'ball') or not hasattr(self.captured_ball, 'rect'):
+            return
+
+        # Calculate release angle (opposite to the segment facing 'up' - adjust as needed)
+        # Let's release it based on the current rotation angle directly for simplicity
+        release_rad = math.radians(self.current_angle)
+
+        # Calculate direction vector
+        release_dx = math.cos(release_rad)
+        release_dy = -math.sin(release_rad) # Pygame y-axis is inverted
+
+        # Restore ball's speed (use its original max speed or a fixed release speed)
+        # Ensure max_speed attribute exists, otherwise use a default
+        release_speed = getattr(self.captured_ball.ball, 'max_speed', 500) # Default 500 if not found
+        self.captured_ball.ball.speed = release_speed
+        self.captured_ball.ball.dx = release_dx
+        self.captured_ball.ball.dy = release_dy
+        self.captured_ball.ball.velocity_x = release_speed * release_dx
+        self.captured_ball.ball.velocity_y = release_speed * release_dy
+
+        # Move ball slightly outside the spinner radius to prevent immediate re-collision
+        ball_radius = self.captured_ball.rect.width / 2 if hasattr(self.captured_ball.rect, 'width') else 0
+        offset = self.radius + ball_radius + 1
+        self.captured_ball.rect.centerx = self.x + offset * release_dx
+        self.captured_ball.rect.centery = self.y + offset * release_dy
+
+        # Reset state
+        self.captured_ball = None
+        self.is_spinning = False
+        self.hold_timer = 0.0
+        self.target_hold_duration = 0.0
+
+        # Optional: Add sound effect trigger here
+        # if sound_manager: sound_manager.play_sfx('roulette_release')
+
+
+    def draw(self, screen, colors, scale_rect):
+        """Draw the updated roulette spinner graphics."""
+        # Scale the core properties
+        scaled_logic_rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+        scaled_display_rect = scale_rect(scaled_logic_rect)
+        scaled_center = scaled_display_rect.center
+        scaled_radius = scaled_display_rect.width // 2
+
+        if scaled_radius <= 1: return # Avoid drawing if too small
+
+        # Define radii for different parts relative to the main scaled radius
+        outer_ring_radius = scaled_radius
+        inner_wheel_radius = int(outer_ring_radius * 0.75)
+        center_gradient_radius = int(inner_wheel_radius * 0.6)
+        center_eye_gold_radius = int(center_gradient_radius * 0.5)
+        center_eye_black_radius = int(center_eye_gold_radius * 0.4)
+
+        # Colors (use defaults if not in theme)
+        color_white = colors.get('WHITE', (255, 255, 255))
+        color_black = colors.get('BLACK', (0, 0, 0))
+        color_yellow = colors.get('YELLOW', (255, 215, 0)) # Using goldish yellow
+        color_light_blue = colors.get('LIGHT_BLUE', (173, 216, 230))
+        color_gold = colors.get('GOLD', (255, 215, 0))
+        shadow_color = (20, 20, 20, 150) # Added alpha for slight transparency
+
+        # 1. Draw Shadow (using a surface for potential alpha blending)
+        shadow_center = (scaled_center[0] + self.shadow_offset, scaled_center[1] + self.shadow_offset)
+        shadow_surface = pygame.Surface((scaled_radius*2 + self.shadow_offset*2, scaled_radius*2 + self.shadow_offset*2), pygame.SRCALPHA)
+        pygame.draw.circle(shadow_surface, shadow_color, (scaled_radius + self.shadow_offset, scaled_radius + self.shadow_offset), scaled_radius)
+        screen.blit(shadow_surface, (scaled_center[0] - scaled_radius, scaled_center[1] - scaled_radius))
+
+
+        # 2. Draw Outer Ring Segments and Numbers
+        if self.num_segments > 0 and self.number_font:
+            text_color = color_white # Numbers are typically white
+            number_distance_factor = 0.88 # How far out the numbers are (0.0 center, 1.0 edge)
+
+            for i in range(self.num_segments):
+                segment_color = self.segment_colors[i]
+                segment_num_str = self.segment_numbers[i]
+
+                # Calculate angles for the segment polygon
+                start_angle_deg = self.current_angle + i * self.segment_angle
+                end_angle_deg = start_angle_deg + self.segment_angle
+                start_angle_rad = math.radians(-start_angle_deg) # Negate for Pygame coord system
+                end_angle_rad = math.radians(-end_angle_deg)
+
+                # Draw segment polygon
+                point_list = [scaled_center]
+                num_arc_points = 5 # Fewer points needed for smaller segments
+                for j in range(num_arc_points + 1):
+                    angle = start_angle_rad + (end_angle_rad - start_angle_rad) * j / num_arc_points
+                    x = scaled_center[0] + outer_ring_radius * math.cos(angle)
+                    y = scaled_center[1] + outer_ring_radius * math.sin(angle)
+                    point_list.append((int(x), int(y)))
+                pygame.draw.polygon(screen, segment_color, point_list)
+
+                # Calculate position for the number (mid-angle, near outer edge)
+                mid_angle_deg = start_angle_deg + self.segment_angle / 2
+                mid_angle_rad = math.radians(-mid_angle_deg) # Negate for Pygame
+                num_radius = outer_ring_radius * number_distance_factor
+                num_x = scaled_center[0] + num_radius * math.cos(mid_angle_rad)
+                num_y = scaled_center[1] + num_radius * math.sin(mid_angle_rad)
+
+                # Render and blit the number (upright)
+                try:
+                    num_surf = self.number_font.render(segment_num_str, True, text_color)
+                    num_rect = num_surf.get_rect(center=(int(num_x), int(num_y)))
+                    screen.blit(num_surf, num_rect)
+                except Exception as e:
+                    print(f"Error rendering segment number: {e}") # Handle font errors
+
+        # 3. Draw Inner Yellow Wheel
+        if inner_wheel_radius > 0:
+            pygame.draw.circle(screen, color_yellow, scaled_center, inner_wheel_radius)
+
+            # Draw black dividing lines on inner wheel
+            for i in range(self.num_segments):
+                line_angle_deg = self.current_angle + i * self.segment_angle
+                line_angle_rad = math.radians(-line_angle_deg) # Negate for Pygame
+                start_point = (scaled_center[0] + center_gradient_radius * math.cos(line_angle_rad), # Start from edge of blue center
+                               scaled_center[1] + center_gradient_radius * math.sin(line_angle_rad))
+                end_x = scaled_center[0] + inner_wheel_radius * math.cos(line_angle_rad)
+                end_y = scaled_center[1] + inner_wheel_radius * math.sin(line_angle_rad)
+                end_point = (int(end_x), int(end_y))
+                pygame.draw.line(screen, color_black, start_point, end_point, max(1, scaled_radius // 50)) # Thin lines
+
+        # 4. Draw Center Gradient (Approximation) and Eye
+        if center_gradient_radius > 0:
+            # Simple light blue circle for gradient base
+            pygame.draw.circle(screen, color_light_blue, scaled_center, center_gradient_radius)
+            # Gold Eye part
+            if center_eye_gold_radius > 0:
+                pygame.draw.circle(screen, color_gold, scaled_center, center_eye_gold_radius)
+                # Black center Eye part
+                if center_eye_black_radius > 0:
+                    pygame.draw.circle(screen, color_black, scaled_center, center_eye_black_radius)
+
+        # 5. Draw Outer Border (thin white line)
+        pygame.draw.circle(screen, color_white, scaled_center, outer_ring_radius, max(1, scaled_radius // 40))
+
+        # 6. Draw Timer if spinning and font is available (Draw last to be on top)
+        if self.is_spinning and self.timer_font:
+            display_time = max(0, self.hold_timer)
+            timer_text = f"{display_time:.1f}"
+            try:
+                text_surface = self.timer_font.render(timer_text, True, color_white)
+                # Add black outline/shadow for better visibility
+                outline_offset = max(1, self.timer_font_size // 15)
+                text_surface_shadow = self.timer_font.render(timer_text, True, color_black)
+                shadow_pos = (scaled_center[0] - text_surface.get_width() // 2 + outline_offset,
+                              scaled_center[1] - text_surface.get_height() // 2 + outline_offset)
+                screen.blit(text_surface_shadow, shadow_pos)
+
+                # Blit main text
+                text_rect = text_surface.get_rect(center=scaled_center)
+                screen.blit(text_surface, text_rect)
+            except Exception as e:
+                 print(f"Error rendering timer text: {e}")
+
+
+        # Note: The captured ball itself is positioned in update().
+        # The main game loop should ideally skip drawing the ball if it's captured by the spinner.

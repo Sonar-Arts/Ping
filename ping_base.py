@@ -15,6 +15,7 @@ from Modules.Submodules.Ping_Fonts import get_pixel_font  # Moved import here
 from Modules.Submodules.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
 from Modules.Submodules.Ping_LevelIntro import play_level_intro # Import the level intro function
 
+from Modules.Submodules.Ping_Obstacles import RouletteSpinner # Import the RouletteSpinner class
 """
 Ping Base Code
 This is the base code for the Ping game, which includes the main game loop, event handling, and rendering.
@@ -499,6 +500,10 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 if arena.manholes:
                     arena.update_manholes(FRAME_TIME) # Pass frame time for smooth particle animation
 
+                # Update RouletteSpinner state if it exists
+                if isinstance(arena.obstacle, RouletteSpinner):
+                    arena.obstacle.update(FRAME_TIME)
+
                 # Handle all active balls
                 scored = None
                 balls_to_remove = []
@@ -516,10 +521,20 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         sound_manager.play_sfx('paddle') # Use new method
 
                     # Ball collision with obstacle (check if obstacle exists first)
-                    if arena.obstacle and arena.obstacle.handle_collision(current_ball, sound_manager):
-                        # Sound effect is now played inside handle_collision
-                        # Create new obstacle after collision
-                        arena.reset_obstacle()
+                    if arena.obstacle:
+                        collision_handled = False
+                        # Check the type of obstacle to call the correct collision handler
+                        if isinstance(arena.obstacle, RouletteSpinner):
+                            # RouletteSpinner handles its own logic, doesn't need sound_manager here
+                            if arena.obstacle.handle_collision(current_ball):
+                                collision_handled = True
+                                # RouletteSpinner manages its own state, no reset needed here
+                        elif hasattr(arena.obstacle, 'handle_collision'):
+                            # Assume other obstacles might use the old signature
+                            if arena.obstacle.handle_collision(current_ball, sound_manager):
+                                collision_handled = True
+                                # Reset only if it's not a RouletteSpinner (assuming old behavior)
+                                arena.reset_obstacle()
 
                     # Check portal collisions
                     arena.check_portal_collisions(current_ball)

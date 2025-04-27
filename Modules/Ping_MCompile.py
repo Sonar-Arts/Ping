@@ -9,6 +9,7 @@ import json # Import JSON for PMF parsing (assuming JSON format)
 import threading
 import time
 from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject
+from Modules.Submodules.Ping_Obstacles import RouletteSpinner # Import the new obstacle
 # Removed import for DebugLevel, SewerLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
 # Import the generation function specifically
@@ -523,6 +524,30 @@ class LevelCompiler: # Renamed from Arena
                     self._log_warning(f"Created ObstacleObject at ({obj_x},{obj_y}) with properties: {properties}")
                 else:
                     self._log_warning(f"Ignoring additional PMF obstacle object #{obj_index} (only one supported currently): {obj}")
+
+            elif obj_type == 'roulette_spinner': # Match lowercase type from PMF
+                # Handle the new RouletteSpinner obstacle type
+                if not obstacle_created_from_list:
+                    # Extract specific properties needed by RouletteSpinner constructor
+                    # Use defaults from RouletteSpinner.__init__ if not found in PMF data
+                    radius = obj.get('radius', 100) # Get radius from top level (saved by editor)
+                    # Get properties sub-dictionary for other params
+                    spinner_props = obj.get('properties', {})
+                    num_segments = spinner_props.get('num_segments', 38)
+                    spin_speed = spinner_props.get('spin_speed_deg_s', 90)
+
+                    # Instantiate RouletteSpinner directly (it's not a GameObject wrapper)
+                    self.obstacle = RouletteSpinner(
+                        x=obj_x,
+                        y=obj_y,
+                        radius=radius,
+                        num_segments=num_segments,
+                        spin_speed_deg_s=spin_speed
+                    )
+                    obstacle_created_from_list = True
+                    self._log_warning(f"Created RouletteSpinner at ({obj_x},{obj_y}) with radius={radius}, segments={num_segments}, speed={spin_speed}")
+                else:
+                    self._log_warning(f"Ignoring additional PMF obstacle object (RouletteSpinner) #{obj_index} (only one supported currently): {obj}")
 
             elif obj_type == 'powerup_ball_duplicator': # Specific type
                 # Only create one powerup for now
@@ -1113,8 +1138,13 @@ class LevelCompiler: # Renamed from Arena
             goal.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
 
         # Draw obstacle
-        if self.obstacle: # Check if obstacle exists and is active? ObstacleObject might handle drawing based on its state
-             self.obstacle.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
+        if self.obstacle: # Check if obstacle exists
+             # Ensure the obstacle has a draw method before calling
+             if hasattr(self.obstacle, 'draw') and callable(self.obstacle.draw):
+                 # Call draw with the correct arguments: surface, colors dict, scale_rect function
+                 self.obstacle.draw(target_surface, self.colors, self.scale_rect)
+             else:
+                 self._log_warning(f"Obstacle object {type(self.obstacle)} does not have a callable draw method.")
 
         # Draw game objects (Paddles, Ball) - Draw Ball last so it's on top?
         paddles = [obj for obj in game_objects if not isinstance(obj, BallObject)]

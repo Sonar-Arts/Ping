@@ -252,20 +252,29 @@ class LevelViewWidget(QWidget):
         width = defaults.get('width')
         height = defaults.get('height')
         size = defaults.get('size') # For ball/powerup
+        radius = defaults.get('radius') # Check for radius
 
         place_x, place_y = x, y
         obj_w, obj_h = 0, 0
 
         if width is not None and height is not None:
+            # Standard width/height object
             obj_w, obj_h = width, height
             place_x -= obj_w // 2 # Center placement
             place_y -= obj_h // 2
         elif size is not None:
+            # Object defined by size (e.g., BallSpawn)
             obj_w, obj_h = size, size
             place_x -= obj_w // 2 # Center placement
             place_y -= obj_h // 2
+        elif radius is not None:
+            # Object defined by radius (e.g., RouletteSpinner, Bumper)
+            obj_w = obj_h = radius * 2
+            place_x -= radius # Center placement using radius
+            place_y -= radius
         else:
-            print(f"Warning: No width/height or size found in defaults for {obj_type_key}. Using 10x10.")
+            # Fallback if no dimensions found
+            print(f"Warning: No width/height, size, or radius found in defaults for {obj_type_key}. Using 10x10.")
             obj_w, obj_h = 10, 10
             place_x -= 5
             place_y -= 5
@@ -282,12 +291,17 @@ class LevelViewWidget(QWidget):
         new_obj_data = defaults.copy() # Start with defaults
         new_obj_data['x'] = place_x
         new_obj_data['y'] = place_y
-        # Ensure width/height/size are set correctly based on what was found
+        # Ensure width/height/size/radius are set correctly based on what was found/calculated
         if width is not None and height is not None:
             new_obj_data['width'] = obj_w
             new_obj_data['height'] = obj_h
         elif size is not None:
             new_obj_data['size'] = obj_w # size is width/height
+        elif radius is not None:
+            # Store both radius and calculated width/height for consistency
+            new_obj_data['radius'] = radius
+            new_obj_data['width'] = obj_w
+            new_obj_data['height'] = obj_h
 
         # Add via core logic (which assigns ID)
         self.core_logic.add_object(new_obj_data)

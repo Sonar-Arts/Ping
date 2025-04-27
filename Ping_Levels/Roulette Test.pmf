@@ -1,0 +1,108 @@
+{
+    "properties": {
+        "name": "Pinball Level",
+        "width": 1280,
+        "height": 720,
+        "background_color": [
+            0,
+            0,
+            0
+        ],
+        "bounce_walls": true,
+        "use_goals": true,
+        "can_spawn_obstacles": true,
+        "can_spawn_powerups": true,
+        "level_music": "PPinballMusicTemp",
+        "level_background": "casino"
+    },
+    "objects": [
+        {
+            "id": 1,
+            "type": "paddle_spawn",
+            "is_left": true,
+            "x": 50,
+            "y": 310,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "id": 2,
+            "type": "paddle_spawn",
+            "is_left": false,
+            "x": 1210,
+            "y": 310,
+            "width": 20,
+            "height": 100,
+            "speed": 300
+        },
+        {
+            "type": "roulette_spinner",
+            "radius": 75,
+            "properties": {
+                "num_segments": 8,
+                "spin_speed_deg_s": 180
+            },
+            "x": 580,
+            "y": 380,
+            "width": 150,
+            "height": 150,
+            "id": 3
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 360,
+            "y": 600,
+            "id": 6
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 620,
+            "y": 140,
+            "id": 8
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 900,
+            "y": 600,
+            "id": 9
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 340,
+            "y": 200,
+            "id": 4
+        },
+        {
+            "type": "bumper",
+            "width": 60,
+            "height": 60,
+            "properties": {
+                "radius": 30
+            },
+            "x": 880,
+            "y": 200,
+            "id": 5
+        }
+    ]
+}
