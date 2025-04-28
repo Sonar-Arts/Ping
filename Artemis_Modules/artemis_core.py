@@ -22,7 +22,8 @@ class ArtemisCore(QObject): # Inherit from QObject
     levelModifiedStateChanged = pyqtSignal(bool) # Emitted when unsaved_changes state flips
     layoutRestored = pyqtSignal() # Emitted by main window AFTER restoreState succeeds
     objectSelectionChanged = pyqtSignal(object) # Emitted by LevelView, maybe relayed? (TBD)
-    # Add more signals as needed (e.g., for object add/delete/update)
+    objectUpdated = pyqtSignal(int) # Emitted when an object's properties are updated (passes obj_id)
+    # TODO: Signals for objectAdded, objectDeleted
 
     def __init__(self, main_window):
         super().__init__() # Initialize QObject base class
@@ -217,18 +218,32 @@ class ArtemisCore(QObject): # Inherit from QObject
 
     def update_object_properties(self, obj_id, new_properties):
         """Updates the properties of a specific object."""
+        # ++ DEBUG LOGGING ++
+        print(f"DEBUG Core: Attempting update for ID {obj_id} with properties: {new_properties}")
+        updated = False # Track if any change was actually made
+
         for obj in self.level_objects:
             if obj.get('id') == obj_id:
+                original_obj_repr = repr(obj) # Capture state before modification
                 # Only update keys present in new_properties
                 for key, value in new_properties.items():
                      if key != 'id': # Don't overwrite ID
+                        # Compare before potentially updating
                         if obj.get(key) != value:
+                            print(f"DEBUG Core: Changing '{key}' from '{obj.get(key)}' to '{value}' for ID {obj_id}")
                             obj[key] = value
-                            self.unsaved_changes = True # Setter emits signal
-                print(f"Updated properties for object ID {obj_id}: {new_properties}")
-                # TODO: Add objectUpdated signal?
-                return True
-        print(f"Warning: Could not find object with ID {obj_id} to update.")
+                            updated = True # Mark that a change happened
+
+                if updated:
+                    self.unsaved_changes = True # Setter emits signal
+                    print(f"DEBUG Core: Update applied for ID {obj_id}. New props: {new_properties}. Final object state snippet: {repr(obj)[:100]}...")
+                    self.objectUpdated.emit(obj_id) # Emit signal that this object changed
+                    return True # Return True as update happened
+                else:
+                    print(f"DEBUG Core: No changes applied for ID {obj_id} with new_properties {new_properties}. Object remained: {original_obj_repr}")
+                    return False # Indicate no changes were made
+
+        print(f"Warning Core: Could not find object with ID {obj_id} to update.")
         return False
 
     def delete_object(self, obj_id):

@@ -8,12 +8,12 @@ import math  # Import math for river animation
 import json # Import JSON for PMF parsing (assuming JSON format)
 import threading
 import time
-from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject
+from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject, SpriteObject # Import SpriteObject
 from Modules.Submodules.Ping_Obstacles import RouletteSpinner # Import the new obstacle
 # Removed import for DebugLevel, SewerLevel
 from Modules.Submodules.Ping_Scoreboard import Scoreboard
 # Import the generation function specifically
-from Modules.ping_graphics import get_background_draw_function, generate_sludge_texture
+from Modules.ping_graphics import get_background_draw_function, generate_sludge_texture, load_sprite_image
 
 class LevelCompiler: # Renamed from Arena
     """Handles loading and compiling level data from .pmf files or level instances."""
@@ -155,6 +155,8 @@ class LevelCompiler: # Renamed from Arena
         self.manholes = []
         self.bumpers = []  # Added bumpers list
         self.power_up = None
+        # Removed self.loaded_sprites
+        self.sprites = [] # List to hold SpriteObject instances
 
         # --- Object Creation ---
         # Create objects based on the source (PMF data or params dict)
@@ -178,12 +180,14 @@ class LevelCompiler: # Renamed from Arena
         self.stop_sludge_thread = threading.Event()
         self.needs_sludge_texture_update = False # Flag to signal regeneration
 
+        # Removed old sprite loading block from __init__
+        # Sprite objects are now created in _create_objects_from_pmf
+
         if self.level_background == 'sewer':
             self._log_warning("Sewer background detected, starting texture generation thread.")
             self.needs_sludge_texture_update = True # Initial generation needed
             self.sludge_thread = threading.Thread(target=self._sludge_texture_worker, daemon=True)
             self.sludge_thread.start()
-
 
     def stop_background_threads(self):
         """Signals any running background threads to stop and waits for them."""
@@ -441,8 +445,10 @@ class LevelCompiler: # Renamed from Arena
         return params
 
     def _create_objects_from_pmf(self, pmf_data):
-        """Creates game objects based on the 'objects' list in PMF data."""
-        objects = pmf_data.get('objects', [])
+        """Creates game objects based on the 'objects' and 'sprites' lists in PMF data."""
+        objects_list = pmf_data.get('objects', [])
+        sprites_list = pmf_data.get('sprites', []) # Get the separate sprites list
+        combined_list = objects_list + sprites_list # Combine them for iteration
         width = self.width # Get dimensions set earlier
         height = self.height
 
@@ -451,7 +457,8 @@ class LevelCompiler: # Renamed from Arena
         self.obstacle = None # Use singular for now, assuming max 1 obstacle from PMF/default
         self.goals = []
         self.portals = []
-        self.bumpers = []  # Added bumpers list
+        self.bumpers = []
+        self.sprites = [] # Initialize list for SpriteObjects
         self.power_up = None # Use singular for now, assuming max 1 powerup from PMF/default
 
         # Flags to track if specific types were created from the list
@@ -463,8 +470,9 @@ class LevelCompiler: # Renamed from Arena
             self.goals.append(GoalObject(self.width, self.height, self.scoreboard_height, self.scale_rect, is_left_goal=True))
             self.goals.append(GoalObject(self.width, self.height, self.scoreboard_height, self.scale_rect, is_left_goal=False))
 
-        # --- Create Objects from PMF List ---
-        for obj_index, obj in enumerate(objects):
+        # --- Create Objects from COMBINED PMF List ---
+        self._log_warning(f"DEBUG: Processing combined list of {len(combined_list)} objects/sprites from PMF.") # ++Log++
+        for obj_index, obj in enumerate(combined_list): # Iterate the combined list
             obj_type = obj.get('type')
             # Get common geometry and properties (default to empty dict)
             obj_x = obj.get('x')
@@ -480,6 +488,7 @@ class LevelCompiler: # Renamed from Arena
 
             # --- Object Type Specific Creation ---
 
+            # All checks below should have 12 spaces before if/elif/else
             if obj_type == 'paddle_spawn':
                 # Paddle spawns are handled during parameter parsing (_parse_pmf_to_params)
                 # to set self.paddle_positions. No object created here.
@@ -492,7 +501,7 @@ class LevelCompiler: # Renamed from Arena
                                         obj_x, obj_y, obj_width, obj_height, is_bottom, properties) # Pass properties
                 self.manholes.append(manhole)
                 self._log_warning(f"Created ManHoleObject at ({obj_x},{obj_y}) with properties: {properties}")
-            
+
             elif obj_type == 'bumper':
                 bumper = BumperObject(
                     arena_width=self.width,
@@ -592,13 +601,41 @@ class LevelCompiler: # Renamed from Arena
                  # Store ID and instance always, target_id only if present
                  self._portal_link_data.append({'instance': portal, 'id': portal_id, 'target_id': target_id})
 
-            else:
-                self._log_warning(f"Unknown object type '{obj_type}' in PMF object #{obj_index}: {obj}")
+            elif obj_type == 'sprite': # Now correctly indented
+                 self._log_warning(f"DEBUG: Found PMF object of type 'sprite': {obj}") # ++ ADDED LOG ++
+                 image_path = obj.get('image_path') # Standardized key from Artemis
+                 if not image_path: # Skip if path is missing or empty
+                      self._log_warning(f"Skipping PMF sprite object #{obj_index} due to missing 'image_path': {obj}")
+                      continue
 
+                 # Ensure essential geometry exists for SpriteObject too
+                 if obj_x is None or obj_y is None or obj_width is None or obj_height is None:
+                     self._log_warning(f"Skipping PMF sprite object #{obj_index} due to missing geometry (using standard keys): {obj}")
+                     continue
 
-        # --- Post-Object Creation Linking & Defaults ---
+                 sprite = SpriteObject(
+                     arena_width=self.width,
+                     arena_height=self.height,
+                     scoreboard_height=self.scoreboard_height,
+                     scale_rect=self.scale_rect,
+                     x=obj_x,
+                     y=obj_y,
+                     width=obj_width,
+                     height=obj_height,
+                     image_path=image_path,
+                     properties=properties # Pass properties dict as well
+                 )
+                 self._log_warning(f"DEBUG: Attempting to append SpriteObject: {sprite}") # ++ ADDED LOG ++
+                 self.sprites.append(sprite)
+                 self._log_warning(f"Successfully created and appended SpriteObject with path '{image_path}' at ({obj_x},{obj_y})") # Modified log
 
-        # Link portals
+            else: # Now correctly indented
+                 self._log_warning(f"Unknown object type '{obj_type}' in PMF object #{obj_index}: {obj}")
+            # End of the 'for' loop over objects (comment adjusted)
+
+        # --- Post-Object Creation Linking & Defaults --- # This line is now correctly aligned (8 spaces)
+
+       # Link portals
         if hasattr(self, '_portal_link_data') and self._portal_link_data:
              portal_id_map = {p['id']: p['instance'] for p in self._portal_link_data}
              for portal_info in self._portal_link_data:
@@ -1118,12 +1155,22 @@ class LevelCompiler: # Renamed from Arena
 
         # --- Draw Game Elements ---
 
+        # --- Draw Sprites (using SpriteObjects) ---
+        # Draw these after the background but before interactive game elements
+        if self.sprites: # ++ ADDED CHECK ++
+             # self._log_warning(f"DEBUG: Drawing {len(self.sprites)} sprites...") # Optional: uncomment if needed
+             for i, sprite in enumerate(self.sprites):
+                 # self._log_warning(f"DEBUG: Drawing sprite #{i} with path {getattr(sprite, 'image_path', 'N/A')}") # Optional: uncomment if needed
+                 sprite.draw(target_surface) # SpriteObject's draw handles scaling
+        # else: # ++ ADDED CHECK ++
+             # self._log_warning("DEBUG: No sprites found in self.sprites list to draw.") # Optional: uncomment if needed
+
         # Log portal list content before drawing
         self._log_warning(f"Drawing portals. self.portals list: {self.portals}")
 
         # Draw portals first (potentially over background elements)
         for portal in self.portals:
-            portal.draw(target_surface, self.colors, self.scale_rect)
+             portal.draw(target_surface, self.colors, self.scale_rect)
 
         # Draw manholes and bumpers
         for manhole in self.manholes:
