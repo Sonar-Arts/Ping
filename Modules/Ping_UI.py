@@ -90,47 +90,84 @@ class AnimatedBackground:
             self.add_cloud(initial=True)
 
     def _create_ruined_city(self, width, height):
-        """Creates a surface with a simple ruined city skyline."""
+        """Creates a surface with a more detailed, pixelated ruined city skyline."""
         surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        surface.fill((20, 20, 30)) # Dark blue/grey sky base
+        surface.fill((20, 20, 30, 255)) # Dark blue/grey sky base (ensure full alpha)
 
+        pixel_size = 4 # Size of each 'pixel' block
         building_bottom = height
-        skyline_height_base = int(height * 0.4) # How high the tallest buildings reach approx
-        skyline_height_variation = int(height * 0.2)
+
+        # Define a slightly wider palette for buildings
+        BUILDING_COLORS = [
+            (50, 55, 60), (55, 60, 65), (60, 65, 70),
+            (70, 75, 80), (75, 80, 85)
+        ]
+        WINDOW_COLOR_UNLIT = (30, 30, 35)
+        WINDOW_COLOR_LIT = (210, 210, 150) # Dim yellow light
+
+        # Ensure skyline calculations are snapped to pixel grid
+        skyline_height_base = round(height * 0.4 / pixel_size) * pixel_size
+        skyline_height_variation = round(height * 0.2 / pixel_size) * pixel_size
 
         x = 0
         while x < width:
-            building_width = random.randint(30, 100)
-            building_height = skyline_height_base + random.randint(-skyline_height_variation, skyline_height_variation // 2)
+            # Ensure width and height are multiples of pixel_size
+            building_width = random.randrange(pixel_size * 8, pixel_size * 25 + 1, pixel_size)
+            building_height = skyline_height_base + random.randrange(-skyline_height_variation, skyline_height_variation // 2 + 1, pixel_size)
+            building_height = max(pixel_size * 5, building_height) # Minimum height
             building_top = building_bottom - building_height
 
-            # Jagged tops for ruins
-            points = [(x, building_bottom)]
-            current_y = building_top
-            for i in range(x, x + building_width, 10):
-                current_y = building_top + random.randint(-15, 5)
-                points.append((i, current_y))
-            points.append((x + building_width, current_y)) # Last top point
-            points.append((x + building_width, building_bottom))
+            # Define the building's core rectangle (snapped to grid)
+            building_rect = pygame.Rect(x, building_top, building_width, building_height)
+            base_color = random.choice(BUILDING_COLORS)
 
-            # Choose color
-            color = random.choice([RUIN_GREY_DARK, RUIN_GREY_LIGHT])
-            pygame.draw.polygon(surface, color, points)
+            # --- Draw Building using Pixel Blocks ---
+            for px in range(building_rect.left, building_rect.right, pixel_size):
+                for py in range(building_rect.top, building_rect.bottom, pixel_size):
+                    # Add slight random color variation for texture
+                    tex_color_mod = random.randint(-5, 5)
+                    tex_color = (
+                        max(0, min(255, base_color[0] + tex_color_mod)),
+                        max(0, min(255, base_color[1] + tex_color_mod)),
+                        max(0, min(255, base_color[2] + tex_color_mod))
+                    )
+                    pygame.draw.rect(surface, tex_color, (px, py, pixel_size, pixel_size))
 
-            # Add some simple window details (darker rectangles)
-            if building_width > 40: # Only on wider buildings
-                win_color = (max(0, color[0]-20), max(0, color[1]-20), max(0, color[2]-20))
-                for _ in range(random.randint(3, 10)):
-                    win_w = random.randint(5, 15)
-                    win_h = random.randint(8, 20)
-                    win_x = random.randint(x + 5, x + building_width - win_w - 5)
-                    win_y = random.randint(building_top + 10, building_bottom - win_h - 10)
-                    # Only draw if not overlapping jagged top too much
-                    if win_y > current_y + 5:
-                         pygame.draw.rect(surface, win_color, (win_x, win_y, win_w, win_h))
+            # --- Add Jagged/Detailed Top ---
+            top_variation_range = pixel_size * 4
+            for px in range(building_rect.left, building_rect.right, pixel_size):
+                # Chance to add extra blocks above or remove blocks below
+                top_mod = random.randrange(-top_variation_range, top_variation_range + 1, pixel_size)
+                mod_y_start = building_rect.top + top_mod
+                mod_y_end = building_rect.top
+
+                if top_mod > 0: # Add blocks above
+                    for py in range(mod_y_start, mod_y_end, -pixel_size):
+                         pygame.draw.rect(surface, base_color, (px, py, pixel_size, pixel_size))
+                elif top_mod < 0: # Remove blocks (draw sky color)
+                     for py in range(mod_y_start, mod_y_end, pixel_size):
+                          pygame.draw.rect(surface, (20, 20, 30, 255), (px, py, pixel_size, pixel_size))
+
+            # --- Add Pixelated Windows ---
+            window_chance = 0.6 # Chance for a potential window spot to actually have one
+            for wx in range(building_rect.left + pixel_size, building_rect.right - pixel_size * 2, pixel_size * 3): # Spaced out windows
+                for wy in range(building_rect.top + pixel_size, building_rect.bottom - pixel_size * 2, pixel_size * 3):
+                    if random.random() < window_chance:
+                        # Choose lit or unlit
+                        win_color = WINDOW_COLOR_LIT if random.random() < 0.15 else WINDOW_COLOR_UNLIT # 15% chance lit
+                        pygame.draw.rect(surface, win_color, (wx, wy, pixel_size, pixel_size)) # Simple 1-pixel window
+
+            # --- Add Simple Antenna (sometimes) ---
+            if random.random() < 0.2: # 20% chance for an antenna
+                antenna_x = random.randrange(building_rect.left, building_rect.right, pixel_size)
+                antenna_height = random.randrange(pixel_size * 3, pixel_size * 8 + 1, pixel_size)
+                antenna_color = (40, 40, 40)
+                for ay in range(building_rect.top - antenna_height, building_rect.top, pixel_size):
+                    pygame.draw.rect(surface, antenna_color, (antenna_x, ay, pixel_size, pixel_size))
 
 
-            x += building_width + random.randint(-5, 15) # Overlap slightly or leave gaps
+            # Move to next building position (ensure some gap/overlap, snapped)
+            x += building_width + random.randrange(-pixel_size * 2, pixel_size * 4 + 1, pixel_size)
 
         return surface
 
