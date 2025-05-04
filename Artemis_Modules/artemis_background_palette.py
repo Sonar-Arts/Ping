@@ -45,17 +45,22 @@ class BackgroundPalette(QWidget):
         self.setLayout(layout)
 
     def _populate_backgrounds(self):
-        """Fetch available backgrounds and add them to the list."""
+        """Fetch available backgrounds and add them to the list, including a 'None' option."""
         self.background_list.clear()
+
+        # Add the "None" option first
+        none_item = QListWidgetItem("None")
+        self.background_list.addItem(none_item)
+
         try:
             backgrounds = get_available_backgrounds()
             if not backgrounds:
-                # Add a placeholder if no backgrounds are found
+                # Add a placeholder if no backgrounds are found (besides "None")
                 placeholder_item = QListWidgetItem("No backgrounds defined")
                 placeholder_item.setFlags(placeholder_item.flags() & ~Qt.ItemFlag.ItemIsSelectable) # Make it non-selectable
                 self.background_list.addItem(placeholder_item)
             else:
-                for bg_id in backgrounds:
+                for bg_id in sorted(backgrounds): # Sort alphabetically
                     item = QListWidgetItem(bg_id)
                     self.background_list.addItem(item)
         except Exception as e:
@@ -67,23 +72,39 @@ class BackgroundPalette(QWidget):
 
 
     def _on_background_selected(self, current_item, previous_item):
-        """Emit signal when a background is selected."""
+        """Emit signal when a background is selected, emitting None for the 'None' item."""
         if current_item and (current_item.flags() & Qt.ItemFlag.ItemIsSelectable): # Ensure item is valid and selectable
-            self.backgroundSelected.emit(current_item.text())
+            selected_text = current_item.text()
+            if selected_text == "None":
+                self.backgroundSelected.emit(None) # Emit None for the "None" option
+            else:
+                self.backgroundSelected.emit(selected_text)
+        # Handle case where selection is cleared (e.g., clicking outside)
+        elif not current_item:
+             # Optionally emit None when selection is cleared, or do nothing
+             # self.backgroundSelected.emit(None)
+             pass
+
 
     def set_selected_background(self, background_id):
-        """Selects the item corresponding to the given background_id."""
-        if not background_id:
-            self.background_list.clearSelection()
-            return
+        """Selects the item corresponding to the given background_id, or 'None'."""
+        target_text = background_id
+        if background_id is None or background_id == "":
+            target_text = "None" # Select the "None" item
 
-        items = self.background_list.findItems(background_id, Qt.MatchFlag.MatchExactly)
+        items = self.background_list.findItems(target_text, Qt.MatchFlag.MatchExactly)
         if items:
+            # Block signals temporarily to prevent emitting during programmatic selection
+            self.background_list.blockSignals(True)
             self.background_list.setCurrentItem(items[0])
+            self.background_list.blockSignals(False)
         else:
-            # If the ID is not found (e.g., level loaded with old/invalid ID), clear selection
+            # If the ID (or "None") is not found, clear selection
+            self.background_list.blockSignals(True)
             self.background_list.clearSelection()
-            print(f"Warning: Background ID '{background_id}' not found in palette.")
+            self.background_list.blockSignals(False)
+            if background_id is not None and background_id != "": # Avoid warning for intentionally setting None
+                 print(f"Warning: Background ID '{background_id}' not found in palette.")
 
 # Example usage (for testing)
 if __name__ == '__main__':

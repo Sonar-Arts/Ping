@@ -22,7 +22,6 @@ DEFAULT_OBJECT_PROPERTIES = {
                 "properties": {'spout_min_interval_sec': 5, 'spout_max_interval_sec': 20, 'spout_duration_sec': 1.0}},
     "bumper": {"type": "bumper", "width": 60, "height": 60, "properties": {"radius": 30}},
     "roulette_spinner": {"type": "roulette_spinner", "radius": 50, "properties": {"num_segments": 8, "spin_speed_deg_s": 180}},
-    "sprite": {"type": "sprite", "image_path": ""}, # Placeholder for image path
     # Add other object types and their defaults here as needed
 }
 # --- End Default Properties ---
@@ -66,10 +65,9 @@ class ObjectPaletteWidget(QWidget):
             "powerup_ball": "Power-Up (Ball)",
             "manhole": "Manhole",
             "bumper": "Pinball Bumper",
-            "roulette_spinner": "Roulette Spinner",
-            "sprite": "Sprite" # New sprite tool
+            "roulette_spinner": "Roulette Spinner"
         }
-
+ 
         # Create buttons for each object type defined in defaults
         for obj_type_key in DEFAULT_OBJECT_PROPERTIES.keys():
             display_name = object_display_names.get(obj_type_key, obj_type_key) # Fallback to key if no display name

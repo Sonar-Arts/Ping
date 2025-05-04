@@ -16,6 +16,7 @@ from Artemis_Modules.artemis_property_editor import PropertyEditorWidget
 from Artemis_Modules.artemis_level_properties import LevelPropertiesWidget # Added Level Properties
 from Artemis_Modules.artemis_tool_palette import ToolPaletteWidget, TOOL_SELECT, TOOL_ERASER # Import new palette
 from Artemis_Modules.artemis_background_palette import BackgroundPalette # Import Background Palette
+from Artemis_Modules.artemis_sprite_palette import SpritePalette # Import Sprite Palette
 # Import core and file handler
 from Artemis_Modules.artemis_core import ArtemisCore # Import the class
 from Artemis_Modules.artemis_file_handler import save_pmf, load_pmf
@@ -128,6 +129,7 @@ class ArtemisEditorWindow(QMainWindow):
         window_menu.addAction(self.level_properties_dock.toggleViewAction())
         window_menu.addAction(self.tool_palette_dock.toggleViewAction()) # Add toggle for tool palette
         window_menu.addAction(self.background_palette_dock.toggleViewAction()) # Add toggle for background palette
+        window_menu.addAction(self.sprite_palette_dock.toggleViewAction()) # Add toggle for sprite palette
         window_menu.addSeparator()
 
         # --- Grid Snapping Toggle ---
@@ -194,6 +196,14 @@ class ArtemisEditorWindow(QMainWindow):
         self.background_palette = BackgroundPalette(self.background_palette_dock)
         self.background_palette_dock.setWidget(self.background_palette)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.background_palette_dock)
+ 
+        # Sprite Palette Dock (New)
+        self.sprite_palette_dock = QDockWidget("Sprites", self)
+        self.sprite_palette_dock.setObjectName("SpritePaletteDock")
+        self.sprite_palette_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        self.sprite_palette = SpritePalette(self.sprite_palette_dock)
+        self.sprite_palette_dock.setWidget(self.sprite_palette)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.sprite_palette_dock)
 
         # --- Load Layout using Standard Qt Methods via Manager ---
         # Call this AFTER creating AND adding all docks.
@@ -208,9 +218,11 @@ class ArtemisEditorWindow(QMainWindow):
             # (Already done above, but good to remember the dependency)
             try:
                 # Tabify Tools, Objects, Backgrounds, and Level Properties together on the left
+                # Tabify Tools, Objects, Backgrounds, Sprites, and Level Properties together on the left
                 self.tabifyDockWidget(self.tool_palette_dock, self.object_palette_dock)
                 self.tabifyDockWidget(self.object_palette_dock, self.background_palette_dock)
-                self.tabifyDockWidget(self.background_palette_dock, self.level_properties_dock)
+                self.tabifyDockWidget(self.background_palette_dock, self.sprite_palette_dock) # Add sprite palette to tabs
+                self.tabifyDockWidget(self.sprite_palette_dock, self.level_properties_dock) # Tab properties after sprites
                 # Optionally raise one to the front
                 self.tool_palette_dock.raise_()
             except Exception as e:
@@ -253,8 +265,10 @@ class ArtemisEditorWindow(QMainWindow):
         self.core_logic.levelLoaded.connect(self.update_ui_for_level_state) # Already updates most things
         self.core_logic.levelLoaded.connect(self.update_background_palette_selection) # Specific update for background palette
         self.core_logic.levelPropertiesChanged.connect(self.update_background_palette_selection) # Update palette if props change
-
-
+ 
+        # Sprite Palette -> Main Window (Sprite Selection - Placeholder Handler)
+        self.sprite_palette.spriteSelected.connect(self.on_sprite_selected)
+ 
     # --- Tool Selection Slots ---
     def on_palette_tool_selected(self, selected_type_key):
         """Handles selection from the Object Palette."""
@@ -329,6 +343,28 @@ class ArtemisEditorWindow(QMainWindow):
         # Status bar update (optional)
         self.statusBar().showMessage(f"Level background set to: {background_id}", 3000)
 
+
+    # --- Sprite Selection Slot ---
+    def on_sprite_selected(self, sprite_filename):
+        """Handles selection from the Sprite Palette."""
+        # TODO: This needs more sophisticated handling.
+        # When an object is selected, the PropertyEditor should be informed
+        # about the available sprites and the currently selected sprite for that object.
+        # This might involve:
+        # 1. Storing the selected sprite filename temporarily here.
+        # 2. When an object is selected (level_view.objectSelected signal),
+        #    pass this sprite filename (if any) to the property editor.
+        # 3. The property editor needs to be updated to show a sprite selection widget
+        #    (e.g., a dropdown) populated by the SpritePalette's contents,
+        #    and set the current value based on the object's data or this selection.
+        # 4. When the sprite is changed *in the property editor*, update the core_logic.
+        print(f"Sprite selected in palette: {sprite_filename}")
+        # For now, just show in status bar
+        if sprite_filename:
+            self.statusBar().showMessage(f"Sprite selected: {sprite_filename}", 3000)
+        else:
+            self.statusBar().showMessage("Sprite selection cleared", 3000)
+        # We don't set an active tool here, sprite selection modifies object properties.
 
     # --- Menu Action Methods ---
     def toggle_grid_snapping(self, checked):
@@ -527,6 +563,8 @@ class ArtemisEditorWindow(QMainWindow):
         self.level_view.set_active_tool(None)
         # Update background palette selection
         self.update_background_palette_selection()
+        # Clear sprite palette selection visually (doesn't affect object data)
+        self.sprite_palette.set_selected_sprite(None)
 
 
     def update_background_palette_selection(self):

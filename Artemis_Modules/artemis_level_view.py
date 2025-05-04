@@ -11,13 +11,84 @@ import pygame # Ensure pygame is imported for SysFont
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication, QSizePolicy # Removed QScrollArea
 # Import pyqtSignal
-from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal
+# Ensure QRect is imported
+from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, QRect
 from PyQt6.QtGui import QPainter, QImage, QColor # Added for direct painting
 
 # Import tool constants
 from .artemis_tool_palette import TOOL_ERASER, TOOL_SELECT # Import from the new tool palette module
 
+# Import background drawing functions from the main game module
+try:
+    from Modules.ping_graphics import get_background_draw_function, generate_sludge_texture # Added generate_sludge_texture for potential future use
+except ImportError as e:
+    print(f"Warning: Could not import from Modules.ping_graphics: {e}")
+    get_background_draw_function = None
+    generate_sludge_texture = None
+
+
 print("Artemis Modules/artemis_level_view.py loaded (Pygame)")
+
+# --- Mock Compiler for Background Rendering ---
+# This class mimics the structure expected by the background drawing functions
+class MockCompiler:
+    def __init__(self, view_widget):
+        self.view = view_widget
+        self.core = view_widget.core_logic
+        props = self.core.get_level_properties()
+
+        self.width = self.view.level_width
+        self.height = self.view.level_height
+        self.scale = 1.0 # Editor scale is fixed at 1.0 for simplicity
+        self.offset_x = 0 # No camera offset in editor view like in game
+        self.offset_y = 0
+        self.scoreboard_height = props.get("scoreboard_height", 0) # Get from props or default
+        # Use level properties for colors, fallback to empty dict
+        self.colors = props.get("colors", {})
+        # Ensure essential color keys have fallbacks if needed by draw functions
+        # (Assuming draw functions handle missing keys gracefully for now)
+
+        self.dt = 1/60.0 # Fixed delta time for editor animation updates
+
+        # Provide object lists (some backgrounds might use specific lists)
+        self.level_objects = self.core.level_objects # All objects
+        self.manholes = [obj for obj in self.level_objects if obj.get('type') == 'manhole']
+        # Add other specific lists if required by other backgrounds
+
+        # Animation state - managed by the view widget itself
+        # Ensure the attribute exists on the view widget
+        if not hasattr(self.view, 'background_anim_state'):
+            self.view.background_anim_state = {}
+        self.background_animation_state = self.view.background_anim_state
+
+        # Sludge texture - managed by the view widget (initially None)
+        # The draw function should handle this being None
+        self.sludge_texture = getattr(self.view, 'cached_sludge_texture', None)
+
+        # Background details - required by some backgrounds like sewer
+        self.background_details = props.get("background_details", {}) # Fetch from props, default to empty dict
+
+    def scale_rect(self, rect):
+        # Since editor scale is 1.0, this function doesn't need to scale
+        # It just needs to handle the offset (which is 0 here)
+        if isinstance(rect, pygame.Rect):
+            # Return a *copy* to avoid modifying the original rect if passed by reference
+            return rect.copy()
+        elif isinstance(rect, (tuple, list)) and len(rect) == 4:
+             # If passed as (x, y, w, h) tuple/list
+             return pygame.Rect(rect)
+        else:
+             # Handle potential point scaling (like in draw_casino_background)
+             # Assuming input is (x, y)
+             if isinstance(rect, (tuple, list)) and len(rect) == 2:
+                  # Return a Rect representing the point (or center if needed)
+                  # The original scale_rect_func returned rect.center for points,
+                  # let's return a 1x1 rect at the point for simplicity here.
+                  return pygame.Rect(rect[0], rect[1], 1, 1)
+             else:
+                  print(f"Warning: Unsupported type for mock scale_rect: {type(rect)}")
+                  return pygame.Rect(0, 0, 0, 0) # Return empty rect on error
+
 
 # --- Default Object Properties ---
 # Define default sizes for objects when placed
@@ -52,13 +123,17 @@ class LevelViewWidget(QWidget):
         self.core_logic = core_logic # Store core logic reference
         self.main_window = main_window # Reference to access selected tool
         # Level state is now primarily managed by core_logic
-        # self.level_width = 800
-        # self.level_height = 450
-        # self.placed_objects = [] # Managed by core_logic
-        # self.next_object_id = 1 # Managed by core_logic
         self.selected_object_id = None # Track the ID of the currently selected object
         self.is_dragging = False
         self.drag_offset = (0, 0)
+        # --- Zoom & Pan ---
+        self.zoom_level = 1.0
+        self.min_zoom = 0.1 # Minimum zoom factor
+        self.max_zoom = 5.0 # Maximum zoom factor
+        self.pan_offset_x = 0 # Top-left corner of the visible area in Pygame surface coordinates
+        self.pan_offset_y = 0
+        self.is_panning = False # For potential middle-mouse panning later
+        self.pan_start_pos = None
         # --- Grid ---
         self.grid_size = 20 # Size of grid cells in pixels
         self.grid_enabled = False # Start with grid off
@@ -70,8 +145,10 @@ class LevelViewWidget(QWidget):
         self.level_width = initial_props.get("width", 800) # Use width/height keys
         self.level_height = initial_props.get("height", 450)
         self.pygame_surface = None # Will be created in refresh_display/init
-        self.render_offset_x = 0 # Offset for centering drawing
+        self.render_offset_x = 0 # Offset for centering drawing (calculated in paintEvent)
         self.render_offset_y = 0
+        self.effective_surface_width = 0 # Calculated size after zoom
+        self.effective_surface_height = 0
 
         # --- Widget Setup ---
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -90,18 +167,41 @@ class LevelViewWidget(QWidget):
 
         # --- Sprite Cache ---
         self.sprite_cache = {} # Cache for loaded sprite images
+        self.background_anim_state = {} # State for background animations (e.g., river offset)
+        self.cached_sludge_texture = None # For potentially caching generated textures
 
         # --- Connect to Core Signals ---
         self.core_logic.levelLoaded.connect(self.refresh_display)
-        self.core_logic.levelPropertiesChanged.connect(self.refresh_display)
+        self.core_logic.levelPropertiesChanged.connect(self.refresh_display) # This will trigger background redraw
         self.core_logic.objectUpdated.connect(self._handle_object_update) # Connect new signal
         self.core_logic.layoutRestored.connect(self.refresh_display) # Refresh after layout restore
 
         # Initial setup
         self._create_pygame_surface() # Create initial surface
+        self._update_effective_surface_size() # Calculate initial scaled size
         self.timer.start()
 
         print("LevelViewWidget initialized (Direct Paint)")
+
+    def _update_effective_surface_size(self):
+        """Calculates the size of the Pygame surface as it appears on the widget."""
+        # This is needed for centering calculations in paintEvent
+        self.effective_surface_width = int(self.level_width * self.zoom_level)
+        self.effective_surface_height = int(self.level_height * self.zoom_level)
+
+    def map_widget_to_pygame(self, widget_pos):
+        """Maps widget coordinates to Pygame surface coordinates, considering pan and zoom."""
+        # Calculate position relative to the top-left of the *rendered* (potentially scaled) surface
+        # Ensure zoom_level is not zero to avoid division errors
+        safe_zoom = max(self.zoom_level, 0.0001)
+        relative_x = widget_pos.x() - self.render_offset_x
+        relative_y = widget_pos.y() - self.render_offset_y
+
+        # Scale back to original Pygame coordinates and add pan offset
+        pygame_x = (relative_x / safe_zoom) + self.pan_offset_x
+        pygame_y = (relative_y / safe_zoom) + self.pan_offset_y
+
+        return int(pygame_x), int(pygame_y)
 
     # Removed initialize_new_level - handled by core_logic + refresh_display
     # Removed load_level_data - handled by core_logic + refresh_display
@@ -142,9 +242,11 @@ class LevelViewWidget(QWidget):
 
             # 2. Recreate the Pygame surface
             self._create_pygame_surface()
+            self._update_effective_surface_size() # Update scaled size after resize
 
             # 3. Update widget geometry hint and trigger layout recalc/repaint
             self.updateGeometry() # Signal that sizeHint may have changed
+            # Consider resetting pan/zoom or clamping pan after resize? For now, just update size.
             self.update() # Schedule a repaint
 
         # Deselect object if it no longer exists in core_logic
@@ -165,9 +267,72 @@ class LevelViewWidget(QWidget):
             return
 
         # --- Drawing onto self.pygame_surface ---
-        self.pygame_surface.fill((40, 44, 52)) # Background color
+        # --- Drawing onto self.pygame_surface ---
+        # Get background ID from core logic properties
+        level_props = self.core_logic.get_level_properties()
+        # Use the correct key "level_background" as indicated by debug output
+        background_id = level_props.get("level_background")
 
-        # Draw Arena Boundary
+        draw_func = None
+        if background_id and get_background_draw_function:
+            draw_func = get_background_draw_function(background_id)
+        # Removed debug prints for background ID and function finding
+
+        if draw_func:
+            try:
+                # --- Special Handling for Sewer Sludge Texture ---
+                if background_id == "sewer":
+                    # Check if texture needs generation/regeneration
+                    regen_needed = False
+                    current_dims = (int(self.level_width), int(self.level_height))
+                    if self.cached_sludge_texture is None:
+                        regen_needed = True
+                    elif self.cached_sludge_texture.get_size() != current_dims:
+                        regen_needed = True
+
+                    if regen_needed and generate_sludge_texture:
+                        # Use colors from level props, or provide defaults if missing
+                        colors = level_props.get("colors", {})
+                        sludge_colors = {
+                            'SLUDGE_MID': colors.get('SLUDGE_MID', (80, 85, 60)),
+                            'SLUDGE_HIGHLIGHT': colors.get('SLUDGE_HIGHLIGHT', (100, 105, 75))
+                        }
+                        # Generate texture (scale is 1.0 in editor)
+                        tex_width = max(1, int(self.level_width))
+                        tex_height = max(1, int(self.level_height))
+                        self.cached_sludge_texture = generate_sludge_texture(
+                            tex_width, tex_height, 1.0, sludge_colors
+                        )
+                        # Removed debug prints for sludge generation
+                    elif not generate_sludge_texture and regen_needed:
+                         print("[LevelView.update_pygame] Warning: Cannot generate sludge: generate_sludge_texture is None.") # Keep this warning
+                elif self.cached_sludge_texture is not None and background_id != "sewer":
+                     # Clear cached texture if switching away from sewer
+                     self.cached_sludge_texture = None
+
+
+                # Create the mock compiler instance to pass necessary info
+                mock_compiler = MockCompiler(self)
+                # Call the specific background drawing function
+                draw_func(self.pygame_surface, mock_compiler)
+            except Exception as e:
+                print(f"Error drawing background '{background_id}': {e}")
+                import traceback
+                traceback.print_exc() # Print full traceback for debugging
+                # Fallback to solid color on error
+                self.pygame_surface.fill((40, 44, 52))
+        else:
+            # Default background if none selected or function not found
+            self.pygame_surface.fill((40, 44, 52))
+            if background_id:
+                 # Keep this warning if the ID exists but function doesn't
+                 print(f"Warning: Background '{background_id}' selected but draw function not found.")
+            # Clear cached texture if no background is selected
+            if self.cached_sludge_texture is not None:
+                 self.cached_sludge_texture = None
+
+
+        # Draw Arena Boundary (Over the background)
         arena_rect = pygame.Rect(0, 0, self.level_width, self.level_height)
         pygame.draw.rect(self.pygame_surface, (100, 100, 100), arena_rect, 1)
 
@@ -194,7 +359,6 @@ class LevelViewWidget(QWidget):
                     if image_path not in self.sprite_cache:
                         try:
                             # Construct full path relative to workspace root
-                            # Assuming workspace is c:/Users/Johnny/Documents/Workspaces/Ping/Ping-2
                             base_path = "." # Use relative path from workspace root
                             relative_folder = os.path.join("Ping Assets", "Images", "Sprites")
                             full_path = os.path.join(base_path, relative_folder, image_path)
@@ -440,19 +604,30 @@ class LevelViewWidget(QWidget):
 
     # --- Mouse Events ---
     def mousePressEvent(self, event):
-        if not self.pygame_surface or event.button() != Qt.MouseButton.LeftButton:
+        if not self.pygame_surface:
+             return
+
+        # Handle panning with middle mouse button
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self.is_panning = True
+            self.pan_start_pos = event.pos()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
+
+        if event.button() != Qt.MouseButton.LeftButton:
             return
 
         selected_tool = self.main_window.get_selected_tool()
         widget_pos = event.pos()
 
-        # Map widget coordinates to Pygame surface coordinates (considering centering offset)
-        pygame_x = widget_pos.x() - self.render_offset_x
-        pygame_y = widget_pos.y() - self.render_offset_y
+        # Map widget coordinates to Pygame surface coordinates using the helper
+        pygame_x, pygame_y = self.map_widget_to_pygame(widget_pos)
 
-        # Check if the click is within the Pygame surface bounds
+        # Check if the click is within the *logical* Pygame surface bounds
+        # (The mapped coordinates could be outside if panning/zooming near edge)
         if 0 <= pygame_x < self.level_width and 0 <= pygame_y < self.level_height:
-            # --- Tool Logic (using pygame_x, pygame_y) --- Corrected Indentation
+            # --- Tool Logic (using pygame_x, pygame_y) --- #
             clicked_obj_id = None
             # Find which object was clicked (if any)
             # Iterate in reverse to get topmost object
@@ -477,14 +652,13 @@ class LevelViewWidget(QWidget):
                       rect = obj_data['rect']
 
                  # Perform collision check if rect was successfully constructed
-                 if rect and rect.collidepoint(pygame_x, pygame_y):
+                 if rect and rect.collidepoint(pygame_x, pygame_y): # Use mapped coords
                      clicked_obj_id = obj_data.get('id')
                      break # Found the topmost clicked object
 
             if selected_tool == TOOL_ERASER:
                 if clicked_obj_id:
-                    # Prevent erasing default paddles (assuming they have specific IDs or types)
-                    # TODO: Add more robust check for default/uneditable objects
+                    # Prevent erasing default paddles
                     obj_data = self.core_logic.get_object_by_id(clicked_obj_id)
                     if obj_data and "paddle_spawn" in obj_data.get("type", ""):
                          print(f"Cannot erase default object: {clicked_obj_id}")
@@ -507,19 +681,18 @@ class LevelViewWidget(QWidget):
                     else:
                         self.select_object(clicked_obj_id) # Selects and emits signal
                         self.is_dragging = True
-                        # Calculate offset
+                        # Calculate offset using mapped Pygame coords
                         selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
-                        # Get x, y directly from the object data
                         obj_x = selected_obj_data.get('x', 0)
                         obj_y = selected_obj_data.get('y', 0)
-                        self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y)
+                        self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y) # Use mapped coords
                 else:
                     # Clicked empty space
                     self.deselect_object() # Deselects and emits signal
 
             elif selected_tool: # Placement tool from palette
                  self.deselect_object() # Deselect before placing
-                 self._place_object_at(selected_tool, pygame_x, pygame_y)
+                 self._place_object_at(selected_tool, pygame_x, pygame_y) # Use mapped coords
 
             else: # No tool selected - treat as select
                  if clicked_obj_id:
@@ -534,30 +707,59 @@ class LevelViewWidget(QWidget):
                         # Get x, y directly from the object data
                         obj_x = selected_obj_data.get('x', 0)
                         obj_y = selected_obj_data.get('y', 0)
-                        self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y)
+                        self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y) # Use mapped coords
                  else:
                     self.deselect_object()
 
+        # else: click was outside the logical Pygame surface (e.g., in the border area)
+        #       We might want to deselect here as well.
+        #       For now, do nothing if click is outside logical area.
+
         event.accept()
 
+
     def mouseMoveEvent(self, event):
-        if not self.pygame_surface or not self.is_dragging or self.selected_object_id is None:
+        if not self.pygame_surface:
+            return
+
+        # Handle panning
+        if self.is_panning and self.pan_start_pos:
+            delta = event.pos() - self.pan_start_pos
+            # Adjust pan offset based on mouse movement, scaled by zoom
+            # Ensure zoom_level is not zero
+            safe_zoom = max(self.zoom_level, 0.0001)
+            self.pan_offset_x -= delta.x() / safe_zoom
+            self.pan_offset_y -= delta.y() / safe_zoom
+
+            # Clamp pan offsets
+            widget_size = self.size()
+            visible_pygame_width = widget_size.width() / safe_zoom
+            visible_pygame_height = widget_size.height() / safe_zoom
+            max_pan_x = max(0, self.level_width - visible_pygame_width)
+            max_pan_y = max(0, self.level_height - visible_pygame_height)
+            self.pan_offset_x = max(0, min(self.pan_offset_x, max_pan_x))
+            self.pan_offset_y = max(0, min(self.pan_offset_y, max_pan_y))
+
+            self.pan_start_pos = event.pos() # Update start pos for next delta
+            self.update() # Trigger repaint
+            event.accept()
+            return
+
+        # Handle dragging selected object
+        if not self.is_dragging or self.selected_object_id is None:
             return
 
         widget_pos = event.pos()
         # Map widget coordinates to Pygame surface coordinates
-        pygame_x = widget_pos.x() - self.render_offset_x
-        pygame_y = widget_pos.y() - self.render_offset_y
+        pygame_x, pygame_y = self.map_widget_to_pygame(widget_pos)
 
-        # We only care about dragging *within* the surface bounds for updating position
-        # (Clamping happens later anyway)
-        # No explicit bounds check needed here unless we want to stop dragging if mouse leaves widget
+        # Dragging logic remains mostly the same, but uses the mapped pygame_x, pygame_y
+        # to calculate the new position. Clamping should still happen against
+        # self.level_width and self.level_height.
 
         selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
         if not selected_obj_data: return # Safety check
 
-        # Get properties from the object data itself, not nested 'properties'
-        # props = selected_obj_data.get('properties', {}) # Old structure?
         props = selected_obj_data # Use the main object dict
 
         # Get dimensions directly from object data
@@ -571,12 +773,11 @@ class LevelViewWidget(QWidget):
             obj_w, obj_h = 10, 10 # Fallback
 
         # Calculate new top-left based on mapped Pygame coords and offset
-        # Note: drag_offset was calculated relative to Pygame coords in mousePressEvent
         new_x = pygame_x - self.drag_offset[0]
         new_y = pygame_y - self.drag_offset[1]
 
         # Clamp position within Pygame surface bounds
-        new_x = max(0, min(new_x, self.level_width - obj_w)) # obj_w/h calculated above
+        new_x = max(0, min(new_x, self.level_width - obj_w))
         new_y = max(0, min(new_y, self.level_height - obj_h))
 
         # Snap dragged position to grid if enabled
@@ -588,7 +789,6 @@ class LevelViewWidget(QWidget):
             snapped_y = max(0, min(snapped_y, self.level_height - obj_h))
 
         # Update object properties in core logic
-        # Check if position actually changed to avoid unnecessary updates/signals
         current_x = props.get('x')
         current_y = props.get('y')
         if current_x != snapped_x or current_y != snapped_y:
@@ -596,15 +796,90 @@ class LevelViewWidget(QWidget):
             self.levelModified.emit(True)
             # Update property editor display if it's showing this object
             self.main_window.property_editor.update_display(self.selected_object_id)
+        event.accept()
 
 
     def mouseReleaseEvent(self, event):
+        # Handle panning release
+        if event.button() == Qt.MouseButton.MiddleButton and self.is_panning:
+            self.is_panning = False
+            self.pan_start_pos = None
+            self.unsetCursor() # Restore default cursor
+            event.accept()
+            return
+
+        # Handle dragging release
         if event.button() == Qt.MouseButton.LeftButton and self.is_dragging:
             print(f"Finished dragging object ID: {self.selected_object_id}")
             self.is_dragging = False
             # Final snap handled during move now
             # TODO: Add undo state here?
-        # event.accept()
+            event.accept()
+            return
+
+        # event.accept() # Accept other releases?
+
+
+    def wheelEvent(self, event):
+        """Handles mouse wheel events for zooming."""
+        if not self.pygame_surface: return
+
+        delta = event.angleDelta().y() # Typically +/- 120
+        zoom_factor = 1.10 if delta > 0 else 1 / 1.10
+
+        new_zoom = self.zoom_level * zoom_factor
+        # Clamp zoom level
+        new_zoom = max(self.min_zoom, min(new_zoom, self.max_zoom))
+
+        if new_zoom == self.zoom_level: # No change after clamping
+            return
+
+        # --- Zoom towards cursor ---
+        widget_mouse_pos = event.position()
+
+        # 1. Get Pygame coordinates under the mouse *before* zoom
+        pygame_mouse_x_before, pygame_mouse_y_before = self.map_widget_to_pygame(widget_mouse_pos)
+
+        # 2. Update zoom level
+        old_zoom = self.zoom_level
+        self.zoom_level = new_zoom
+        self._update_effective_surface_size() # Update scaled size for paintEvent centering
+
+        # 3. Calculate where the *widget* mouse position corresponds to in Pygame coords *after* zoom
+        #    This requires knowing the render offset *after* zoom, which paintEvent calculates.
+        #    To simplify, let's recalculate a potential render offset here based on widget size.
+        #    NOTE: This assumes the widget size doesn't change during the zoom event itself.
+        widget_size = self.size()
+        # Use the *new* effective size for centering calculation
+        temp_render_offset_x = max(0, (widget_size.width() - self.effective_surface_width) // 2)
+        temp_render_offset_y = max(0, (widget_size.height() - self.effective_surface_height) // 2)
+
+        # Map widget mouse pos again, but only considering the new zoom and the *temporary* render offset
+        # We don't add pan_offset here yet, as we are calculating the *new* pan offset.
+        relative_x_after = widget_mouse_pos.x() - temp_render_offset_x
+        relative_y_after = widget_mouse_pos.y() - temp_render_offset_y
+        # Ensure zoom_level is not zero
+        safe_zoom = max(self.zoom_level, 0.0001)
+        pygame_mouse_x_target = relative_x_after / safe_zoom # Target Pygame X if pan was (0,0)
+        pygame_mouse_y_target = relative_y_after / safe_zoom # Target Pygame Y if pan was (0,0)
+
+        # 4. Adjust pan_offset so the Pygame point under the cursor remains the same
+        # pan_offset = point_before - point_target
+        self.pan_offset_x = pygame_mouse_x_before - pygame_mouse_x_target
+        self.pan_offset_y = pygame_mouse_y_before - pygame_mouse_y_target
+
+        # 5. Clamp pan offsets to keep view within bounds
+        visible_pygame_width = widget_size.width() / safe_zoom
+        visible_pygame_height = widget_size.height() / safe_zoom
+        max_pan_x = max(0, self.level_width - visible_pygame_width)
+        max_pan_y = max(0, self.level_height - visible_pygame_height)
+        self.pan_offset_x = max(0, min(self.pan_offset_x, max_pan_x))
+        self.pan_offset_y = max(0, min(self.pan_offset_y, max_pan_y))
+
+        print(f"Zoom: {self.zoom_level:.2f}, Pan: ({int(self.pan_offset_x)}, {int(self.pan_offset_y)})")
+
+        self.update() # Trigger repaint
+        event.accept()
 
     # --- Grid Methods ---
     def toggle_grid(self, enabled):
@@ -642,45 +917,127 @@ class LevelViewWidget(QWidget):
 
     # --- Paint Event ---
     def paintEvent(self, event):
-        """Draws the Pygame surface onto the widget."""
+        """Draws the relevant portion of the Pygame surface onto the widget, scaled and panned."""
         if not self.pygame_surface:
-            # Optionally draw an error message if surface failed
-            super().paintEvent(event) # Draw background
+            super().paintEvent(event)
             return
 
         painter = QPainter(self)
         widget_size = self.size()
-        surface_size = self.pygame_surface.get_size()
+        surface_size = self.pygame_surface.get_size() # Full Pygame surface size
 
-        # Calculate top-left corner for centering
-        self.render_offset_x = max(0, (widget_size.width() - surface_size[0]) // 2)
-        self.render_offset_y = max(0, (widget_size.height() - surface_size[1]) // 2)
+        # --- Calculate Source Rect (on Pygame surface) ---
+        # Visible area width/height in Pygame coordinates
+        # Prevent division by zero if zoom_level is somehow zero
+        safe_zoom = max(self.zoom_level, 0.0001)
+        visible_pygame_width = widget_size.width() / safe_zoom
+        visible_pygame_height = widget_size.height() / safe_zoom
 
-        # Fill background if widget is larger than surface
+        # Clamp pan offsets again here to be safe, considering current widget size
+        max_pan_x = max(0, self.level_width - visible_pygame_width)
+        max_pan_y = max(0, self.level_height - visible_pygame_height)
+        clamped_pan_x = max(0, min(self.pan_offset_x, max_pan_x))
+        clamped_pan_y = max(0, min(self.pan_offset_y, max_pan_y))
+
+        # Ensure source rect dimensions are not larger than the surface itself
+        # Use max(1, ...) to prevent zero-width/height rects which subsurface might reject
+        src_width = max(1, min(visible_pygame_width, self.level_width - clamped_pan_x))
+        src_height = max(1, min(visible_pygame_height, self.level_height - clamped_pan_y))
+
+        # Define the rectangle on the source Pygame surface to draw from
+        src_rect = pygame.Rect(
+            int(clamped_pan_x),
+            int(clamped_pan_y),
+            int(src_width),
+            int(src_height)
+        )
+
+        # --- Calculate Destination Rect (on QWidget) ---
+        # Calculate the size the source rect will be drawn at on the widget
+        dest_draw_width = int(src_rect.width * self.zoom_level)
+        dest_draw_height = int(src_rect.height * self.zoom_level)
+
+        # Calculate centering offset for the *drawn* content within the widget
+        # Use the calculated dest_draw_width/height, not the full effective_surface_width/height
+        # Store these offsets as they are needed by map_widget_to_pygame
+        self.render_offset_x = max(0, (widget_size.width() - dest_draw_width) // 2)
+        self.render_offset_y = max(0, (widget_size.height() - dest_draw_height) // 2)
+
+        # Define the rectangle on the widget where the scaled image will be drawn
+        dest_rect = QRect(
+            self.render_offset_x,
+            self.render_offset_y,
+            dest_draw_width,
+            dest_draw_height
+        )
+
+        # Fill background for areas outside the drawn content
         painter.fillRect(self.rect(), QColor("#101010"))
 
-        # Convert Pygame surface to QImage
-        # Format might need adjustment based on Pygame surface format (RGB vs RGBA)
-        # Assuming 32-bit surface (like default Pygame display)
-        # If using 24-bit, format might be QImage.Format.Format_RGB888
-        # Check pygame_surface.get_bitsize() if issues arise
-        bytes_per_line = self.pygame_surface.get_pitch()
-        qimage_format = QImage.Format.Format_RGB32 # Common default, adjust if needed
-        if self.pygame_surface.get_flags() & pygame.SRCALPHA:
-             qimage_format = QImage.Format.Format_ARGB32_Premultiplied
-
-        # Get buffer view - requires Pygame 2+ ?
+        # --- Convert relevant part of Pygame surface to QImage ---
+        # Optimization: Only convert the needed sub-surface if possible
+        qimage = None # Initialize qimage
         try:
-             buffer = self.pygame_surface.get_buffer()
-             qimage = QImage(buffer.raw, surface_size[0], surface_size[1], bytes_per_line, qimage_format)
-        except ValueError as e: # Fallback for older Pygame? Or if buffer fails
-             print(f"Warning: Pygame get_buffer() failed ({e}), using slower tostring method.")
-             image_string = pygame.image.tostring(self.pygame_surface, "RGBX") # Or "RGBA" if alpha
-             qimage = QImage(image_string, surface_size[0], surface_size[1], QImage.Format.Format_RGB32)
+            # Ensure src_rect dimensions are valid before calling subsurface
+            if src_rect.width > 0 and src_rect.height > 0 and \
+               src_rect.x >= 0 and src_rect.y >= 0 and \
+               src_rect.right <= self.pygame_surface.get_width() and \
+               src_rect.bottom <= self.pygame_surface.get_height():
+
+                sub_surface = self.pygame_surface.subsurface(src_rect)
+                bytes_per_line = sub_surface.get_pitch()
+                qimage_format = QImage.Format.Format_RGB32
+                if sub_surface.get_flags() & pygame.SRCALPHA:
+                    qimage_format = QImage.Format.Format_ARGB32_Premultiplied
+
+                buffer = sub_surface.get_buffer()
+                # Create QImage without copying if possible
+                qimage = QImage(buffer.raw, src_rect.width, src_rect.height, bytes_per_line, qimage_format)
+            else:
+                 print(f"Warning: Invalid src_rect for subsurface: {src_rect}, Surface size: {self.pygame_surface.get_size()}")
+                 # Create a tiny dummy QImage if src_rect is invalid
+                 qimage = QImage(1, 1, QImage.Format.Format_RGB32)
+                 qimage.fill(Qt.GlobalColor.black)
 
 
-        # Draw the QImage onto the widget at the calculated offset
-        painter.drawImage(self.render_offset_x, self.render_offset_y, qimage)
+        except (ValueError, IndexError) as e: # Catch potential subsurface or buffer errors
+            print(f"Warning: Pygame subsurface/get_buffer() failed ({e}), using slower full surface conversion.")
+            # Convert the *entire* surface first (less efficient)
+            full_bytes_per_line = self.pygame_surface.get_pitch()
+            full_qimage_format = QImage.Format.Format_RGB32
+            if self.pygame_surface.get_flags() & pygame.SRCALPHA:
+                full_qimage_format = QImage.Format.Format_ARGB32_Premultiplied
+            try:
+                full_buffer = self.pygame_surface.get_buffer()
+                full_qimage = QImage(full_buffer.raw, surface_size[0], surface_size[1], full_bytes_per_line, full_qimage_format)
+            except ValueError: # Even fuller fallback
+                 image_string = pygame.image.tostring(self.pygame_surface, "RGBX") # Or "RGBA"
+                 full_qimage = QImage(image_string, surface_size[0], surface_size[1], QImage.Format.Format_RGB32)
+
+            # Extract the relevant portion from the full QImage
+            # Ensure source rect is valid before copying
+            if src_rect.width > 0 and src_rect.height > 0 and \
+               src_rect.x >= 0 and src_rect.y >= 0 and \
+               src_rect.right <= full_qimage.width() and \
+               src_rect.bottom <= full_qimage.height():
+                 q_src_rect = QRect(src_rect.x, src_rect.y, src_rect.width, src_rect.height)
+                 qimage = full_qimage.copy(q_src_rect)
+            else:
+                 print(f"Warning: Invalid src_rect for full_qimage.copy: {src_rect}, Full QImage size: {full_qimage.size()}")
+                 qimage = QImage(1, 1, QImage.Format.Format_RGB32)
+                 qimage.fill(Qt.GlobalColor.black)
+
+
+        # --- Draw the QImage onto the widget ---
+        # Draw the potentially converted/copied QImage (representing src_rect)
+        # into the calculated dest_rect on the widget. This performs the scaling.
+        if qimage and not qimage.isNull() and dest_rect.isValid():
+             # Use SmoothTransformation for better scaling quality
+             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+             painter.drawImage(dest_rect, qimage)
+        else:
+             print(f"Warning: Skipping drawImage due to invalid QImage or dest_rect. QImage null: {qimage is None or qimage.isNull()}, DestRect valid: {dest_rect.isValid()}")
+
 
         painter.end()
 
