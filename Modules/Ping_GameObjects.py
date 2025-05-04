@@ -109,7 +109,7 @@ class BallObject(ArenaObject):
 
     def reset_position(self):
         """Reset ball to center position."""
-        self.ball.reset_position(self.arena_width, self.arena_height)
+        self.ball.reset_position(self.arena_width, self.arena_height, self.scoreboard_height) # Pass scoreboard_height
 
     def handle_paddle_collision(self, paddle):
         """Handle collision with a paddle."""

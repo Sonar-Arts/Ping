@@ -199,8 +199,20 @@ def draw_casino_background(surface, compiler_instance):
     num_lights = 8 # 2 per corner
     light_radius_logic = inner_width_logic * 0.008 # Even smaller lights
 
+    # Check if lights need initialization or recalculation due to dimension change
+    recalculate_lights = False
     if 'pinball_lights' not in anim_state:
-        anim_state['pinball_lights'] = []
+        recalculate_lights = True
+        anim_state['pinball_lights'] = [] # Initialize the list
+        anim_state['pinball_lights_last_dims'] = (0, 0) # Initialize stored dimensions
+    elif anim_state.get('pinball_lights_last_dims') != (arena_width, arena_height):
+        recalculate_lights = True
+        print(f"Casino BG: Dimensions changed from {anim_state.get('pinball_lights_last_dims')} to {(arena_width, arena_height)}. Recalculating light positions.")
+
+    if recalculate_lights:
+        # Store the current dimensions used for calculation
+        anim_state['pinball_lights_last_dims'] = (arena_width, arena_height)
+
         # Define symmetrical positions near the four corners
         corner_offset_x = 0.15 # Relative offset from corner edge
         corner_offset_y = 0.15
@@ -217,18 +229,28 @@ def draw_casino_background(surface, compiler_instance):
         ]
         relative_light_positions = relative_light_positions[:num_lights]
 
-        for i, (rel_x, rel_y) in enumerate(relative_light_positions):
-            abs_x = inner_x_start_logic + inner_width_logic * rel_x
-            abs_y = inner_y_start_logic + inner_height_logic * rel_y
-            anim_state['pinball_lights'].append({
-                "id": i, "pos_logic": (abs_x, abs_y),
-                "on": random.choice([True, False, False]),
-                "timer": random.uniform(0, 1.0),
-                "interval": random.uniform(0.8, 2.0),
-                "color_index": random.randint(0, len(light_colors) - 1)
-            })
+        # Clear existing light data if recalculating positions but keeping state
+        if len(anim_state['pinball_lights']) == num_lights:
+            # Update existing light positions
+            for i, (rel_x, rel_y) in enumerate(relative_light_positions):
+                abs_x = inner_x_start_logic + inner_width_logic * rel_x
+                abs_y = inner_y_start_logic + inner_height_logic * rel_y
+                anim_state['pinball_lights'][i]['pos_logic'] = (abs_x, abs_y)
+        else:
+            # Initialize new light data (if list was empty or wrong size)
+            anim_state['pinball_lights'] = [] # Clear completely if size mismatch
+            for i, (rel_x, rel_y) in enumerate(relative_light_positions):
+                abs_x = inner_x_start_logic + inner_width_logic * rel_x
+                abs_y = inner_y_start_logic + inner_height_logic * rel_y
+                anim_state['pinball_lights'].append({
+                    "id": i, "pos_logic": (abs_x, abs_y),
+                    "on": random.choice([True, False, False]),
+                    "timer": random.uniform(0, 1.0),
+                    "interval": random.uniform(0.8, 2.0),
+                    "color_index": random.randint(0, len(light_colors) - 1)
+                })
 
-    # Update light timers and states
+    # Update light timers and states (this happens every frame regardless of recalculation)
     for light in anim_state['pinball_lights']:
         light['timer'] += dt
         if light['timer'] >= light['interval']:
@@ -376,6 +398,44 @@ def draw_casino_background(surface, compiler_instance):
             pygame.draw.circle(surface, glass_color_off, scaled_center, glass_radius)
             # Very dim inner circle when off
             pygame.draw.circle(surface, light_off_color, scaled_center, inner_light_radius)
+
+# --- Color Theme Definitions ---
+
+# Define the color dictionaries for each background theme
+CASINO_COLORS = {
+    'PINBALL_BASE': (10, 5, 25),
+    'PINBALL_LANE': (0, 200, 255),
+    'LANE_BORDER': (5, 5, 5),
+    'PINBALL_LIGHT_OFF': (25, 15, 50),
+    'WOOD_BORDER': (85, 55, 30), # Kept for potential future use
+    'PINBALL_DETAIL': (40, 30, 65),
+    'PINBALL_LIGHT_1': (255, 255, 100),
+    'PINBALL_LIGHT_2': (255, 50, 50),
+    'PINBALL_LIGHT_3': (100, 255, 255),
+    'PINBALL_LIGHT_4': (255, 100, 255),
+    # Add any other casino-specific colors here
+}
+
+SEWER_COLORS = {
+    'BRICK_LIGHT': (45, 45, 45),
+    'BRICK_DARK': (30, 30, 30),
+    'MORTAR': (15, 15, 15),
+    'MANHOLE_BRICK_LIGHT': (20, 20, 20), # Using border color for simplicity
+    'MANHOLE_BRICK_DARK': (20, 20, 20),  # Using border color for simplicity
+    'VEGETATION_COLOR': (0, 80, 0),
+    'CRACK_COLOR': (10, 10, 10),
+    'SLUDGE_BASE': (60, 65, 45),
+    'SLUDGE_MID': (80, 85, 60),
+    'SLUDGE_HIGHLIGHT': (100, 105, 75),
+    # Add any other sewer-specific colors here
+}
+
+# Dictionary mapping background identifiers to their color themes
+BACKGROUND_COLOR_THEMES = {
+    "casino": CASINO_COLORS,
+    "sewer": SEWER_COLORS,
+    # Add themes for other backgrounds here
+}
 
 # --- Background Definitions ---
 
@@ -641,3 +701,10 @@ def get_background_draw_function(identifier):
     Returns None if the identifier is not found.
     """
     return AVAILABLE_BACKGROUNDS.get(identifier)
+
+def get_background_theme_colors(identifier):
+    """
+    Returns the color dictionary for the specified background theme.
+    Returns an empty dictionary if the identifier is not found or has no theme.
+    """
+    return BACKGROUND_COLOR_THEMES.get(identifier, {}) # Return theme or empty dict

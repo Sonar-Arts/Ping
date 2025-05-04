@@ -10,8 +10,8 @@ from PyQt6.QtCore import Qt, pyqtSignal
 # --- Default Properties ---
 # Derived from Ping_GameObjects.py, Ping_Obstacles.py, Ping_Paddle.py, Ping_Ball.py
 DEFAULT_OBJECT_PROPERTIES = {
-    "paddle_spawn_left": {"type": "paddle_spawn", "is_left": True, "width": 20, "height": 100, "speed": 300},
-    "paddle_spawn_right": {"type": "paddle_spawn", "is_left": False, "width": 20, "height": 100, "speed": 300},
+    "paddle_spawn_left": {"type": "paddle_spawn", "is_left": True, "width": 40, "height": 100, "speed": 300},
+    "paddle_spawn_right": {"type": "paddle_spawn", "is_left": False, "width": 40, "height": 100, "speed": 300},
     "ball_spawn": {"type": "ball_spawn", "size": 20},
     "obstacle_rect": {"type": "obstacle", "shape": "rect", "width": 20, "height": 60},
     "goal_left": {"type": "goal", "is_left": True, "width": 20, "height": 200},

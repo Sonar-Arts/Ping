@@ -344,111 +344,131 @@ class LevelViewWidget(QWidget):
         placed_objects = self.core_logic.level_objects # Get current objects
         for obj_data in placed_objects:
             obj_type = obj_data.get('type', 'unknown')
-            obj_id = obj_data.get('id') # Get ID early
+            obj_id = obj_data.get('id')
+            x = obj_data.get('x', 0)
+            y = obj_data.get('y', 0)
+            w = obj_data.get('width', 32)
+            h = obj_data.get('height', 32)
+            size = obj_data.get('size') # For ball/powerup, etc.
 
-            if obj_type == 'sprite':
+            # Define the bounding box for drawing and selection
+            # Use width/height if available, otherwise size for circular/square objects
+            if w is not None and h is not None:
+                obj_rect = pygame.Rect(x, y, w, h)
+            elif size is not None:
+                 # Assume x,y is center for size-based objects
+                 obj_rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
+            else:
+                 obj_rect = pygame.Rect(x, y, 10, 10) # Fallback small rect
+
+            # --- Determine how to draw based on type ---
+            is_paddle = "paddle_spawn" in obj_type
+            is_generic_sprite = obj_type == 'sprite'
+
+            sprite_to_draw = None
+            draw_placeholder = False
+            placeholder_color = (100, 100, 100) # Default grey
+
+            if is_paddle:
+                paddle_sprite_path = "Protag Paddle.webp" if obj_type == "paddle_spawn_left" else "Anttag Paddle.webp"
+                # --- Debug Print for Left Paddle ---
+                if obj_type == "paddle_spawn_left":
+                    # print(f"DEBUG: Attempting to load left paddle with path: {paddle_sprite_path}") # Removed excessive debug print
+                    pass # Add pass to maintain block structure if needed
+                # --- End Debug Print ---
+                if paddle_sprite_path not in self.sprite_cache:
+                    try:
+                        base_path = "."
+                        relative_folder = os.path.join("Ping Assets", "Images", "Sprites")
+                        full_path = os.path.normpath(os.path.join(base_path, relative_folder, paddle_sprite_path))
+                        print(f"Loading paddle sprite: {full_path}")
+                        if pygame.get_init():
+                            loaded_image = pygame.image.load(full_path) # Removed .convert_alpha()
+                            target_w = obj_data.get('width', 30) # Use new default width 30
+                            target_h = obj_data.get('height', 100)
+                            if loaded_image.get_size() != (target_w, target_h):
+                                print(f"Resizing paddle sprite '{paddle_sprite_path}' from {loaded_image.get_size()} to ({target_w}, {target_h})")
+                                loaded_image = pygame.transform.smoothscale(loaded_image, (target_w, target_h))
+                            self.sprite_cache[paddle_sprite_path] = loaded_image
+                            print(f"Cached paddle sprite: {paddle_sprite_path} - Size: {loaded_image.get_size()}")
+                        else:
+                            print("Warning: Pygame not initialized, cannot load paddle sprite.")
+                            self.sprite_cache[paddle_sprite_path] = None
+                    except pygame.error as e: # Catch specific Pygame errors
+                        error_msg = pygame.get_error()
+                        print(f"Pygame Error loading paddle sprite '{paddle_sprite_path}': {error_msg}")
+                        if paddle_sprite_path.lower().endswith(".webp"):
+                            print("NOTE: Pygame might not support .webp format without extra libraries (like pygame-webp or specific SDL_image builds).")
+                        self.sprite_cache[paddle_sprite_path] = None
+                    except Exception as e: # Catch other potential errors (e.g., file not found handled implicitly by pygame.error now)
+                        print(f"Unexpected Error loading paddle sprite '{paddle_sprite_path}': {e}")
+                        self.sprite_cache[paddle_sprite_path] = None
+
+                sprite_to_draw = self.sprite_cache.get(paddle_sprite_path)
+                if not sprite_to_draw:
+                    draw_placeholder = True
+                    placeholder_color = (200, 0, 0) # Red placeholder for missing paddle
+
+            elif is_generic_sprite:
                 image_path = obj_data.get('image_path')
-                x = obj_data.get('x', 0) # Use defaults for safety
-                y = obj_data.get('y', 0)
-                w = obj_data.get('width', 32) # Use placeholder size as default
-                h = obj_data.get('height', 32)
-
-
-                sprite_surface = None
                 if image_path:
                     if image_path not in self.sprite_cache:
                         try:
-                            # Construct full path relative to workspace root
-                            base_path = "." # Use relative path from workspace root
+                            base_path = "."
                             relative_folder = os.path.join("Ping Assets", "Images", "Sprites")
-                            full_path = os.path.join(base_path, relative_folder, image_path)
-                            # Ensure correct separators for OS
-                            full_path = os.path.normpath(full_path)
-
-                            print(f"Loading sprite: {full_path}") # Debugging
-                            # Ensure Pygame is initialized (should be)
+                            full_path = os.path.normpath(os.path.join(base_path, relative_folder, image_path))
+                            print(f"Loading generic sprite: {full_path}")
                             if pygame.get_init():
                                 loaded_image = pygame.image.load(full_path).convert_alpha()
+                                # Generic sprites use their loaded size, update object data if needed elsewhere
                                 self.sprite_cache[image_path] = loaded_image
-                                print(f"Cached sprite: {image_path} - Size: {loaded_image.get_size()}")
-                                # TODO: We need to update obj_data['width']/['height'] in core_logic
-                                # when image_path changes, likely in the property editor.
-                                # This draw loop should just *use* the stored w/h.
+                                print(f"Cached generic sprite: {image_path} - Size: {loaded_image.get_size()}")
                             else:
-                                print("Warning: Pygame not initialized, cannot load sprite.")
-                                self.sprite_cache[image_path] = None # Mark as failed
-                        except FileNotFoundError:
-                            print(f"Error: Sprite image not found at {full_path}")
-                            self.sprite_cache[image_path] = None # Cache failure
-                        except pygame.error as e:
-                            print(f"Error loading sprite '{image_path}': {e}")
-                            self.sprite_cache[image_path] = None # Cache failure
+                                print("Warning: Pygame not initialized, cannot load generic sprite.")
+                                self.sprite_cache[image_path] = None
+                        except pygame.error as e: # Catch specific Pygame errors
+                            error_msg = pygame.get_error()
+                            print(f"Pygame Error loading generic sprite '{image_path}': {error_msg}")
+                            if image_path.lower().endswith(".webp"):
+                                print("NOTE: Pygame might not support .webp format without extra libraries (like pygame-webp or specific SDL_image builds).")
+                            self.sprite_cache[image_path] = None
+                        except Exception as e: # Catch other potential errors
+                            print(f"Unexpected Error loading generic sprite '{image_path}': {e}")
+                            self.sprite_cache[image_path] = None
 
-                    sprite_surface = self.sprite_cache.get(image_path)
-
-                # Use the object's stored dimensions for the bounding/selection rect
-                rect = pygame.Rect(x, y, w, h)
-
-                if sprite_surface:
-                     # Blit the loaded sprite at its x, y coordinates.
-                     self.pygame_surface.blit(sprite_surface, (x, y)) # Blit using top-left
-
+                    sprite_to_draw = self.sprite_cache.get(image_path)
+                    if not sprite_to_draw:
+                        draw_placeholder = True
+                        placeholder_color = (100, 100, 100) # Grey placeholder for missing generic sprite
                 else:
-                    # Draw placeholder if no image or loading failed
-                    pygame.draw.rect(self.pygame_surface, (100, 100, 100), rect) # Grey placeholder
-                    # Draw an 'X'
-                    try: # Pygame font might not be initialized yet
-                        if pygame.font.get_init(): # Explicit check
-                             font_size = max(10, min(w, h) // 2) # Adjust size reasonably
-                             font = pygame.font.SysFont(None, font_size) # Simple font
-                             text_surf = font.render('X', True, (255, 0, 0)) # Red X
-                             text_rect = text_surf.get_rect(center=rect.center)
-                             self.pygame_surface.blit(text_surf, text_rect)
-                        else: print("Warning: Pygame font not init for placeholder X")
-                    except Exception as e:
-                        print(f"Warning: Could not draw placeholder text: {e}")
+                    # Sprite object with no image path set
+                    draw_placeholder = True
+                    placeholder_color = (50, 50, 50) # Darker grey for empty sprite object
 
+            # --- Perform Drawing ---
+            if sprite_to_draw:
+                self.pygame_surface.blit(sprite_to_draw, obj_rect.topleft)
+            elif draw_placeholder:
+                pygame.draw.rect(self.pygame_surface, placeholder_color, obj_rect)
+                # Draw an 'X' on the placeholder
+                try:
+                    if pygame.font.get_init():
+                        font_size = max(10, min(obj_rect.width, obj_rect.height) // 2)
+                        font = pygame.font.SysFont(None, font_size)
+                        text_surf = font.render('X', True, (255, 255, 255)) # White X
+                        text_rect = text_surf.get_rect(center=obj_rect.center)
+                        self.pygame_surface.blit(text_surf, text_rect)
+                except Exception as e:
+                    print(f"Warning: Could not draw placeholder text: {e}")
+            elif not is_paddle and not is_generic_sprite:
+                # Draw other object types (non-sprite, non-paddle) using color
+                color = self.get_object_color(obj_data)
+                pygame.draw.rect(self.pygame_surface, color, obj_rect)
 
-                # Draw selection highlight using the object's bounding box
-                if obj_id == self.selected_object_id:
-                    pygame.draw.rect(self.pygame_surface, (255, 255, 0), rect, 2)
+            # --- Draw Selection Highlight ---
+            if obj_id == self.selected_object_id:
+                pygame.draw.rect(self.pygame_surface, (255, 255, 0), obj_rect, 2) # Yellow highlight
 
-            else: # --- Existing logic for non-sprite objects ---
-                # Get position/size directly from obj_data
-                x = obj_data.get('x')
-                y = obj_data.get('y')
-                w = obj_data.get('width')
-                h = obj_data.get('height')
-                size = obj_data.get('size') # For ball/powerup
-
-                rect = None
-                # Construct rect based on available data
-                if x is not None and y is not None:
-                    if w is not None and h is not None:
-                        # Standard object with width/height
-                        rect = pygame.Rect(x, y, w, h)
-                    elif size is not None:
-                        # Object defined by center x, y and size (like BallSpawn)
-                        # Correcting potential center-to-top-left issue from original:
-                        # If x,y are center, top-left is (x-size/2, y-size/2)
-                        rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
-                    else: # Added case: if x,y but no w,h,size -> treat as point? or small rect?
-                        rect = pygame.Rect(x, y, 1, 1) # Treat as point
-
-                # Fallback for older data format
-                elif 'rect' in obj_data and isinstance(obj_data['rect'], pygame.Rect):
-                     rect = obj_data['rect']
-                     print(f"Warning: Using legacy rect format for object ID {obj_id}")
-
-
-                if rect:
-                    # Pass the full object data to get_object_color for context
-                    color = self.get_object_color(obj_data)
-                    pygame.draw.rect(self.pygame_surface, color, rect) # Draw on internal surface
-
-                    # Draw selection highlight
-                    if obj_id == self.selected_object_id:
-                        pygame.draw.rect(self.pygame_surface, (255, 255, 0), rect, 2) # Draw on internal surface
 
         # --- Trigger Qt Repaint ---
         # Don't flip Pygame display, just update the Qt widget
@@ -456,13 +476,13 @@ class LevelViewWidget(QWidget):
 
 
     def get_object_color(self, obj_data):
-        """Returns a distinct color based on the object's data."""
+        """Returns a distinct color based on the object's data. (Excludes paddle spawns now)"""
         obj_type = obj_data.get('type', 'unknown')
-        is_left = obj_data.get('is_left', None) # Check for paddle side
+        # is_left = obj_data.get('is_left', None) # No longer needed here
 
-        # Default colors
+        # Default colors (Paddle spawn removed as it's handled by sprite drawing)
         colors = {
-            "paddle_spawn": (0, 255, 0), # Default Green
+            # "paddle_spawn": (0, 255, 0), # Handled by sprite drawing
             "ball_spawn": (255, 255, 255), # White
             "obstacle": (165, 42, 42), # Brown
             "goal": (0, 0, 200), # Blue
@@ -472,16 +492,10 @@ class LevelViewWidget(QWidget):
             "unknown": (255, 165, 0) # Orange
         }
 
-        # Specific color logic
-        if obj_type == "paddle_spawn":
-            if is_left is False: # Check if it's the right paddle
-                return (255, 0, 0) # Red
-            else:
-                return colors["paddle_spawn"] # Green for left or unspecified
-        else:
-            # Handle specific types if needed, otherwise use base type
-            base_type = obj_type.split('_')[0]
-            return colors.get(obj_type, colors.get(base_type, colors["unknown"]))
+        # Specific color logic (Paddle spawn removed)
+        # Handle specific types if needed, otherwise use base type
+        base_type = obj_type.split('_')[0]
+        return colors.get(obj_type, colors.get(base_type, colors["unknown"]))
 
 
     def _place_object_at(self, obj_type_key, x, y):
@@ -673,19 +687,14 @@ class LevelViewWidget(QWidget):
 
             elif selected_tool == TOOL_SELECT:
                 if clicked_obj_id:
-                    # Prevent selecting default paddles
-                    obj_data = self.core_logic.get_object_by_id(clicked_obj_id)
-                    if obj_data and "paddle_spawn" in obj_data.get("type", ""):
-                         print(f"Cannot select default object: {clicked_obj_id}")
-                         self.deselect_object() # Deselect if something else was selected
-                    else:
-                        self.select_object(clicked_obj_id) # Selects and emits signal
-                        self.is_dragging = True
-                        # Calculate offset using mapped Pygame coords
-                        selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
-                        obj_x = selected_obj_data.get('x', 0)
-                        obj_y = selected_obj_data.get('y', 0)
-                        self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y) # Use mapped coords
+                    # Allow selecting paddles, but dragging will be prevented later
+                    self.select_object(clicked_obj_id) # Selects and emits signal
+                    self.is_dragging = True
+                    # Calculate offset using mapped Pygame coords
+                    selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
+                    obj_x = selected_obj_data.get('x', 0)
+                    obj_y = selected_obj_data.get('y', 0)
+                    self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y) # Use mapped coords
                 else:
                     # Clicked empty space
                     self.deselect_object() # Deselects and emits signal
@@ -696,18 +705,14 @@ class LevelViewWidget(QWidget):
 
             else: # No tool selected - treat as select
                  if clicked_obj_id:
-                    obj_data = self.core_logic.get_object_by_id(clicked_obj_id)
-                    if obj_data and "paddle_spawn" in obj_data.get("type", ""):
-                         print(f"Cannot select default object: {clicked_obj_id}")
-                         self.deselect_object()
-                    else:
-                        self.select_object(clicked_obj_id)
-                        self.is_dragging = True
-                        selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
-                        # Get x, y directly from the object data
-                        obj_x = selected_obj_data.get('x', 0)
-                        obj_y = selected_obj_data.get('y', 0)
-                        self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y) # Use mapped coords
+                    # Allow selecting paddles, but dragging will be prevented later
+                    self.select_object(clicked_obj_id)
+                    self.is_dragging = True
+                    selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
+                    # Get x, y directly from the object data
+                    obj_x = selected_obj_data.get('x', 0)
+                    obj_y = selected_obj_data.get('y', 0)
+                    self.drag_offset = (pygame_x - obj_x, pygame_y - obj_y) # Use mapped coords
                  else:
                     self.deselect_object()
 
@@ -749,6 +754,15 @@ class LevelViewWidget(QWidget):
         if not self.is_dragging or self.selected_object_id is None:
             return
 
+        selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
+        if not selected_obj_data: return # Safety check
+
+        # --- Prevent dragging paddles ---
+        if "paddle_spawn" in selected_obj_data.get("type", ""):
+            # print("Cannot drag paddle spawn.") # Optional debug message
+            return # Do not proceed with move logic for paddles
+        # --- End Prevent dragging paddles ---
+
         widget_pos = event.pos()
         # Map widget coordinates to Pygame surface coordinates
         pygame_x, pygame_y = self.map_widget_to_pygame(widget_pos)
@@ -756,9 +770,6 @@ class LevelViewWidget(QWidget):
         # Dragging logic remains mostly the same, but uses the mapped pygame_x, pygame_y
         # to calculate the new position. Clamping should still happen against
         # self.level_width and self.level_height.
-
-        selected_obj_data = self.core_logic.get_object_by_id(self.selected_object_id)
-        if not selected_obj_data: return # Safety check
 
         props = selected_obj_data # Use the main object dict
 

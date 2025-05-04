@@ -214,7 +214,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         # Recreate game objects with new dimensions
         paddle_a = PaddleObject(
             x=60,  # Moved slightly right to account for wider paddle
-            y=(arena.height - PADDLE_HEIGHT) // 2,
+            y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
             arena_width=arena.width,
@@ -225,7 +225,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         )
         paddle_b = PaddleObject(
             x=arena.width - 100,  # Moved slightly left to account for wider paddle
-            y=(arena.height - PADDLE_HEIGHT) // 2,
+            y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
             arena_width=arena.width,
@@ -245,7 +245,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     # Create game objects with proper params
     paddle_a = PaddleObject(
         x=60,  # Moved slightly right to account for wider paddle
-        y=(arena.height - PADDLE_HEIGHT) // 2,
+        y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
         arena_width=arena.width,
@@ -256,7 +256,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     )
     paddle_b = PaddleObject(
         x=arena.width - 100,  # Moved slightly left to account for wider paddle
-        y=(arena.height - PADDLE_HEIGHT) // 2,
+        y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
         arena_width=arena.width,

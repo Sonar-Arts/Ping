@@ -442,11 +442,10 @@ class SoundManager:
 
         return channel_obj # Return the channel object immediately for potential external use (like stop)
 
-    # Updated signature to accept channel_id
     def handle_sound_end(self, channel_id):
         """
         Called when a sound finishes (via SOUND_END_EVENT or manually).
-        Returns the channel to the available pool.
+        Returns the channel to the available pool if it was active.
 
         Args:
             channel_id (int): The ID of the channel that finished.
@@ -454,30 +453,41 @@ class SoundManager:
         if channel_id is None: return
 
         try:
-            # Check if it's an SFX channel before proceeding
+            # Check if it's a valid SFX channel ID
             if 0 <= channel_id < self._num_sfx_channels:
-                 with self._channel_lock:
-                    # Remove from active list
+                with self._channel_lock:
+                    # Check if this channel was actually active
                     if channel_id in self._active_sfx:
-                        sound_name = self._active_sfx.pop(channel_id, {}).get('sound_name', 'unknown')
-                        if self._debug_enabled: logger.debug(f"SFX '{sound_name}' ended on channel {channel_id}. Returning to pool.")
-                    else:
-                        # Could happen if stop_sfx was called simultaneously
-                        if self._debug_enabled: logger.debug(f"Channel {channel_id} ended but wasn't in active list (likely stopped manually).")
+                        # It was active, so remove it and return to pool
+                        sound_info = self._active_sfx.pop(channel_id)
+                        sound_name = sound_info.get('sound_name', 'unknown')
+                        if self._debug_enabled:
+                            logger.debug(f"SFX '{sound_name}' ended on channel {channel_id}. Returning to pool.")
 
-                    # Return channel index (integer) to queue if it's not full
-                    try:
-                        # No need to get the object, just put the ID back
-                        self._available_sfx_channels.put_nowait(channel_id)
-                    except Full:
-                        # This warning seems to be happening, investigate why pool might be full
-                        logger.warning(f"SFX channel pool queue unexpectedly full when returning channel {channel_id}.")
-                    # No need for IndexError check here as we are just putting the ID back
+                        # Attempt to return the channel ID to the queue
+                        try:
+                            self._available_sfx_channels.put_nowait(channel_id)
+                        except Full:
+                            # This should ideally not happen with the check above, but log if it does
+                            logger.error(f"CRITICAL: SFX channel pool queue full even after checking active status for channel {channel_id}. State inconsistency?")
+                    else:
+                        # Channel wasn't in the active list.
+                        # This could be because:
+                        # 1. handle_sound_end was called multiple times for the same event.
+                        # 2. stop_sfx was called, which might trigger the end event *and* potentially remove it manually (though current stop_sfx doesn't seem to).
+                        # 3. The sound failed to play initially but handle_sound_end was still called in error handling.
+                        # In any case, DO NOT return the channel_id to the queue again.
+                        if self._debug_enabled:
+                            logger.debug(f"handle_sound_end called for channel {channel_id}, but it wasn't in the active SFX list. Assuming already handled.")
             else:
-                # Potentially a music channel event, ignore here
-                pass
-        except pygame.error as e: # Catch potential error if channel is invalid
-             logger.warning(f"Error handling sound end for channel ID {channel_id}: {e}")
+                # Potentially a music channel event or invalid ID, ignore here
+                if self._debug_enabled:
+                     logger.debug(f"handle_sound_end called for non-SFX/invalid channel ID: {channel_id}")
+
+        except pygame.error as e: # Catch potential pygame errors (e.g., invalid channel)
+            logger.warning(f"Pygame error handling sound end for channel ID {channel_id}: {e}")
+        except Exception as e: # Catch unexpected errors
+             logger.error(f"Unexpected error handling sound end for channel ID {channel_id}: {e}", exc_info=True)
 
 
     def stop_sfx(self, name=None, channel=None):

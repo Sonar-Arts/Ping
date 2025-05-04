@@ -98,7 +98,7 @@ class ArtemisCore(QObject): # Inherit from QObject
 
         # --- Add Default Paddle Spawns ---
         # Define necessary properties directly here to avoid import cycles
-        paddle_w, paddle_h = 20, 100 # Common defaults
+        paddle_w, paddle_h = 30, 100 # Use wider default width
         paddle_speed = 300
         offset_x = 50
 
@@ -107,7 +107,7 @@ class ArtemisCore(QObject): # Inherit from QObject
         left_y = (height - paddle_h) // 2
         left_paddle = {
             "id": 1, # Assign fixed IDs for default paddles
-            "type": "paddle_spawn",
+            "type": "paddle_spawn_left", # Use specific type
             "is_left": True,
             "x": left_x,
             "y": left_y,
@@ -123,7 +123,7 @@ class ArtemisCore(QObject): # Inherit from QObject
         right_y = (height - paddle_h) // 2
         right_paddle = {
             "id": 2, # Assign fixed IDs for default paddles
-            "type": "paddle_spawn",
+            "type": "paddle_spawn_right", # Use specific type
             "is_left": False,
             "x": right_x,
             "y": right_y,

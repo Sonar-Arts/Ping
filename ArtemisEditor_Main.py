@@ -26,6 +26,14 @@ from Artemis_Modules.artemis_layout_manager import save_editor_layout, load_edit
 from PyQt6.QtGui import QAction # EditorToolBar import removed
 # from Artemis_Modules.artemis_tool_bar import EditorToolBar # No longer needed
 
+# Import the new function from ping_graphics
+try:
+    # Assuming ping_graphics is in Modules directory relative to project root
+    from Modules.ping_graphics import get_background_theme_colors
+except ImportError as e:
+    print(f"Warning: Could not import get_background_theme_colors from Modules.ping_graphics: {e}")
+    get_background_theme_colors = None # Define as None if import fails
+
 class ArtemisEditorWindow(QMainWindow):
     """Main window for the Artemis Level Editor."""
     active_tool_source = None # 'toolbar', 'palette', 'tool_palette', or None
@@ -81,6 +89,23 @@ class ArtemisEditorWindow(QMainWindow):
         # Show window and then initialize UI state
         self.show() # Ensure window is shown before initial update
         self.update_ui_for_level_state() # Call directly after showing
+
+        # Apply stylesheet to normalize menu bar item appearance and hover
+        self.menuBar().setStyleSheet("""
+            QMenuBar::item {
+                /* Normalize appearance for all items (menus and actions) */
+                padding: 4px 8px;      /* Adjust padding as needed */
+                background: transparent; /* Ensure no default background */
+                border: none;          /* Remove any default border */
+            }
+            QMenuBar::item:selected { /* Hover state */
+                background-color: #555; /* Consistent hover background (adjust color) */
+            }
+            QMenuBar::item:pressed {  /* Optional: Style when pressed */
+                background-color: #444; /* Consistent pressed background (adjust color) */
+            }
+        """)
+
         print("Artemis Editor window initialized.")
  
     def _create_menu_bar(self):
@@ -338,8 +363,24 @@ class ArtemisEditorWindow(QMainWindow):
     def on_background_selected(self, background_id):
         """Handles selection from the Background Palette."""
         print(f"Background selected: {background_id}")
-        # Update the core logic directly
-        self.core_logic.update_level_property('level_background', background_id)
+
+        # Get the corresponding color theme
+        theme_colors = {} # Default to empty if not found or import failed
+        if get_background_theme_colors:
+            theme_colors = get_background_theme_colors(background_id)
+            if not theme_colors and background_id is not None:
+                 print(f"Warning: No color theme found for background '{background_id}'. Using empty theme.")
+        else:
+            print("Warning: get_background_theme_colors function not available.")
+
+        # Update core logic with both background ID and its colors
+        # Use update_level_properties to set multiple values at once
+        properties_to_update = {
+            'level_background': background_id,
+            'colors': theme_colors # Update the 'colors' dictionary
+        }
+        self.core_logic.update_level_properties(properties_to_update)
+
         # Status bar update (optional)
         self.statusBar().showMessage(f"Level background set to: {background_id}", 3000)
 

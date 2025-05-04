@@ -300,16 +300,33 @@ class AnimatedBackground:
         screen.blit(self.city_surface, (0, 0))
 
         # Draw clouds (using rects for pixelated look)
-        pixel_size = 4 # Match lightning pixel size maybe
+        pixel_size = 8 # Increased pixel size for more noticeable pixelation
         for cloud in self.clouds:
             for puff in cloud['puffs']:
-                 # Draw slightly darker outline rect
-                 outline_color = (max(0, puff['color'][0]-10), max(0, puff['color'][1]-10), max(0, puff['color'][2]-10))
-                 # Inflate slightly for outline effect
-                 outline_rect = puff['rect'].inflate(pixel_size, pixel_size)
-                 pygame.draw.rect(screen, outline_color, outline_rect)
-                 # Draw main puff rect
-                 pygame.draw.rect(screen, puff['color'], puff['rect'])
+                # --- Draw Pixelated Round Puff ---
+                puff_rect = puff['rect']
+                puff_color = puff['color']
+                center_x = puff_rect.centerx
+                center_y = puff_rect.centery
+                radius_x = puff_rect.width / 2
+                radius_y = puff_rect.height / 2
+
+                # Iterate through the bounding box of the puff in pixel_size steps
+                for x in range(puff_rect.left, puff_rect.right, pixel_size):
+                    for y in range(puff_rect.top, puff_rect.bottom, pixel_size):
+                        # Calculate the center of the current pixel block
+                        pixel_center_x = x + pixel_size / 2
+                        pixel_center_y = y + pixel_size / 2
+
+                        # Check if the pixel center is within the ellipse defined by the puff's rect
+                        # Ellipse equation: ((px - cx)/rx)^2 + ((py - cy)/ry)^2 <= 1
+                        norm_x = (pixel_center_x - center_x) / radius_x if radius_x > 0 else 0
+                        norm_y = (pixel_center_y - center_y) / radius_y if radius_y > 0 else 0
+
+                        if norm_x**2 + norm_y**2 <= 1:
+                            # Draw the pixel block
+                            pygame.draw.rect(screen, puff_color, (x, y, pixel_size, pixel_size))
+                # --- End Pixelated Round Puff ---
 
         # Draw lightning flash (glow + pixelated bolt)
         if self.lightning_active:

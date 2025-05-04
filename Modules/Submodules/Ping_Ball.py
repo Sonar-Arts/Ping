@@ -25,10 +25,12 @@ class Ball:
         self.rect.x += self.velocity_x * delta_time
         self.rect.y += self.velocity_y * delta_time
 
-    def reset_position(self, arena_width, arena_height):
+    def reset_position(self, arena_width, arena_height, scoreboard_height):
         """Reset ball to center position with minimum speed."""
         self.rect.x = (arena_width - self.size) // 2
-        self.rect.y = (arena_height - self.size) // 2
+        # Center within the playable area below the scoreboard
+        playable_height = arena_height - scoreboard_height
+        self.rect.y = scoreboard_height + (playable_height - self.size) // 2
         # Randomize initial vertical direction
         self.dy = 1 if random.random() < 0.5 else -1
         # Reset to minimum speed
