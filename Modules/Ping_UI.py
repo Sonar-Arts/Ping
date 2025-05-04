@@ -153,8 +153,8 @@ class AnimatedBackground:
             for wx in range(building_rect.left + pixel_size, building_rect.right - pixel_size * 2, pixel_size * 3): # Spaced out windows
                 for wy in range(building_rect.top + pixel_size, building_rect.bottom - pixel_size * 2, pixel_size * 3):
                     if random.random() < window_chance:
-                        # Choose lit or unlit
-                        win_color = WINDOW_COLOR_LIT if random.random() < 0.15 else WINDOW_COLOR_UNLIT # 15% chance lit
+                        # Choose lit or unlit (Reduced chance for lit)
+                        win_color = WINDOW_COLOR_LIT if random.random() < 0.05 else WINDOW_COLOR_UNLIT # 5% chance lit
                         pygame.draw.rect(surface, win_color, (wx, wy, pixel_size, pixel_size)) # Simple 1-pixel window
 
             # --- Add Simple Antenna (sometimes) ---
@@ -164,6 +164,37 @@ class AnimatedBackground:
                 antenna_color = (40, 40, 40)
                 for ay in range(building_rect.top - antenna_height, building_rect.top, pixel_size):
                     pygame.draw.rect(surface, antenna_color, (antenna_x, ay, pixel_size, pixel_size))
+
+            # --- Apply Damage (Remove larger chunks) ---
+            num_damage_chunks = random.randint(0, 3) # 0 to 3 chunks removed per building
+            damage_zone_height = building_height * 0.6 # Apply damage mostly to the top 60%
+            damage_zone_top = building_rect.top
+
+            for _ in range(num_damage_chunks):
+                # Chunk size (multiples of pixel_size)
+                chunk_w = random.randrange(pixel_size * 2, pixel_size * 8 + 1, pixel_size)
+                chunk_h = random.randrange(pixel_size * 2, pixel_size * 8 + 1, pixel_size)
+
+                # Chunk position (biased towards top and edges)
+                # Bias Y towards top
+                max_y = damage_zone_top + damage_zone_height - chunk_h
+                chunk_y = random.triangular(damage_zone_top, max_y, damage_zone_top) # triangular distribution peaks at the top
+                chunk_y = round(chunk_y / pixel_size) * pixel_size # Snap to grid
+
+                # Bias X towards edges
+                max_x = building_rect.right - chunk_w
+                if random.random() < 0.5: # Bias left
+                    chunk_x = random.triangular(building_rect.left, max_x, building_rect.left)
+                else: # Bias right
+                    chunk_x = random.triangular(building_rect.left, max_x, max_x)
+                chunk_x = round(chunk_x / pixel_size) * pixel_size # Snap to grid
+
+                # Ensure chunk is within building bounds (horizontally)
+                chunk_x = max(building_rect.left, min(chunk_x, building_rect.right - chunk_w))
+
+                # Draw sky color to 'remove' the chunk
+                damage_rect = pygame.Rect(chunk_x, chunk_y, chunk_w, chunk_h)
+                pygame.draw.rect(surface, (20, 20, 30, 255), damage_rect)
 
 
             # Move to next building position (ensure some gap/overlap, snapped)

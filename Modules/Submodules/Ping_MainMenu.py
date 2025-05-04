@@ -196,11 +196,27 @@ class MainMenu:
         start_x = width // 2 - total_width // 2
         title_y = height // 5 # Use the adjusted higher position
 
-        # Blit each character
+        # Blit each character with drop shadow
+        shadow_offset = max(1, int(title_font_size * 0.05)) # Calculate shadow offset based on font size
         current_x = start_x
-        for surface in char_surfaces:
-            screen.blit(surface, (current_x, title_y - surface.get_height() // 2)) # Center vertically
-            current_x += surface.get_width() + char_spacing
+        for i, char in enumerate(self.title_chars):
+            # Get the pre-rendered colored surface
+            main_surface = char_surfaces[i]
+
+            # Render the shadow surface in black
+            shadow_surface = title_font.render(char, True, BLACK)
+
+            # Calculate positions
+            char_y = title_y - main_surface.get_height() // 2 # Vertical center
+            shadow_pos = (current_x + shadow_offset, char_y + shadow_offset)
+            main_pos = (current_x, char_y)
+
+            # Blit shadow first, then main text
+            screen.blit(shadow_surface, shadow_pos)
+            screen.blit(main_surface, main_pos)
+
+            # Update current_x for the next character
+            current_x += main_surface.get_width() + char_spacing
 
         # Options
         option_font_size = max(12, int(28 * scale_y))
