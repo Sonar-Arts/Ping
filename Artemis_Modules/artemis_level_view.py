@@ -6,6 +6,7 @@ with the Ping level being edited, using an embedded Pygame surface.
 """
 import pygame
 import os
+import math # Added for spinner drawing calculations
 import random # For unique IDs initially
 import pygame # Ensure pygame is imported for SysFont
 
@@ -42,7 +43,7 @@ class MockCompiler:
         self.scale = 1.0 # Editor scale is fixed at 1.0 for simplicity
         self.offset_x = 0 # No camera offset in editor view like in game
         self.offset_y = 0
-        self.scoreboard_height = props.get("scoreboard_height", 0) # Get from props or default
+        self.scoreboard_height = 0 # Scoreboard is handled separately now
         # Use level properties for colors, fallback to empty dict
         self.colors = props.get("colors", {})
         # Ensure essential color keys have fallbacks if needed by draw functions
@@ -135,9 +136,10 @@ class LevelViewWidget(QWidget):
         self.is_panning = False # For potential middle-mouse panning later
         self.pan_start_pos = None
         # --- Grid ---
-        self.grid_size = 20 # Size of grid cells in pixels
+        self.grid_size = 50 # Size of grid cells in logical units (matching casino background detail)
         self.grid_enabled = False # Start with grid off
         self.grid_color = (60, 60, 60) # Dark grey for grid lines
+        # Removed show_mock_scoreboard flag
 
         # --- Pygame Surface Setup ---
         # Get initial size from core_logic defaults if possible, or use fallback
@@ -331,6 +333,7 @@ class LevelViewWidget(QWidget):
             if self.cached_sludge_texture is not None:
                  self.cached_sludge_texture = None
 
+        # Removed Mock Scoreboard Drawing
 
         # Draw Arena Boundary (Over the background)
         arena_rect = pygame.Rect(0, 0, self.level_width, self.level_height)
@@ -352,14 +355,16 @@ class LevelViewWidget(QWidget):
             size = obj_data.get('size') # For ball/powerup, etc.
 
             # Define the bounding box for drawing and selection
-            # Use width/height if available, otherwise size for circular/square objects
+            # ALWAYS treat stored x, y as the CENTER point. Calculate top-left for drawing.
             if w is not None and h is not None:
-                obj_rect = pygame.Rect(x, y, w, h)
+                # Calculate top-left from center x, y and width, height
+                obj_rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
             elif size is not None:
-                 # Assume x,y is center for size-based objects
+                 # Calculate top-left from center x, y and size
                  obj_rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
             else:
-                 obj_rect = pygame.Rect(x, y, 10, 10) # Fallback small rect
+                 # Fallback: Assume x, y is center, use small default size
+                 obj_rect = pygame.Rect(x - 5, y - 5, 10, 10)
 
             # --- Determine how to draw based on type ---
             is_paddle = "paddle_spawn" in obj_type
@@ -460,10 +465,55 @@ class LevelViewWidget(QWidget):
                         self.pygame_surface.blit(text_surf, text_rect)
                 except Exception as e:
                     print(f"Warning: Could not draw placeholder text: {e}")
+            elif obj_type == 'bumper':
+                # Draw Bumper representation (e.g., concentric circles)
+                outer_color = (255, 0, 0) # Red
+                inner_color = (255, 255, 0) # Yellow
+                radius = obj_rect.width // 2 # Use the calculated rect's size
+                center = obj_rect.center
+                pygame.draw.circle(self.pygame_surface, outer_color, center, radius)
+                pygame.draw.circle(self.pygame_surface, inner_color, center, int(radius * 0.6))
+            elif obj_type == 'roulette_spinner':
+                 # Draw Roulette Spinner representation (e.g., segmented circle)
+                 center = obj_rect.center
+                 radius = obj_rect.width // 2
+                 num_segments = obj_data.get('properties', {}).get('num_segments', 38) # Get segments from properties
+                 base_color = (200, 200, 200) # Light grey base
+                 alt_color = (255, 0, 0) # Red segments
+                 border_color = (50, 50, 50) # Dark border
+
+                 pygame.draw.circle(self.pygame_surface, base_color, center, radius) # Draw base circle
+
+                 # Draw segments (simplified representation)
+                 if num_segments > 0:
+                     angle_step = 360 / num_segments
+                     for i in range(num_segments):
+                         start_angle = math.radians(i * angle_step - 90) # Offset by -90 to start at top
+                         end_angle = math.radians((i + 1) * angle_step - 90)
+                         segment_color = alt_color if i % 2 == 0 else base_color
+
+                         # Draw wedge (requires points)
+                         points = [center]
+                         num_arc_points = 5 # Simple arc approximation
+                         for j in range(num_arc_points + 1):
+                              angle = start_angle + (end_angle - start_angle) * (j / num_arc_points)
+                              x = center[0] + radius * math.cos(angle)
+                              y = center[1] + radius * math.sin(angle)
+                              points.append((int(x), int(y)))
+
+                         if len(points) >= 3:
+                              try:
+                                   pygame.draw.polygon(self.pygame_surface, segment_color, points)
+                              except ValueError as e:
+                                   print(f"Warning: Could not draw roulette segment polygon: {e}, points: {points}")
+
+
+                 pygame.draw.circle(self.pygame_surface, border_color, center, radius, 2) # Draw border
+
             elif not is_paddle and not is_generic_sprite:
-                # Draw other object types (non-sprite, non-paddle) using color
+                # Draw other object types (non-sprite, non-paddle, non-bumper, non-spinner) using color
                 color = self.get_object_color(obj_data)
-                pygame.draw.rect(self.pygame_surface, color, obj_rect)
+                pygame.draw.rect(self.pygame_surface, color, obj_rect) # Draw the calculated rect
 
             # --- Draw Selection Highlight ---
             if obj_id == self.selected_object_id:
@@ -484,7 +534,9 @@ class LevelViewWidget(QWidget):
         colors = {
             # "paddle_spawn": (0, 255, 0), # Handled by sprite drawing
             "ball_spawn": (255, 255, 255), # White
-            "obstacle": (165, 42, 42), # Brown
+            "obstacle": (165, 42, 42), # Brown (Generic Obstacle)
+            "roulette_spinner": (200, 200, 200), # Base color for spinner (used if drawing fails)
+            "bumper": (255, 0, 0), # Outer color for bumper (used if drawing fails)
             "goal": (0, 0, 200), # Blue
             "portal": (255, 0, 255), # Magenta
             "powerup": (0, 255, 255), # Cyan
@@ -542,18 +594,27 @@ class LevelViewWidget(QWidget):
             place_x -= 5
             place_y -= 5
 
-        # Snap initial placement to grid if enabled
+        # --- Determine the CENTER coordinates to save ---
+        # Start with the raw click coordinates (which are the intended center)
+        save_x, save_y = x, y
+
+        # Snap the CENTER position to grid if enabled
         if self.grid_enabled:
-            place_x, place_y = self.snap_to_grid(place_x, place_y)
+            save_x, save_y = self.snap_to_grid(save_x, save_y)
 
-        # Ensure placement is within bounds after potential snapping
-        place_x = max(0, min(place_x, self.level_width - obj_w))
-        place_y = max(0, min(place_y, self.level_height - obj_h))
+        # Clamp the CENTER position within the PLAYABLE area bounds
+        min_center_x = obj_w / 2
+        max_center_x = self.level_width - (obj_w / 2)
+        # Y clamping no longer needs to account for scoreboard height
+        min_center_y = obj_h / 2 # Start from top edge
+        max_center_y = self.level_height - (obj_h / 2)      # End above bottom edge
+        save_x = max(min_center_x, min(save_x, max_center_x))
+        save_y = max(min_center_y, min(save_y, max_center_y)) # Use corrected Y bounds
 
-        # Prepare object data using defaults + position
+        # Prepare object data using defaults + CENTER position
         new_obj_data = defaults.copy() # Start with defaults
-        new_obj_data['x'] = place_x
-        new_obj_data['y'] = place_y
+        new_obj_data['x'] = int(save_x) # Save the calculated CENTER X
+        new_obj_data['y'] = int(save_y) # Save the calculated CENTER Y
         # Ensure width/height/size/radius are set correctly based on what was found/calculated
         if width is not None and height is not None:
             new_obj_data['width'] = obj_w
@@ -653,17 +714,24 @@ class LevelViewWidget(QWidget):
                  h = obj_data.get('height')
                  size = obj_data.get('size') # For ball/powerup
                  rect = None
-                 # Construct rect based on available data
+                 # Construct rect based on available data, ALWAYS using x,y as CENTER
                  if x is not None and y is not None:
                      if w is not None and h is not None:
-                         # Standard object with width/height
-                         rect = pygame.Rect(x, y, w, h)
+                         # Calculate top-left from center x, y and width, height
+                         rect = pygame.Rect(x - w // 2, y - h // 2, w, h)
                      elif size is not None:
-                         # Object defined by center x, y and size (like BallSpawn)
+                         # Calculate top-left from center x, y and size
                          rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
-                 # Fallback for older data format
+                     else:
+                          # Fallback: Assume x, y is center, use small default size
+                          rect = pygame.Rect(x - 5, y - 5, 10, 10)
+                 # Fallback for older data format (less likely now but keep for safety)
                  elif 'rect' in obj_data and isinstance(obj_data['rect'], pygame.Rect):
+                      # This old format likely stored top-left, so use it directly if encountered
                       rect = obj_data['rect']
+                 else:
+                      # If no position data found at all
+                      rect = None
 
                  # Perform collision check if rect was successfully constructed
                  if rect and rect.collidepoint(pygame_x, pygame_y): # Use mapped coords
@@ -787,17 +855,24 @@ class LevelViewWidget(QWidget):
         new_x = pygame_x - self.drag_offset[0]
         new_y = pygame_y - self.drag_offset[1]
 
-        # Clamp position within Pygame surface bounds
-        new_x = max(0, min(new_x, self.level_width - obj_w))
-        new_y = max(0, min(new_y, self.level_height - obj_h))
+        # Clamp the CENTER position (new_x, new_y) within Pygame surface bounds
+        # Minimum center is half the object's dimension from the edge (0)
+        # Maximum center is the level dimension minus half the object's dimension
+        min_center_x = obj_w / 2
+        max_center_x = self.level_width - (obj_w / 2)
+        min_center_y = obj_h / 2
+        max_center_y = self.level_height - (obj_h / 2)
+
+        new_x = max(min_center_x, min(new_x, max_center_x))
+        new_y = max(min_center_y, min(new_y, max_center_y))
 
         # Snap dragged position to grid if enabled
         snapped_x, snapped_y = new_x, new_y
         if self.grid_enabled:
             snapped_x, snapped_y = self.snap_to_grid(new_x, new_y)
-            # Re-clamp after snapping
-            snapped_x = max(0, min(snapped_x, self.level_width - obj_w))
-            snapped_y = max(0, min(snapped_y, self.level_height - obj_h))
+            # Re-clamp snapped CENTER position after snapping
+            snapped_x = max(min_center_x, min(snapped_x, max_center_x))
+            snapped_y = max(min_center_y, min(snapped_y, max_center_y))
 
         # Update object properties in core logic
         current_x = props.get('x')
@@ -887,8 +962,6 @@ class LevelViewWidget(QWidget):
         self.pan_offset_x = max(0, min(self.pan_offset_x, max_pan_x))
         self.pan_offset_y = max(0, min(self.pan_offset_y, max_pan_y))
 
-        print(f"Zoom: {self.zoom_level:.2f}, Pan: ({int(self.pan_offset_x)}, {int(self.pan_offset_y)})")
-
         self.update() # Trigger repaint
         event.accept()
 
@@ -905,14 +978,20 @@ class LevelViewWidget(QWidget):
         return snapped_x, snapped_y
 
     def draw_grid(self): # Now draws on self.pygame_surface
-        """Draws the grid lines on the Pygame surface."""
+        """Draws the grid lines on the Pygame surface, respecting scoreboard height.""" # Docstring updated
         if not self.pygame_surface: return
+        # Grid now starts from Y=0
+        grid_start_y = 0
+
+        # Vertical lines (draw full height)
         for x in range(0, self.level_width, self.grid_size):
-            pygame.draw.line(self.pygame_surface, self.grid_color, (x, 0), (x, self.level_height))
-        for y in range(0, self.level_height, self.grid_size):
+            pygame.draw.line(self.pygame_surface, self.grid_color, (x, grid_start_y), (x, self.level_height)) # Start from 0
+
+        # Horizontal lines (start loop from 0)
+        for y in range(grid_start_y, self.level_height, self.grid_size): # Start from 0
             pygame.draw.line(self.pygame_surface, self.grid_color, (0, y), (self.level_width, y))
 
-# Removed draw_translation_handles
+    # Removed toggle_mock_scoreboard method
 
     # --- Size Hint ---
     def sizeHint(self):

@@ -72,8 +72,11 @@ class LevelCompiler: # Renamed from Arena
         # Set dimensions (Now guaranteed to be a dict because PMF was parsed)
         dimensions = params.get('dimensions', {'width': 800, 'height': 600, 'scoreboard_height': 60})
         self.width = dimensions.get('width', 800)
-        self.height = dimensions.get('height', 600)
+        # Assume the 'height' from PMF/params is the PLAYABLE height.
+        playable_height_from_pmf = dimensions.get('height', 600)
         self.scoreboard_height = dimensions.get('scoreboard_height', 60)
+        # Set self.height directly to the value from the PMF/params.
+        self.height = playable_height_from_pmf
 
         # --- Store Core Level Properties ---
         # These are now parsed from PMF or taken from level instance params
@@ -149,7 +152,7 @@ class LevelCompiler: # Renamed from Arena
         self.paddle_positions = params.get('paddle_positions', {}) # Use .get()
 
         # Initialize object lists (will be populated by helper methods)
-        self.obstacle = None
+        self.obstacles = [] # Changed from self.obstacle = None
         self.goals = []
         self.portals = []
         self.manholes = []
@@ -219,8 +222,8 @@ class LevelCompiler: # Renamed from Arena
                 # reading them here should be okay as long as generation is fast enough
                 # or update_scaling happens infrequently.
                 # A more robust solution might involve passing params via a queue.
-                width = self.width * self.scale # Use scaled width/height
-                height = (self.height - self.scoreboard_height) * self.scale # Use scaled playable height
+                width = self.width * self.scale # Use scaled width
+                height = self.height * self.scale # Use scaled playable height (self.height)
                 current_scale = self.scale
                 current_colors = self.colors # Assuming colors don't change dynamically
 
@@ -273,10 +276,11 @@ class LevelCompiler: # Renamed from Arena
 
             cracks_data = [] # List to store (start_x, start_y, end_x, end_y) in logical coords
 
-            # Iterate through potential brick positions (similar to drawing logic)
-            for y_logic in range(self.scoreboard_height, self.height, brick_h):
+            # Iterate through potential brick positions within the playable area (logical Y from 0 to self.height)
+            for y_logic in range(0, self.height, brick_h): # Start Y loop from 0 (top of playable area)
                 row_offset = (y_logic // brick_h) % 2 * (brick_w // 2)
                 for x_logic in range(0, self.width, brick_w):
+                    # Create rect with logical coordinates relative to playable area top-left (0,0)
                     brick_rect_logic = pygame.Rect(x_logic - row_offset, y_logic, brick_w, brick_h)
 
                     # Skip if brick is in river area
@@ -370,11 +374,14 @@ class LevelCompiler: # Renamed from Arena
         # Read width and height directly from properties, with defaults
         width = properties.get('width', 800)
         height = properties.get('height', 600)
+        # Store total height in the parsed params for potential reference,
+        # but the compiler instance uses self.height (playable) and self.scoreboard_height
         params['dimensions'] = {
             'width': width,
-            'height': height,
+            'height': height, # Store total height here in the params dict
             'scoreboard_height': 60 # Default scoreboard height, maybe make this a PMF property?
         }
+        # Note: LevelCompiler instance uses self.height = height - scoreboard_height
 
         # --- Parse Core Level Properties ---
         params['bounce_walls'] = properties.get('bounce_walls', True)
@@ -419,10 +426,19 @@ class LevelCompiler: # Renamed from Arena
 
             if obj_type == 'paddle_spawn' and obj_x is not None and obj_y is not None:
                 # Calculate relative positions (center x, center y)
+                # Use TOTAL height for relative Y calculation from PMF coordinates
+                total_height = height # Use the height read from PMF (which includes scoreboard)
                 obj_w = obj.get('width', 20) # Default paddle width if not specified
                 obj_h = obj.get('height', 100) # Default paddle height if not specified
                 rel_x = (obj_x + obj_w / 2) / width
-                rel_y = (obj_y + obj_h / 2) / height
+                # Adjust Y coordinate from PMF (relative to top of window) to be relative to top of playable area
+                # Subtract scoreboard height before calculating relative position within playable area
+                playable_height = total_height - 60 # Assuming default scoreboard height for now
+                if playable_height <= 0: playable_height = 1 # Avoid division by zero
+                # Calculate relative Y based on the playable area height
+                # Assume obj_y from PMF is relative to the playable area top (Y=0)
+                rel_y = (obj_y + obj_h / 2) / playable_height
+                # Clamp rel_y between 0 and 1? Or let it be outside? For now, let it be.
 
                 # Get properties dict for this object
                 properties = obj.get('properties', {})
@@ -454,7 +470,7 @@ class LevelCompiler: # Renamed from Arena
 
         # Initialize object lists
         self.manholes = []
-        self.obstacle = None # Use singular for now, assuming max 1 obstacle from PMF/default
+        self.obstacles = [] # Changed from self.obstacle = None
         self.goals = []
         self.portals = []
         self.bumpers = []
@@ -462,7 +478,7 @@ class LevelCompiler: # Renamed from Arena
         self.power_up = None # Use singular for now, assuming max 1 powerup from PMF/default
 
         # Flags to track if specific types were created from the list
-        obstacle_created_from_list = False
+        # Removed obstacle_created_from_list flag
         powerup_created_from_list = False
 
         # --- Create Goals (Based on global flag) ---
@@ -495,86 +511,87 @@ class LevelCompiler: # Renamed from Arena
                 pass # Already handled
 
             elif obj_type == 'manhole':
-                # Determine if it's a top or bottom manhole based on absolute Y
-                is_bottom = obj_y > (self.height / 2)
+                # Determine if it's a top or bottom manhole based on absolute Y relative to PLAYABLE area
+                # Use obj_y directly as it's relative to the playable area top (Y=0)
+                obj_y_relative_to_playable = obj_y # Use Y directly (relative to playable area top)
+                is_bottom = obj_y > (self.height / 2) # self.height is playable height
+                # Pass the original obj_y coordinate to the ManHoleObject constructor
                 manhole = ManHoleObject(self.width, self.height, self.scoreboard_height, self.scale_rect,
                                         obj_x, obj_y, obj_width, obj_height, is_bottom, properties) # Pass properties
                 self.manholes.append(manhole)
-                self._log_warning(f"Created ManHoleObject at ({obj_x},{obj_y}) with properties: {properties}")
+                self._log_warning(f"Created ManHoleObject at logical ({obj_x},{obj_y}) with properties: {properties}")
 
             elif obj_type == 'bumper':
                 bumper = BumperObject(
-                    arena_width=self.width,
-                    arena_height=self.height,
+                    arena_width=self.width, # Logical width
+                    arena_height=self.height, # Logical playable height
                     scoreboard_height=self.scoreboard_height,
                     scale_rect=self.scale_rect,
-                    x=obj_x,
-                    y=obj_y,
+                    x=obj_x, # Logical X
+                    y=obj_y, # Use Y directly (relative to playable area top)
                     radius=properties.get('radius', 30)
                 )
                 self.bumpers.append(bumper)
-                self._log_warning(f"Created BumperObject at ({obj_x},{obj_y}) with properties: {properties}")
+                self._log_warning(f"Created BumperObject at logical ({obj_x},{obj_y}) with properties: {properties}")
 
             elif obj_type == 'obstacle':
-                # Only create one obstacle for now, even if multiple are defined
-                if not obstacle_created_from_list:
-                    self.obstacle = ObstacleObject(
-                        arena_width=self.width,
-                        arena_height=self.height,
-                        scoreboard_height=self.scoreboard_height,
-                        scale_rect=self.scale_rect,
-                        x=obj_x,
-                        y=obj_y,
-                        width=obj_width,
-                        height=obj_height,
-                        properties=properties # Pass the properties dict
-                    )
-                    obstacle_created_from_list = True
-                    self._log_warning(f"Created ObstacleObject at ({obj_x},{obj_y}) with properties: {properties}")
-                else:
-                    self._log_warning(f"Ignoring additional PMF obstacle object #{obj_index} (only one supported currently): {obj}")
+                # Create and append ObstacleObject
+                obj_y_relative_to_playable = obj_y # Use Y directly
+                new_obstacle = ObstacleObject(
+                    arena_width=self.width, # Logical width
+                    arena_height=self.height, # Logical playable height
+                    scoreboard_height=self.scoreboard_height,
+                    scale_rect=self.scale_rect,
+                    x=obj_x, # Logical X
+                    y=obj_y_relative_to_playable, # Adjusted Y
+                    width=obj_width,
+                    height=obj_height,
+                    properties=properties # Pass the properties dict
+                )
+                self.obstacles.append(new_obstacle) # Append to list
+                self._log_warning(f"Created and appended ObstacleObject at logical ({obj_x},{obj_y}) with properties: {properties}")
 
             elif obj_type == 'roulette_spinner': # Match lowercase type from PMF
                 # Handle the new RouletteSpinner obstacle type
-                if not obstacle_created_from_list:
-                    # Extract specific properties needed by RouletteSpinner constructor
-                    # Use defaults from RouletteSpinner.__init__ if not found in PMF data
-                    radius = obj.get('radius', 100) # Get radius from top level (saved by editor)
-                    # Get properties sub-dictionary for other params
-                    spinner_props = obj.get('properties', {})
-                    num_segments = spinner_props.get('num_segments', 38)
-                    spin_speed = spinner_props.get('spin_speed_deg_s', 90)
+                # Create and append RouletteSpinner
+                # Extract specific properties needed by RouletteSpinner constructor
+                radius = obj.get('radius', 100) # Get radius from top level
+                spinner_props = obj.get('properties', {})
+                num_segments = spinner_props.get('num_segments', 38)
+                spin_speed = spinner_props.get('spin_speed_deg_s', 90)
 
-                    # Instantiate RouletteSpinner directly (it's not a GameObject wrapper)
-                    self.obstacle = RouletteSpinner(
-                        x=obj_x,
-                        y=obj_y,
-                        radius=radius,
-                        num_segments=num_segments,
-                        spin_speed_deg_s=spin_speed
-                    )
-                    obstacle_created_from_list = True
-                    self._log_warning(f"Created RouletteSpinner at ({obj_x},{obj_y}) with radius={radius}, segments={num_segments}, speed={spin_speed}")
-                else:
-                    self._log_warning(f"Ignoring additional PMF obstacle object (RouletteSpinner) #{obj_index} (only one supported currently): {obj}")
+                # Use Y coordinate directly
+                obj_y_relative_to_playable = obj_y # Use Y directly
+                # Instantiate RouletteSpinner directly
+                new_spinner = RouletteSpinner(
+                    x=obj_x, # Logical X
+                    y=obj_y_relative_to_playable, # Adjusted Y
+                    radius=radius,
+                    num_segments=num_segments,
+                    spin_speed_deg_s=spin_speed
+                )
+                self.obstacles.append(new_spinner) # Append to list
+                self._log_warning(f"Created and appended RouletteSpinner at logical ({obj_x},{obj_y}) with radius={radius}, segments={num_segments}, speed={spin_speed}")
 
             elif obj_type == 'powerup_ball_duplicator': # Specific type
                 # Only create one powerup for now
                 if not powerup_created_from_list:
+                    # Use Y coordinate directly
+                    obj_y_relative_to_playable = obj_y # Keep variable name, no subtraction
                     # Get size from properties, fallback to object width
                     powerup_size = properties.get('size', obj_width)
                     self.power_up = PowerUpBallObject(
-                        arena_width=self.width,
-                        arena_height=self.height,
+                        arena_width=self.width, # Logical width
+                        arena_height=self.height, # Logical playable height
                         scoreboard_height=self.scoreboard_height,
                         scale_rect=self.scale_rect,
-                        x=obj_x,
-                        y=obj_y,
+                        x=obj_x, # Logical X
+                        y=obj_y_relative_to_playable, # Adjusted Y
                         size=powerup_size,
                         properties=properties # Pass the properties dict
                     )
                     powerup_created_from_list = True
-                    self._log_warning(f"Created PowerUpBallObject at ({obj_x},{obj_y}) with size {powerup_size} and properties: {properties}")
+                    self._log_warning(f"Created PowerUpBallObject at logical ({obj_x},{obj_y}) with size {powerup_size} and properties: {properties}")
                 else:
                      self._log_warning(f"Ignoring additional PMF powerup object #{obj_index} (only one supported currently): {obj}")
 
@@ -587,13 +604,15 @@ class LevelCompiler: # Renamed from Arena
                      continue
                  # Target ID can be None for unlinked portals initially
 
+                 # Use Y coordinate directly
+                 obj_y_relative_to_playable = obj_y # Keep variable name, no subtraction
                  portal = PortalObject(
                      self.width, self.height, self.scoreboard_height, self.scale_rect,
-                     obj_x, obj_y, obj_width, obj_height
+                     obj_x, obj_y_relative_to_playable, obj_width, obj_height
                      # Properties are not currently used by PortalObject/Portal, but could be passed: properties=properties
                  )
                  self.portals.append(portal)
-                 self._log_warning(f"Created PortalObject (id={portal_id}, target={target_id}) at ({obj_x},{obj_y}).")
+                 self._log_warning(f"Created PortalObject (id={portal_id}, target={target_id}) at logical ({obj_x},{obj_y}).")
 
                  # Store data needed for linking later
                  if not hasattr(self, '_portal_link_data'):
@@ -613,13 +632,15 @@ class LevelCompiler: # Renamed from Arena
                      self._log_warning(f"Skipping PMF sprite object #{obj_index} due to missing geometry (using standard keys): {obj}")
                      continue
 
+                 # Use Y coordinate directly
+                 obj_y_relative_to_playable = obj_y # Keep variable name, no subtraction
                  sprite = SpriteObject(
-                     arena_width=self.width,
-                     arena_height=self.height,
+                     arena_width=self.width, # Logical width
+                     arena_height=self.height, # Logical playable height
                      scoreboard_height=self.scoreboard_height,
                      scale_rect=self.scale_rect,
-                     x=obj_x,
-                     y=obj_y,
+                     x=obj_x, # Logical X
+                     y=obj_y_relative_to_playable, # Adjusted Y
                      width=obj_width,
                      height=obj_height,
                      image_path=image_path,
@@ -627,7 +648,7 @@ class LevelCompiler: # Renamed from Arena
                  )
                  self._log_warning(f"DEBUG: Attempting to append SpriteObject: {sprite}") # ++ ADDED LOG ++
                  self.sprites.append(sprite)
-                 self._log_warning(f"Successfully created and appended SpriteObject with path '{image_path}' at ({obj_x},{obj_y})") # Modified log
+                 self._log_warning(f"Successfully created and appended SpriteObject with path '{image_path}' at logical ({obj_x},{obj_y})") # Modified log
 
             else: # Now correctly indented
                  self._log_warning(f"Unknown object type '{obj_type}' in PMF object #{obj_index}: {obj}")
@@ -657,18 +678,19 @@ class LevelCompiler: # Renamed from Arena
              del self._portal_link_data # Clean up temporary data
 
 
-        # Create default obstacle if flag is set AND none were created from list
-        if not obstacle_created_from_list and self.can_spawn_obstacles:
-             self._log_warning("No obstacle defined in PMF 'objects', creating default obstacle because 'can_spawn_obstacles' is true.")
+        # Create default obstacle if flag is set AND the obstacles list is empty
+        if not self.obstacles and self.can_spawn_obstacles: # Check if list is empty
+             self._log_warning("No obstacles defined in PMF 'objects', creating default obstacle because 'can_spawn_obstacles' is true.")
              # Create default obstacle (ObstacleObject handles random positioning)
              # Pass empty properties dict for default obstacle
-             self.obstacle = ObstacleObject(
+             default_obstacle = ObstacleObject(
                  arena_width=self.width,
                  arena_height=self.height,
                  scoreboard_height=self.scoreboard_height,
                  scale_rect=self.scale_rect,
                  properties={}
              )
+             self.obstacles.append(default_obstacle) # Append default to list
 
         # Create default powerup if flag is set AND none were created from list
         if not powerup_created_from_list and self.can_spawn_powerups:
@@ -884,21 +906,21 @@ class LevelCompiler: # Renamed from Arena
         return False
 
     def reset_obstacle(self):
-        """Resets the obstacle based on the initial parameters."""
-        # Re-create the obstacle using the stored parameters, respecting the flag
+        """Resets obstacles. Clears the list and adds a default if applicable."""
+        self.obstacles = [] # Clear the list
+        # Re-add a default obstacle if the flag is set (mirroring PMF loading logic)
         if self.can_spawn_obstacles:
-            # Always create an active obstacle when resetting,
-            # regardless of the initial 'obstacle_definition' params.
-            # Pass {'active': True} to ensure create_obstacle doesn't return None.
-            # We could potentially merge {'active': True} with self.obstacle_params
-            # if we wanted to preserve other potential definition params (like size/color).
-            # For now, just ensure it's active.
-            reset_params = {'active': True}
-            # Optionally merge with original params if they exist and we want to keep size/color etc.
-            # reset_params.update(self.obstacle_params) # Example if needed later
-            self.obstacle = self.create_obstacle(reset_params)
-        else:
-            self.obstacle = None
+             self._log_warning("Resetting obstacles: Adding default obstacle because 'can_spawn_obstacles' is true.")
+             default_obstacle = ObstacleObject(
+                 arena_width=self.width,
+                 arena_height=self.height,
+                 scoreboard_height=self.scoreboard_height,
+                 scale_rect=self.scale_rect,
+                 properties={}
+             )
+             self.obstacles.append(default_obstacle)
+        # Note: This doesn't re-load obstacles from the original PMF file upon reset.
+        # A more complex reset might re-run parts of _create_objects_from_pmf.
 
 
     def initialize_scoreboard(self):
@@ -919,7 +941,9 @@ class LevelCompiler: # Renamed from Arena
 
     def update_scaling(self, window_width, window_height):
         """Update scaling factors based on window dimensions."""
-        if self.width <= 0 or self.height <= 0: # Prevent division by zero
+        # Use total logical height for scaling calculations
+        total_logical_height = self.height + self.scoreboard_height
+        if self.width <= 0 or total_logical_height <= 0: # Prevent division by zero
              self.scale_x = 1.0
              self.scale_y = 1.0
              self.scale = 1.0
@@ -927,18 +951,21 @@ class LevelCompiler: # Renamed from Arena
              self.offset_y = 0
              return
 
+        # Calculate scale based on the *entire* logical area (playable + scoreboard) fitting into the window
         self.scale_x = window_width / self.width
-        self.scale_y = window_height / self.height
-        self.scale = min(self.scale_x, self.scale_y)
+        self.scale_y = window_height / total_logical_height
+        self.scale = min(self.scale_x, self.scale_y) # Use the smaller scale factor to fit everything
 
-        # Calculate centering offsets
-        self.offset_x = (window_width - (self.width * self.scale)) / 2
-        self.offset_y = (window_height - (self.height * self.scale)) / 2
+        # Calculate centering offsets based on the scaled total logical size
+        scaled_total_width = self.width * self.scale
+        scaled_total_height = total_logical_height * self.scale
+        self.offset_x = (window_width - scaled_total_width) / 2
+        self.offset_y = (window_height - scaled_total_height) / 2
 
         # Update scoreboard scaling if initialized
         if self.scoreboard:
-            self.scoreboard.scale_y = self.scale_y # Should scoreboard scale with overall scale? Or just Y? Check Scoreboard impl.
-            # Maybe self.scoreboard.scale = self.scale ?
+            # Scoreboard should probably scale uniformly with the rest of the game
+            self.scoreboard.scale_y = self.scale # Use the overall scale factor
 
         # Signal sludge texture regeneration if needed
         if self.level_background == 'sewer':
@@ -967,11 +994,14 @@ class LevelCompiler: # Renamed from Arena
         scale_w = max(0, rect.width * self.scale)
         scale_h = max(0, rect.height * self.scale)
 
+        # The key change: don't add scoreboard_height to the y-coordinate
+        # This way, (0,0) in logical space maps to the top-left of the playable area
         return pygame.Rect(
-            (rect.x * self.scale) + self.offset_x,
-            (rect.y * self.scale) + self.offset_y,
-            scale_w,
-            scale_h
+            int((rect.x * self.scale) + self.offset_x),
+            # Add offset_y directly without adding scoreboard height
+            int((rect.y * self.scale) + self.offset_y + (self.scoreboard_height * self.scale)),
+            int(scale_w),
+            int(scale_h)
         )
 
     def draw_center_line(self, screen):
@@ -989,9 +1019,8 @@ class LevelCompiler: # Renamed from Arena
         if total_box_height_scaled <= 0:
             return
 
-        # Calculate number of boxes based on available height (excluding scoreboard)
-        drawable_height = self.height - self.scoreboard_height
-        drawable_height_scaled = drawable_height * self.scale
+        # Calculate number of boxes based on available playable height (self.height)
+        drawable_height_scaled = self.height * self.scale # self.height is playable height
         num_boxes = int(drawable_height_scaled // total_box_height_scaled)
 
         # Calculate starting y position (top of the playable area)
@@ -1096,15 +1125,15 @@ class LevelCompiler: # Renamed from Arena
             return
 
         # Pass arena dimensions and obstacles for valid spawn position
-        # Ensure obstacle exists before adding
-        obstacles = [obs for obs in [self.obstacle] + self.goals + self.portals + self.manholes + self.bumpers if obs is not None]
+        # Combine all potential collision objects into one list
+        obstacles_for_spawn = [obs for obs in self.obstacles + self.goals + self.portals + self.manholes + self.bumpers if obs is not None]
 
         self.power_up.update(
             ball_count,
             self.width,
             self.height,
             self.scoreboard_height,
-            obstacles
+            obstacles_for_spawn # Pass the combined list
         )
 
     # Removed redundant _draw_sewer_background method.
@@ -1154,71 +1183,54 @@ class LevelCompiler: # Renamed from Arena
             self.draw_center_line(target_surface) # Draw center line on top
 
         # --- Draw Game Elements ---
+        # No clipping needed now, scale_rect handles coordinate mapping.
 
-        # --- Draw Sprites (using SpriteObjects) ---
-        # Draw these after the background but before interactive game elements
-        if self.sprites: # ++ ADDED CHECK ++
-             # self._log_warning(f"DEBUG: Drawing {len(self.sprites)} sprites...") # Optional: uncomment if needed
-             for i, sprite in enumerate(self.sprites):
-                 # self._log_warning(f"DEBUG: Drawing sprite #{i} with path {getattr(sprite, 'image_path', 'N/A')}") # Optional: uncomment if needed
-                 sprite.draw(target_surface) # SpriteObject's draw handles scaling
-        # else: # ++ ADDED CHECK ++
-             # self._log_warning("DEBUG: No sprites found in self.sprites list to draw.") # Optional: uncomment if needed
+        # Draw Sprites
+        if self.sprites:
+             for sprite in self.sprites:
+                 sprite.draw(target_surface) # SpriteObject uses scale_rect internally
 
-        # Log portal list content before drawing
-        self._log_warning(f"Drawing portals. self.portals list: {self.portals}")
-
-        # Draw portals first (potentially over background elements)
+        # Draw portals
         for portal in self.portals:
-             portal.draw(target_surface, self.colors, self.scale_rect)
+             portal.draw(target_surface, self.colors, self.scale_rect) # PortalObject uses scale_rect
 
         # Draw manholes and bumpers
         for manhole in self.manholes:
-            manhole.draw(target_surface, self.colors)
-            
+            manhole.draw(target_surface, self.colors) # ManholeObject uses scale_rect
         for bumper in self.bumpers:
-            bumper.update(1/60)  # Update animation with default delta time
-            bumper.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
+            bumper.update(1/60)
+            bumper.draw(target_surface, self.colors.get('WHITE', (255, 255, 255))) # BumperObject uses scale_rect
 
-        # Draw goals (only if they exist)
+        # Draw goals
         for goal in self.goals:
-            goal.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
+            goal.draw(target_surface, self.colors.get('WHITE', (255, 255, 255))) # GoalObject uses scale_rect
 
-        # Draw obstacle
-        if self.obstacle: # Check if obstacle exists
-             # Ensure the obstacle has a draw method before calling
-             if hasattr(self.obstacle, 'draw') and callable(self.obstacle.draw):
-                 # Call draw with the correct arguments: surface, colors dict, scale_rect function
-                 self.obstacle.draw(target_surface, self.colors, self.scale_rect)
-             else:
-                 self._log_warning(f"Obstacle object {type(self.obstacle)} does not have a callable draw method.")
+        # Draw obstacles
+        for obstacle in self.obstacles: # Iterate through the list
+             if obstacle and hasattr(obstacle, 'draw') and callable(obstacle.draw):
+                 # ObstacleObject and RouletteSpinner use scale_rect or handle scaling internally
+                 obstacle.draw(target_surface, self.colors, self.scale_rect)
 
-        # Draw game objects (Paddles, Ball) - Draw Ball last so it's on top?
+        # Draw game objects (Paddles, Ball)
         paddles = [obj for obj in game_objects if not isinstance(obj, BallObject)]
         balls = [obj for obj in game_objects if isinstance(obj, BallObject)]
-
         for obj in paddles:
              if hasattr(obj, 'draw') and callable(obj.draw):
+                 # Assumes PaddleObject.draw uses scale_rect or handles scaling
                  obj.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
-             else:
-                 self._log_warning(f"Object {obj} in game_objects list does not have a draw method.")
-
-        # Draw power-up if active (before ball?)
-        # Check the 'active' attribute of the underlying PowerUpBall instance
+        # Draw power-up if active
         if self.power_up and self.power_up.power_up.active:
+            # PowerUpBallObject uses scale_rect
             self.power_up.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
-
         # Draw balls last
         for obj in balls:
              if hasattr(obj, 'draw') and callable(obj.draw):
+                 # Assumes BallObject.draw uses scale_rect or handles scaling
                  obj.draw(target_surface, self.colors.get('WHITE', (255, 255, 255)))
-             else:
-                 self._log_warning(f"Object {obj} in game_objects list does not have a draw method.")
 
 
         # --- Draw UI Elements ---
-
-        # Draw scoreboard
+        # Scoreboard is drawn relative to the top of the screen (0,0) before offsets/scaling are applied by its own draw method
         self.draw_scoreboard(target_surface, player_name, score_a, opponent_name, score_b, font, respawn_timer)
 
         # Draw pause overlay if paused (drawn last on the target surface)

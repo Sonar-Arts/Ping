@@ -182,14 +182,31 @@ def draw_casino_background(surface, compiler_instance):
     ]
 
     # --- Define Layout Parameters ---
-    # border_thickness_ratio = 0.04 # Removed wood border
-    # border_thickness_logic = arena_width * border_thickness_ratio # Removed wood border
     inner_x_start_logic = 0 # Start from edge
-    inner_y_start_logic = scoreboard_height # Start from scoreboard
-    inner_width_logic = arena_width # Use full width
-    inner_height_logic = arena_height - scoreboard_height # Use full height below scoreboard
-    # inner_rect_logic = pygame.Rect(inner_x_start_logic, inner_y_start_logic, inner_width_logic, inner_height_logic) # Not directly used
+    inner_y_start_logic = 0 # Logical Y for playable area starts at 0
+    inner_width_logic = arena_width # Use full logical width
+    inner_height_logic = arena_height # Use full logical playable height (compiler_instance.height)
     inner_center_x_logic = inner_x_start_logic + inner_width_logic / 2
+
+    # --- Get the game area rectangle ---
+    # Use scale_rect_func to get the position of the game area on screen
+    game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height))
+
+    # --- Draw Base Background and Retro Details ---
+    # Draw the base color covering the game area
+    pygame.draw.rect(surface, base_color, game_area_rect)
+
+    # Add subtle grid lines for more retro detail
+    grid_spacing_logic = 50 # Logical pixels between grid lines
+    scaled_grid_spacing = max(1, int(grid_spacing_logic * scale))
+    grid_color = (base_color[0]+10, base_color[1]+10, base_color[2]+15, 50) # Slightly lighter, semi-transparent
+
+    # Vertical lines - only within game area
+    for x in range(game_area_rect.left, game_area_rect.right, scaled_grid_spacing):
+        pygame.draw.line(surface, grid_color, (x, game_area_rect.top), (x, game_area_rect.bottom), 1)
+    # Horizontal lines - only within game area
+    for y in range(game_area_rect.top, game_area_rect.bottom, scaled_grid_spacing):
+        pygame.draw.line(surface, grid_color, (game_area_rect.left, y), (game_area_rect.right, y), 1)
 
     # --- Initialize/Update Animation State ---
     if 'background_animation_state' not in compiler_instance.__dict__:
@@ -259,34 +276,6 @@ def draw_casino_background(surface, compiler_instance):
             if light['on']:
                  light['color_index'] = random.randint(0, len(light_colors) - 1)
 
-    # --- Draw Base Background and Retro Details ---
-    full_area_rect_logic = pygame.Rect(0, scoreboard_height, arena_width, arena_height - scoreboard_height)
-    scaled_full_area_rect = scale_rect_func(full_area_rect_logic)
-    pygame.draw.rect(surface, base_color, scaled_full_area_rect)
-
-    # Add subtle grid lines for more retro detail
-    grid_spacing_logic = 50 # Logical pixels between grid lines
-    scaled_grid_spacing = max(1, int(grid_spacing_logic * scale))
-    grid_color = (base_color[0]+10, base_color[1]+10, base_color[2]+15, 50) # Slightly lighter, semi-transparent
-
-    # Vertical lines
-    for x in range(scaled_full_area_rect.left, scaled_full_area_rect.right, scaled_grid_spacing):
-        pygame.draw.line(surface, grid_color, (x, scaled_full_area_rect.top), (x, scaled_full_area_rect.bottom), 1)
-    # Horizontal lines
-    for y in range(scaled_full_area_rect.top, scaled_full_area_rect.bottom, scaled_grid_spacing):
-        pygame.draw.line(surface, grid_color, (scaled_full_area_rect.left, y), (scaled_full_area_rect.right, y), 1)
-
-
-    # --- Draw Wooden Border --- (Removed)
-    # top_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height, arena_width, border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, top_border_rect)
-    # bottom_border_rect = scale_rect_func(pygame.Rect(0, arena_height - border_thickness_logic, arena_width, border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, bottom_border_rect)
-    # left_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, left_border_rect)
-    # right_border_rect = scale_rect_func(pygame.Rect(arena_width - border_thickness_logic, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, right_border_rect)
-
     # --- Draw Small Details ---
     detail_radius_logic = inner_width_logic * 0.005
     scaled_detail_radius = max(1, int(detail_radius_logic * scale))
@@ -304,7 +293,6 @@ def draw_casino_background(surface, compiler_instance):
          abs_y = inner_y_start_logic + inner_height_logic * rel_y
          scaled_center = scale_rect_func(pygame.Rect(abs_x, abs_y, 0, 0)).center
          pygame.draw.circle(surface, detail_color, scaled_center, scaled_detail_radius)
-
 
     # --- Draw Pixelated Curved Lane Guides with Shadows ---
     num_segments = 12 # Increase segments slightly for smoother pixel curve
@@ -344,7 +332,7 @@ def draw_casino_background(surface, compiler_instance):
     scaled_shadow_offset_y = max(1, int(arena_height * shadow_offset_scale * scale))
 
     # Create a temporary surface for drawing shadows with alpha
-    shadow_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    shadow_surface = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
     shadow_surface.fill((0,0,0,0)) # Transparent
 
     if len(scaled_left_points) > 1:
@@ -465,19 +453,31 @@ def draw_sewer_background(surface, compiler_instance):
     # Get background details directly from the compiler instance attribute
     background_details = compiler_instance.background_details # Direct access
     if not background_details:
-        print("Warning: No background_details found in compiler instance for sewer background.")
-        # Attempt to use defaults if details are missing entirely
+        # Only show warning once using static flag
+        if not hasattr(draw_sewer_background, '_warned_about_details'):
+            print("Warning: No background_details found in compiler instance for sewer background.")
+            print("Warning: Using default sewer background details.")
+            draw_sewer_background._warned_about_details = True
+        
+        # Use defaults if details are missing entirely
         background_details = {
-             'brick_width': 50, 'brick_height': 25, 'river_width_ratio': 0.25,
-             'manhole_brick_padding': 5, 'crack_frequency': 0.05,
-             'vegetation_frequency': 0.02, 'river_animation_speed': 1
+              'brick_width': 50, 'brick_height': 25, 'river_width_ratio': 0.25,
+              'manhole_brick_padding': 5, 'crack_frequency': 0.05,
+              'vegetation_frequency': 0.02, 'river_animation_speed': 1
         }
-        print("Warning: Using default sewer background details.")
         # Do not return here, proceed with defaults
 
     # Get level dimensions directly from compiler instance
     arena_width = compiler_instance.width
     arena_height = compiler_instance.height
+
+    # --- Get the game area rectangle ---
+    game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height))
+
+    # --- Draw Base Background Color ---
+    # Use a dark base color, e.g., Mortar or Brick Dark, filling only the game area
+    base_sewer_color = colors.get('MORTAR', (15, 15, 15))
+    surface.fill(base_sewer_color, game_area_rect)
 
     # Use the already filtered manholes list from the compiler instance
     # IMPORTANT: Assumes ManHoleObject class is imported or accessible where LevelCompiler is defined
@@ -508,14 +508,17 @@ def draw_sewer_background(surface, compiler_instance):
     scaled_brick_h = brick_h * scale
     scaled_river_x_start = river_x_start * scale + offset_x
     scaled_river_width = river_width * scale
-    scaled_river_y_start = scoreboard_height * scale + offset_y
-    scaled_river_height = (arena_height - scoreboard_height) * scale
+    # River Y starts at the top of the playable area in logical coordinates (Y=0)
+    # scale_rect_func will handle adding the scoreboard offset for screen coordinates
+    scaled_river_y_start = scale_rect_func(pygame.Rect(0, 0, 0, 0)).top # Get scaled top Y of playable area
+    scaled_river_height = arena_height * scale # Use the full playable height
 
     # --- Draw Brick Pattern ---
-    # (Brick drawing logic remains largely the same, using extracted variables)
-    for y_logic in range(scoreboard_height, arena_height, brick_h):
+    # Iterate through logical Y coordinates of the playable area (0 to arena_height)
+    for y_logic in range(0, arena_height, brick_h): # Start Y loop from 0
         row_offset = (y_logic // brick_h) % 2 * (brick_w // 2)  # Staggered pattern
         for x_logic in range(0, arena_width, brick_w):
+            # Create rect with logical coordinates relative to playable area top-left (0,0)
             brick_rect_logic = pygame.Rect(x_logic - row_offset, y_logic, brick_w, brick_h)
 
             # Skip drawing bricks fully covered by the river
@@ -539,7 +542,6 @@ def draw_sewer_background(surface, compiler_instance):
                      # print(f"Warning: Manhole object {manhole} lacks a valid rect attribute.")
                      pass
 
-
             # Determine brick color (Hardcoded darker values, solid manhole border)
             manhole_border_color = (20, 20, 20) # Very dark for border
             brick_light_color = (45, 45, 45)    # Darker light brick
@@ -555,32 +557,11 @@ def draw_sewer_background(surface, compiler_instance):
 
             # Scale and draw the brick using the provided function
             scaled_brick_rect = scale_rect_func(brick_rect_logic) # Use extracted function
+            # Draw directly onto the main surface
             pygame.draw.rect(surface, brick_color, scaled_brick_rect)
             pygame.draw.rect(surface, mortar_color, scaled_brick_rect, 1)  # Mortar outline
 
-            # Vegetation drawing (removed crack generation from here)
-            if not is_near_manhole:
-                veg_freq = details.get('vegetation_frequency', 0.02)
-                veg_color = colors.get('VEGETATION_COLOR', (0, 80, 0)) # Keep vegetation color from theme
-                # if random.random() < veg_freq: # Keep vegetation random for now
-                #      # Ensure scaled rect has positive dimensions before random range
-                #     if scaled_brick_rect.width > 5 and scaled_brick_rect.height > 5:
-                #         veg_x = scaled_brick_rect.left + random.randint(0, scaled_brick_rect.width - 5)
-                #         veg_y = scaled_brick_rect.top + random.randint(0, scaled_brick_rect.height - 5)
-                #         # Scale veg size too, ensure minimum size of 1
-                #         veg_w = max(1, int(5 * scale))
-                #         veg_h = max(1, int(5 * scale))
-                #         pygame.draw.rect(surface, veg_color, (veg_x, veg_y, veg_w, veg_h))
-
-                # if random.random() < veg_freq:
-                #      # Ensure scaled rect has positive dimensions before random range
-                #     if scaled_brick_rect.width > 5 and scaled_brick_rect.height > 5:
-                #         veg_x = scaled_brick_rect.left + random.randint(0, scaled_brick_rect.width - 5)
-                #         veg_y = scaled_brick_rect.top + random.randint(0, scaled_brick_rect.height - 5)
-                #         # Scale veg size too, ensure minimum size of 1
-                #         veg_w = max(1, int(5 * scale))
-                #         veg_h = max(1, int(5 * scale))
-                #         pygame.draw.rect(surface, veg_color, (veg_x, veg_y, veg_w, veg_h))
+            # Vegetation drawing (removed for simplicity)
 
     # --- Draw Pre-calculated Cracks ---
     crack_color = (10, 10, 10) # Hardcoded dark crack color
@@ -594,11 +575,16 @@ def draw_sewer_background(surface, compiler_instance):
                     scaled_point = scale_rect_func(pygame.Rect(point[0], point[1], 0, 0)).topleft
                     scaled_points.append(scaled_point)
 
-                # Draw the connected line segments (zig-zag)
-                pygame.draw.lines(surface, crack_color, False, scaled_points, 1) # False for non-closed polyline
+                # Draw the connected line segments (zig-zag) on the temp surface
+                # Draw directly onto the main surface
+                pygame.draw.lines(surface, crack_color, False, scaled_points, 1)
 
     # --- Draw Sewer River ---
-    river_rect = pygame.Rect(scaled_river_x_start, scaled_river_y_start, scaled_river_width, scaled_river_height)
+    # Define the logical rectangle for the river within the playable area
+    river_rect_logic = pygame.Rect(river_x_start, 0, river_width, arena_height)
+    # Scale the logical rect to get the screen drawing area
+    river_rect_scaled = scale_rect_func(river_rect_logic)
+
     # Use blue shades for the river (can still use theme colors here)
     # Define murky sludge colors inspired by the image
     sludge_base_color = colors.get('SLUDGE_BASE', (60, 65, 45))
@@ -607,14 +593,15 @@ def draw_sewer_background(surface, compiler_instance):
     sludge_highlight_color_rgb = colors.get('SLUDGE_HIGHLIGHT', (100, 105, 75))
 
     # Draw the base river rectangle first
-    pygame.draw.rect(surface, sludge_base_color, river_rect)
+    # Draw the base river rectangle directly onto the main surface
+    pygame.draw.rect(surface, sludge_base_color, river_rect_scaled)
 
     # --- Animate Sludge Flow ---
     # Ensure valid dimensions for drawing and calculations
-    if scaled_river_width > 0 and scaled_river_height > 0:
-        anim_speed = details.get('river_animation_speed', 0.5) # Use speed from details, default 0.5
-        # Define speed in pixels per second (doubled speed)
-        pixels_per_second = anim_speed * scale * 50 # Doubled speed factor
+    if river_rect_scaled.width > 0 and river_rect_scaled.height > 0:
+        anim_speed = details.get('river_animation_speed', 0.5)
+        # Define speed in pixels per second
+        pixels_per_second = anim_speed * scale * 50 # Speed relative to scaled pixels
 
         # Get dt from compiler_instance
         dt = getattr(compiler_instance, 'dt', 1/60.0) # Default to 1/60
@@ -622,10 +609,11 @@ def draw_sewer_background(surface, compiler_instance):
         # --- Update Scroll Offset ---
         current_offset = river_animation_offset # Get current offset
         offset_change = pixels_per_second * dt
-        texture_height = scaled_river_height # Use river height for looping
+        # Use the scaled river height for looping the texture offset
+        texture_loop_height = river_rect_scaled.height
 
-        if texture_height > 0:
-            new_offset = (current_offset + offset_change) % texture_height
+        if texture_loop_height > 0:
+            new_offset = (current_offset + offset_change) % texture_loop_height
         else:
             new_offset = 0
         compiler_instance.background_animation_state['river_offset'] = new_offset # Store updated offset
@@ -639,48 +627,36 @@ def draw_sewer_background(surface, compiler_instance):
         if sludge_texture and sludge_texture.get_height() > 0:
             tex_h = sludge_texture.get_height()
             # Ensure the texture height matches the expected river height for seamless tiling
-            # If not, it might indicate an issue with texture generation or scaling.
-            # For now, we proceed, but ideally, they should match.
-            if tex_h != int(texture_height):
-                 # print(f"Warning: Sludge texture height ({tex_h}) differs from river height ({int(texture_height)}).")
-                 # Optionally resize texture here, but it's better to generate it correctly.
+            if tex_h != int(river_rect_scaled.height):
                  pass # Proceeding with potentially mismatched texture
 
             # Calculate the integer offset for blitting
             blit_offset = int(new_offset)
 
             # Define the area on the main surface where the river is drawn
-            target_area = pygame.Rect(scaled_river_x_start, scaled_river_y_start, scaled_river_width, scaled_river_height)
+            # Define the target area on the screen (the scaled river rect)
+            target_area = river_rect_scaled
 
-            # Blit the first instance of the texture
-            # Source rect starts from the top of the texture
-            # Destination y is offset by the negative scroll amount
-            src_rect1 = pygame.Rect(0, 0, scaled_river_width, tex_h)
-            dest_y1 = scaled_river_y_start - blit_offset
-            surface.blit(sludge_texture, (scaled_river_x_start, dest_y1), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD) # Use additive blend if desired, or remove flag
+            # Create a temporary surface for the sludge texture with the right size
+            sludge_target = pygame.Surface((target_area.width, target_area.height), pygame.SRCALPHA)
+            sludge_target.fill((0, 0, 0, 0))  # Clear with transparent
 
-            # Blit the second instance of the texture, positioned above the first
-            # Destination y is offset by texture height minus the scroll amount
-            dest_y2 = scaled_river_y_start - blit_offset + tex_h
-            surface.blit(sludge_texture, (scaled_river_x_start, dest_y2), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD) # Use additive blend if desired, or remove flag
+            # Blit the first instance of the texture to the temporary surface
+            src_rect1 = pygame.Rect(0, 0, target_area.width, tex_h)
+            # Destination Y is offset by the negative scroll amount
+            dest_y1 = -blit_offset
+            sludge_target.blit(sludge_texture, (0, dest_y1), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD)
 
-            # --- Clipping --- (Optional but recommended)
-            # To ensure the sludge only draws within the river_rect bounds,
-            # set a clipping rectangle before blitting and reset it after.
-            # original_clip = surface.get_clip()
-            # surface.set_clip(river_rect)
-            # surface.blit(sludge_texture, ...) # Blit 1
-            # surface.blit(sludge_texture, ...) # Blit 2
-            # surface.set_clip(original_clip)
-            # Note: The current blit operations might implicitly handle clipping if
-            # the target coordinates are outside the surface, but explicit clipping is safer.
+            # Blit the second instance of the texture, positioned below the first (wrapping around)
+            dest_y2 = -blit_offset + tex_h
+            sludge_target.blit(sludge_texture, (0, dest_y2), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD)
 
+            # Blit the animated sludge texture directly onto the main surface at the river position
+            surface.blit(sludge_target, river_rect_scaled.topleft) # Use river_rect_scaled.topleft
         elif not sludge_texture:
-            # Optionally draw a placeholder if texture isn't ready yet
-            # pygame.draw.rect(surface, (255, 0, 255), river_rect) # Magenta placeholder
-            pass # Or just draw nothing
+            pass # If no sludge texture is available
 
-    # Offset update is handled within the compiler instance state
+    # --- No final blit needed as we drew directly onto the surface ---
 
 # --- Populate Background Definitions ---
 # Add backgrounds to the dictionary *after* their functions are defined.

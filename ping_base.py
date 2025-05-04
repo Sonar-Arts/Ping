@@ -214,7 +214,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         # Recreate game objects with new dimensions
         paddle_a = PaddleObject(
             x=60,  # Moved slightly right to account for wider paddle
-            y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+            y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
             arena_width=arena.width,
@@ -225,7 +225,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         )
         paddle_b = PaddleObject(
             x=arena.width - 100,  # Moved slightly left to account for wider paddle
-            y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+            y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
             arena_width=arena.width,
@@ -245,7 +245,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     # Create game objects with proper params
     paddle_a = PaddleObject(
         x=60,  # Moved slightly right to account for wider paddle
-        y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+        y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
         arena_width=arena.width,
@@ -256,7 +256,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     )
     paddle_b = PaddleObject(
         x=arena.width - 100,  # Moved slightly left to account for wider paddle
-        y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+        y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
         arena_width=arena.width,
@@ -500,9 +500,10 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 if arena.manholes:
                     arena.update_manholes(FRAME_TIME) # Pass frame time for smooth particle animation
 
-                # Update RouletteSpinner state if it exists
-                if isinstance(arena.obstacle, RouletteSpinner):
-                    arena.obstacle.update(FRAME_TIME)
+                # Update RouletteSpinner states (iterate through obstacles)
+                for obstacle in arena.obstacles:
+                    if isinstance(obstacle, RouletteSpinner):
+                        obstacle.update(FRAME_TIME)
 
                 # Handle all active balls
                 scored = None
@@ -520,21 +521,32 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     if current_ball.handle_paddle_collision(paddle_a) or current_ball.handle_paddle_collision(paddle_b):
                         sound_manager.play_sfx('paddle') # Use new method
 
-                    # Ball collision with obstacle (check if obstacle exists first)
-                    if arena.obstacle:
-                        collision_handled = False
-                        # Check the type of obstacle to call the correct collision handler
-                        if isinstance(arena.obstacle, RouletteSpinner):
-                            # RouletteSpinner handles its own logic, doesn't need sound_manager here
-                            if arena.obstacle.handle_collision(current_ball):
-                                collision_handled = True
-                                # RouletteSpinner manages its own state, no reset needed here
-                        elif hasattr(arena.obstacle, 'handle_collision'):
-                            # Assume other obstacles might use the old signature
-                            if arena.obstacle.handle_collision(current_ball, sound_manager):
-                                collision_handled = True
-                                # Reset only if it's not a RouletteSpinner (assuming old behavior)
-                                arena.reset_obstacle()
+                    # Ball collision with obstacles (iterate through the list)
+                    for obstacle in arena.obstacles: # Loop through the list
+                        if obstacle: # Check if the obstacle instance exists
+                            collision_handled = False
+                            # Check the type of obstacle to call the correct collision handler
+                            if isinstance(obstacle, RouletteSpinner):
+                                # RouletteSpinner handles its own logic
+                                if obstacle.handle_collision(current_ball):
+                                    collision_handled = True
+                                    # No reset needed for RouletteSpinner
+                            elif hasattr(obstacle, 'handle_collision'):
+                                # Assume other obstacles might use the old signature
+                                if obstacle.handle_collision(current_ball, sound_manager):
+                                    collision_handled = True
+                                    # Decide if this specific obstacle type should be reset upon collision
+                                    # For now, let's assume only the old ObstacleObject might need resetting
+                                    # (Though reset_obstacle now clears the whole list, which might be undesirable here)
+                                    # TODO: Revisit obstacle reset logic per-type if needed.
+                                    # For now, removing the reset call here to avoid clearing all obstacles.
+                                    # arena.reset_obstacle() # Removed reset call here
+
+                            # If a collision was handled by any obstacle, we might want to break
+                            # or continue checking depending on game design (e.g., can ball hit multiple obstacles?)
+                            # For now, let's assume ball can only interact with one obstacle per frame check.
+                            if collision_handled:
+                                break # Exit the obstacle loop for this ball if collision occurred
 
                     # Check portal collisions
                     arena.check_portal_collisions(current_ball)
