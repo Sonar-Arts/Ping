@@ -6,11 +6,14 @@ This module contains the widget used to display and edit the properties
 object on the level canvas, or the level's global properties if no object
 is selected.
 """
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFormLayout,
-                             QLineEdit, QCheckBox, QScrollArea, QFrame)
-from PyQt6.QtCore import Qt
+import os
+import pygame # Need for getting image dimensions
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFormLayout, QLineEdit,
+                             QCheckBox, QScrollArea, QFrame, QPushButton,
+                             QHBoxLayout, QFileDialog) # Added missing imports
+from PyQt6.QtCore import Qt, QObject, pyqtSignal # Correct Qt Imports
 from functools import partial
-import copy
+import copy # Keep existing copy import
 
 # Placeholder for future property editor widget
 print("Artemis Modules/artemis_property_editor.py loaded")
@@ -24,8 +27,9 @@ class PropertyEditorWidget(QWidget):
         self.core_logic = core_logic
         self.current_object_id = None # Track displayed object ID
         # self.level_prop_widgets = {} # Removed - Level properties handled elsewhere
-        self.object_prop_widgets = {} # Store object property widgets {key: widget}
+        self.object_prop_widgets = {} # Store object property widgets {key: widget or layout_widget}
         self._block_signals = False # Flag to prevent update loops
+        self._sprite_browse_button = None # Reference to the browse button
 
         self.setMinimumWidth(220) # Slightly wider
         self.main_layout = QVBoxLayout(self)
@@ -77,6 +81,8 @@ class PropertyEditorWidget(QWidget):
     # Removed display_level_properties - Handled by LevelPropertiesWidget
     def display_object_properties(self, game_object_data):
         """Populates the editor with properties of the given game object."""
+        # ++ DEBUG LOG ++ Print the data received before processing
+        print(f"DEBUG PropertyEditor: Displaying properties for data: {repr(game_object_data)}")
         self._clear_layout(self.form_layout)
         # self.level_prop_widgets.clear() # Removed
         self.object_prop_widgets.clear()
@@ -97,7 +103,18 @@ class PropertyEditorWidget(QWidget):
 
             # --- Add editable fields for relevant properties ---
             # Order properties logically (Add 'radius' for RouletteSpinner)
-            editable_props = ['x', 'y', 'width', 'height', 'size', 'radius', 'speed', 'is_left', 'is_bottom', 'target_id', 'properties']
+            # Make ID/Type selectable for copying, but read-only
+            id_label = QLineEdit(str(self.current_object_id))
+            id_label.setReadOnly(True)
+            self.form_layout.addRow("ID:", id_label)
+            type_label = QLineEdit(str(game_object_data.get('type', 'N/A')))
+            type_label.setReadOnly(True)
+            self.form_layout.addRow("Type:", type_label)
+
+            # --- Add editable fields for relevant properties ---
+            # Determine editable props dynamically based on type? Or use a base set + specifics.
+            obj_type = game_object_data.get('type')
+            editable_props = ['x', 'y', 'width', 'height', 'size', 'radius', 'speed', 'is_left', 'is_bottom', 'target_id', 'image_path', 'properties']
 
             for key in editable_props:
                 if key in game_object_data:
@@ -130,7 +147,37 @@ class PropertyEditorWidget(QWidget):
                              self.form_layout.addRow(f"    {sub_label_text}", sub_widget)
                              self.object_prop_widgets[compound_key] = sub_widget # Store with compound key
                         continue # Skip adding main widget for 'properties' dict itself
+                    # Correct Indentation for image_path block
+                    elif key == 'image_path':
+                        # Special handling for image path - needs browse button
+                        if obj_type == 'sprite':
+                            layout_widget = QWidget() # Container for LineEdit and Button
+                            h_layout = QHBoxLayout(layout_widget)
+                            h_layout.setContentsMargins(0, 0, 0, 0)
+                            h_layout.setSpacing(2) # Add spacing
 
+                            path_edit = QLineEdit(str(value))
+                            path_edit.setReadOnly(True) # Path displayed, set via browse
+                            # Still connect to handle changes triggered by _browse_for_sprite
+                            # path_edit.textChanged.connect(partial(self._handle_object_property_changed, key))
+                            h_layout.addWidget(path_edit)
+
+                            browse_button = QPushButton("Browse...")
+                            browse_button.clicked.connect(self._browse_for_sprite)
+                            self._sprite_browse_button = browse_button # Store reference
+                            h_layout.addWidget(browse_button)
+
+                            # Add the combined layout to the form
+                            label_text = key.replace('_', ' ').title() + ":"
+                            self.form_layout.addRow(label_text, layout_widget)
+                            # Store the path_edit widget for potential updates, using key 'image_path_edit'
+                            self.object_prop_widgets['image_path_edit'] = path_edit
+                            continue # Skip default widget adding logic below
+                        else:
+                            continue # Only show image path for sprites
+
+
+                    # Correct indentation for the final 'if widget' block
                     # Add the widget to the layout if created
                     if widget:
                         # Create a user-friendly label
@@ -167,7 +214,14 @@ class PropertyEditorWidget(QWidget):
 
         sender = self.sender()
         try:
-            if isinstance(sender, QLineEdit):
+            # --- Special handling for image_path direct call ---
+            # When called from _browse_for_sprite, 'key' is 'image_path' and 'value' is the correct string.
+            # The sender() might not be a QLineEdit in this direct call case.
+            if key == 'image_path' and isinstance(value, str):
+                print(f"DEBUG PropEditor: Directly handling 'image_path' assignment.")
+                new_value = value # Assign the string directly
+            # --- Existing widget-based handling ---
+            elif isinstance(sender, QLineEdit):
                 value_str = str(value) # Value is the text
                 # Determine type based on current value (or guess if None)
                 target_type = type(current_value) if current_value is not None else str # Default to string
@@ -211,6 +265,128 @@ class PropertyEditorWidget(QWidget):
              print(f"Object ID {self.current_object_id} property '{key}' value unchanged.")
         else:
              print(f"Object ID {self.current_object_id} property '{key}' could not determine new value.")
+
+    def _get_image_size(self, relative_path):
+        """Attempts to load image and return its dimensions (width, height)."""
+        if not relative_path:
+             return None
+
+        # Use same logic as level_view: Construct full path from workspace root
+        base_path = "." # Use relative path from workspace root
+        relative_folder = os.path.join("Ping Assets", "Images", "Sprites")
+        full_path = os.path.join(base_path, relative_folder, relative_path)
+        full_path = os.path.normpath(full_path)
+
+        try:
+            # Check if pygame is initialized (might be needed depending on timing)
+            if not pygame.get_init():
+                 print("Warning: Initializing Pygame in property editor to get image size.")
+                 pygame.init()
+
+            if pygame.get_init(): # Double check after trying init
+                 image = pygame.image.load(full_path)
+                 print(f"Loaded '{relative_path}' - Size: {image.get_size()}")
+                 return image.get_size() # Returns (width, height)
+            else:
+                print("Error: Pygame failed to initialize, cannot get image size.")
+                return None
+        except FileNotFoundError:
+            print(f"Error: Image not found for size check: {full_path}")
+            return None
+        except pygame.error as e:
+            print(f"Error loading image '{relative_path}' for size check: {e}")
+            return None
+
+    def _browse_for_sprite(self):
+        """Opens a file dialog to select a sprite image."""
+        if self.current_object_id is None:
+            print("Cannot browse for sprite, no object selected.")
+            return
+
+        obj_data = self.core_logic.get_object_by_id(self.current_object_id)
+        if not obj_data or obj_data.get('type') != 'sprite':
+            print("Cannot browse for sprite, selected object is not a sprite.")
+            return
+
+        # Directory where sprites are stored, relative to the workspace root
+        sprite_dir_relative = os.path.join("Ping Assets", "Images", "Sprites")
+        sprite_dir_abs = os.path.abspath(os.path.join(os.getcwd(), sprite_dir_relative))
+        sprite_dir_abs = os.path.normpath(sprite_dir_abs)
+
+        # Make sure the directory exists
+        if not os.path.isdir(sprite_dir_abs):
+            print(f"Error: Sprite directory does not exist: {sprite_dir_abs}")
+            # TODO: Optionally show a QMessageBox to the user
+            return
+
+        print(f"Opening file dialog in: {sprite_dir_abs}") # Debugging path
+
+        current_relative_path = obj_data.get('image_path', "")
+        current_full_path = os.path.join(sprite_dir_abs, current_relative_path)
+
+        # Open file dialog
+        # Start in the sprite directory, show compatible image types
+        file_path_abs, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Sprite Image",
+            sprite_dir_abs, # Start directory
+            "Image Files (*.png *.jpg *.jpeg *.bmp)" # Filter
+        )
+
+        if file_path_abs:
+            file_path_abs = os.path.normpath(file_path_abs)
+            # Check if the selected file is actually within the allowed sprite directory
+            if not file_path_abs.startswith(sprite_dir_abs):
+                print(f"Error: Selected file {file_path_abs} is not within the designated sprite directory {sprite_dir_abs}. Selection ignored.")
+                # TODO: Optionally show a QMessageBox
+                return
+
+            # Calculate the path relative to the sprite directory
+            relative_path = os.path.relpath(file_path_abs, sprite_dir_abs)
+            relative_path = relative_path.replace('\\', '/') # Use forward slashes for consistency
+
+            print(f"Selected relative path: {relative_path}")
+
+            # Update the UI text field (find the correct widget)
+            path_edit_widget = self.object_prop_widgets.get('image_path_edit')
+            if path_edit_widget and isinstance(path_edit_widget, QLineEdit):
+                self._block_signals = True # Prevent immediate handling by textChanged
+                path_edit_widget.setText(relative_path)
+                self._block_signals = False
+
+            # Trigger the core logic update for image_path
+            self._handle_object_property_changed('image_path', relative_path)
+
+            # Now, attempt to get dimensions and update core logic and UI for width/height
+            new_dimensions = self._get_image_size(relative_path)
+
+            if new_dimensions:
+                new_width, new_height = new_dimensions
+                print(f"Successfully got dimensions for '{relative_path}': {new_width}x{new_height}")
+            else:
+                 print(f"Could not get dimensions for sprite '{relative_path}'. Using default 32x32.")
+                 # Use default dimensions if loading failed
+                 new_width, new_height = 32, 32
+
+            # --- Always update core logic dimensions ---
+            self.core_logic.update_object_properties(self.current_object_id, {'width': new_width, 'height': new_height})
+            print(f"Updated core object {self.current_object_id} dimensions to {new_width}x{new_height}")
+
+            # --- Always update UI dimensions ---
+            width_widget = self.object_prop_widgets.get('width')
+            height_widget = self.object_prop_widgets.get('height')
+            self._block_signals = True # Prevent immediate handling
+            if width_widget and isinstance(width_widget, QLineEdit):
+                 width_widget.setText(str(new_width))
+                 print(f"Updated UI width field to {new_width}")
+            if height_widget and isinstance(height_widget, QLineEdit):
+                 height_widget.setText(str(new_height))
+                 print(f"Updated UI height field to {new_height}")
+            self._block_signals = False
+
+        else:
+            print("Sprite selection cancelled.")
+
 
 
     # --- Public Method for External Updates ---

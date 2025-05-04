@@ -7,6 +7,53 @@ import random
 import math
 import pygame # Ensure pygame is imported if not already
 
+import os # Needed for path manipulation
+
+# Global cache for loaded sprite images
+# Key: relative path (e.g., "MySprite.png"), Value: pygame.Surface
+sprite_cache = {}
+SPRITE_BASE_PATH = "Ping Assets/Images/Sprites/" # Base path for sprites
+
+def load_sprite_image(relative_path):
+    """
+    Loads a sprite image, caches it, and handles transparency.
+
+    Args:
+        relative_path (str): The filename of the sprite relative to SPRITE_BASE_PATH.
+
+    Returns:
+        pygame.Surface or None: The loaded sprite surface with alpha, or None if loading fails.
+    """
+    if relative_path in sprite_cache:
+        return sprite_cache[relative_path]
+
+    full_path = os.path.join(SPRITE_BASE_PATH, relative_path)
+
+    try:
+        # Ensure the sprite directory exists before trying to load from it.
+        # This is mainly a check; loading will still fail if the *file* is missing.
+        if not os.path.isdir(SPRITE_BASE_PATH):
+             print(f"Warning: Sprite base directory not found: {SPRITE_BASE_PATH}")
+             return None
+
+        if not os.path.exists(full_path):
+            print(f"Warning: Sprite image file not found: {full_path}")
+            return None
+
+        image = pygame.image.load(full_path)
+        image = image.convert_alpha() # Optimize for drawing with transparency
+        sprite_cache[relative_path] = image
+        print(f"Loaded and cached sprite: {relative_path}") # Debug print
+        return image
+    except pygame.error as e:
+        print(f"Error loading sprite '{full_path}': {e}")
+        return None
+    except FileNotFoundError: # Should be caught by os.path.exists, but just in case
+        print(f"Error: Sprite file not found (FileNotFoundError): {full_path}")
+        return None
+    except Exception as e: # Catch any other unexpected errors
+        print(f"An unexpected error occurred loading sprite '{full_path}': {e}")
+        return None
 # --- Texture Generation Function ---
 
 def generate_sludge_texture(width, height, scale, colors):

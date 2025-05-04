@@ -7,6 +7,7 @@ with the Ping level being edited, using an embedded Pygame surface.
 import pygame
 import os
 import random # For unique IDs initially
+import pygame # Ensure pygame is imported for SysFont
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication, QSizePolicy # Removed QScrollArea
 # Import pyqtSignal
@@ -87,9 +88,13 @@ class LevelViewWidget(QWidget):
         self.timer.setInterval(16) # Approx 60 FPS
         self.timer.timeout.connect(self.update_pygame)
 
+        # --- Sprite Cache ---
+        self.sprite_cache = {} # Cache for loaded sprite images
+
         # --- Connect to Core Signals ---
         self.core_logic.levelLoaded.connect(self.refresh_display)
         self.core_logic.levelPropertiesChanged.connect(self.refresh_display)
+        self.core_logic.objectUpdated.connect(self._handle_object_update) # Connect new signal
         self.core_logic.layoutRestored.connect(self.refresh_display) # Refresh after layout restore
 
         # Initial setup
@@ -174,38 +179,112 @@ class LevelViewWidget(QWidget):
         placed_objects = self.core_logic.level_objects # Get current objects
         for obj_data in placed_objects:
             obj_type = obj_data.get('type', 'unknown')
-            # Get position/size directly from obj_data
-            x = obj_data.get('x')
-            y = obj_data.get('y')
-            w = obj_data.get('width')
-            h = obj_data.get('height')
-            size = obj_data.get('size') # For ball/powerup
+            obj_id = obj_data.get('id') # Get ID early
 
-            rect = None
-            # Construct rect based on available data
-            if x is not None and y is not None:
-                if w is not None and h is not None:
-                    # Standard object with width/height
-                    rect = pygame.Rect(x, y, w, h)
-                elif size is not None:
-                    # Object defined by center x, y and size (like BallSpawn)
-                    # Assume x, y might be intended as center, adjust to top-left for Rect
-                    rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
-            # Fallback for older data format (less likely needed now)
-            elif 'rect' in obj_data and isinstance(obj_data['rect'], pygame.Rect):
-                 rect = obj_data['rect']
-                 print(f"Warning: Using legacy rect format for object ID {obj_data.get('id')}")
+            if obj_type == 'sprite':
+                image_path = obj_data.get('image_path')
+                x = obj_data.get('x', 0) # Use defaults for safety
+                y = obj_data.get('y', 0)
+                w = obj_data.get('width', 32) # Use placeholder size as default
+                h = obj_data.get('height', 32)
 
 
-            if rect:
-                # Pass the full object data to get_object_color for context
-                color = self.get_object_color(obj_data)
-                pygame.draw.rect(self.pygame_surface, color, rect) # Draw on internal surface
+                sprite_surface = None
+                if image_path:
+                    if image_path not in self.sprite_cache:
+                        try:
+                            # Construct full path relative to workspace root
+                            # Assuming workspace is c:/Users/Johnny/Documents/Workspaces/Ping/Ping-2
+                            base_path = "." # Use relative path from workspace root
+                            relative_folder = os.path.join("Ping Assets", "Images", "Sprites")
+                            full_path = os.path.join(base_path, relative_folder, image_path)
+                            # Ensure correct separators for OS
+                            full_path = os.path.normpath(full_path)
 
-                # Draw selection highlight
-                if obj_data.get('id') == self.selected_object_id:
-                    pygame.draw.rect(self.pygame_surface, (255, 255, 0), rect, 2) # Draw on internal surface
-                    # self.draw_translation_handles(rect) # Keep handles simple for now
+                            print(f"Loading sprite: {full_path}") # Debugging
+                            # Ensure Pygame is initialized (should be)
+                            if pygame.get_init():
+                                loaded_image = pygame.image.load(full_path).convert_alpha()
+                                self.sprite_cache[image_path] = loaded_image
+                                print(f"Cached sprite: {image_path} - Size: {loaded_image.get_size()}")
+                                # TODO: We need to update obj_data['width']/['height'] in core_logic
+                                # when image_path changes, likely in the property editor.
+                                # This draw loop should just *use* the stored w/h.
+                            else:
+                                print("Warning: Pygame not initialized, cannot load sprite.")
+                                self.sprite_cache[image_path] = None # Mark as failed
+                        except FileNotFoundError:
+                            print(f"Error: Sprite image not found at {full_path}")
+                            self.sprite_cache[image_path] = None # Cache failure
+                        except pygame.error as e:
+                            print(f"Error loading sprite '{image_path}': {e}")
+                            self.sprite_cache[image_path] = None # Cache failure
+
+                    sprite_surface = self.sprite_cache.get(image_path)
+
+                # Use the object's stored dimensions for the bounding/selection rect
+                rect = pygame.Rect(x, y, w, h)
+
+                if sprite_surface:
+                     # Blit the loaded sprite at its x, y coordinates.
+                     self.pygame_surface.blit(sprite_surface, (x, y)) # Blit using top-left
+
+                else:
+                    # Draw placeholder if no image or loading failed
+                    pygame.draw.rect(self.pygame_surface, (100, 100, 100), rect) # Grey placeholder
+                    # Draw an 'X'
+                    try: # Pygame font might not be initialized yet
+                        if pygame.font.get_init(): # Explicit check
+                             font_size = max(10, min(w, h) // 2) # Adjust size reasonably
+                             font = pygame.font.SysFont(None, font_size) # Simple font
+                             text_surf = font.render('X', True, (255, 0, 0)) # Red X
+                             text_rect = text_surf.get_rect(center=rect.center)
+                             self.pygame_surface.blit(text_surf, text_rect)
+                        else: print("Warning: Pygame font not init for placeholder X")
+                    except Exception as e:
+                        print(f"Warning: Could not draw placeholder text: {e}")
+
+
+                # Draw selection highlight using the object's bounding box
+                if obj_id == self.selected_object_id:
+                    pygame.draw.rect(self.pygame_surface, (255, 255, 0), rect, 2)
+
+            else: # --- Existing logic for non-sprite objects ---
+                # Get position/size directly from obj_data
+                x = obj_data.get('x')
+                y = obj_data.get('y')
+                w = obj_data.get('width')
+                h = obj_data.get('height')
+                size = obj_data.get('size') # For ball/powerup
+
+                rect = None
+                # Construct rect based on available data
+                if x is not None and y is not None:
+                    if w is not None and h is not None:
+                        # Standard object with width/height
+                        rect = pygame.Rect(x, y, w, h)
+                    elif size is not None:
+                        # Object defined by center x, y and size (like BallSpawn)
+                        # Correcting potential center-to-top-left issue from original:
+                        # If x,y are center, top-left is (x-size/2, y-size/2)
+                        rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
+                    else: # Added case: if x,y but no w,h,size -> treat as point? or small rect?
+                        rect = pygame.Rect(x, y, 1, 1) # Treat as point
+
+                # Fallback for older data format
+                elif 'rect' in obj_data and isinstance(obj_data['rect'], pygame.Rect):
+                     rect = obj_data['rect']
+                     print(f"Warning: Using legacy rect format for object ID {obj_id}")
+
+
+                if rect:
+                    # Pass the full object data to get_object_color for context
+                    color = self.get_object_color(obj_data)
+                    pygame.draw.rect(self.pygame_surface, color, rect) # Draw on internal surface
+
+                    # Draw selection highlight
+                    if obj_id == self.selected_object_id:
+                        pygame.draw.rect(self.pygame_surface, (255, 255, 0), rect, 2) # Draw on internal surface
 
         # --- Trigger Qt Repaint ---
         # Don't flip Pygame display, just update the Qt widget
@@ -272,6 +351,12 @@ class LevelViewWidget(QWidget):
             obj_w = obj_h = radius * 2
             place_x -= radius # Center placement using radius
             place_y -= radius
+        elif obj_type_key == "sprite":
+            # Sprite - Use placeholder size initially
+            print(f"Placing sprite '{obj_type_key}'. Using placeholder 32x32 size.")
+            obj_w, obj_h = 32, 32
+            place_x -= obj_w // 2 # Center placement
+            place_y -= obj_h // 2
         else:
             # Fallback if no dimensions found
             print(f"Warning: No width/height, size, or radius found in defaults for {obj_type_key}. Using 10x10.")
@@ -302,6 +387,10 @@ class LevelViewWidget(QWidget):
             new_obj_data['radius'] = radius
             new_obj_data['width'] = obj_w
             new_obj_data['height'] = obj_h
+        elif obj_type_key == "sprite":
+             new_obj_data['width'] = obj_w # Store placeholder size
+             new_obj_data['height'] = obj_h
+             new_obj_data['image_path'] = defaults.get('image_path', '') # Ensure image_path is set
 
         # Add via core logic (which assigns ID)
         self.core_logic.add_object(new_obj_data)
@@ -325,6 +414,29 @@ class LevelViewWidget(QWidget):
             self.is_dragging = False
             self.objectSelected.emit(None) # Emit signal
             self.update() # Redraw needed to remove highlight
+
+    def _handle_object_update(self, obj_id):
+        """Handles the core signal indicating an object's properties have changed."""
+        print(f"LevelView received objectUpdated signal for ID: {obj_id}.")
+
+        # Check if the updated object is a sprite and clear its cache entry
+        obj_data = self.core_logic.get_object_by_id(obj_id) # Get a fresh copy of data
+        if obj_data and obj_data.get('type') == 'sprite':
+            image_path = obj_data.get('image_path')
+            if image_path and image_path in self.sprite_cache:
+                try:
+                    del self.sprite_cache[image_path]
+                    print(f"Removed '{image_path}' from sprite cache for object {obj_id} due to update.")
+                except KeyError:
+                    print(f"Warning: Tried to remove '{image_path}' from cache for object {obj_id}, but key didn't exist.")
+            elif image_path:
+                 print(f"Sprite {obj_id} updated, path '{image_path}' wasn't in cache (will be loaded on draw).")
+
+
+        # Trigger a repaint. The drawing logic will now fetch the latest data
+        # and reload the sprite image if it was removed from cache.
+        self.update()
+
 
     # --- Mouse Events ---
     def mousePressEvent(self, event):

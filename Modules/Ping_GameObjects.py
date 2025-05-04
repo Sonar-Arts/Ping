@@ -412,3 +412,60 @@ class PowerUpBallObject(ArenaObject):
     def update(self, ball_count, arena_width, arena_height, scoreboard_height, obstacles=None):
         """Update power-up state and check for respawn."""
         return self.power_up.update(ball_count, arena_width, arena_height, scoreboard_height, obstacles)
+from Modules.ping_graphics import load_sprite_image # Need the sprite loading function
+
+# Existing code...
+
+class SpriteObject(ArenaObject):
+    """Represents a static sprite decoration loaded from the level."""
+    def __init__(self, arena_width, arena_height, scoreboard_height, scale_rect, x, y, width, height, image_path, properties=None):
+        """Initialize a sprite object."""
+        super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
+        self.properties = properties if properties is not None else {} # Store extra properties if needed
+        self.image_path = image_path
+        self.rect = pygame.Rect(x, y, width, height) # Store logical rect based on PMF data
+
+        # Load the original image first
+        original_surface = load_sprite_image(image_path)
+        self.surface = None # Initialize surface to None
+
+        if original_surface:
+            try:
+                # Scale the loaded image to the dimensions defined in the PMF
+                # Use smoothscale for better quality, scale for performance
+                print(f"DEBUG SpriteObject: Scaling sprite '{image_path}' to ({width}x{height})")
+                self.surface = pygame.transform.smoothscale(original_surface, (width, height))
+            except Exception as e:
+                 print(f"Error scaling sprite image '{image_path}' to ({width}x{height}): {e}")
+                 # Optionally, keep the original surface if scaling fails? Or set to None?
+                 # Setting to None means it won't draw if scaling fails.
+                 self.surface = None
+        else:
+            print(f"Warning: Failed to load sprite image '{image_path}' for SpriteObject at ({x},{y}). Cannot scale or draw.")
+            
+        # Note: The self.rect uses the width/height from the PMF/editor.
+        # The loaded surface might have different dimensions, but we blit at the defined x, y.
+
+    # Override draw method to use the loaded surface
+    def draw(self, screen): # Does not need 'color' argument
+        """Draw the sprite if its surface was loaded."""
+        # Add a debug log inside the draw method
+        # print(f"DEBUG: SpriteObject.draw called for path: {self.image_path}. Surface exists: {self.surface is not None}") # Uncomment if verbose logging needed
+        if self.surface:
+            # Use the ArenaObject's scale_rect to get the drawing position and handle scaling/offset
+            # We scale the position (rect.topleft) but not the surface itself
+            scaled_rect = self.scale_rect(self.rect)
+            # Adding a print statement here to confirm draw *is attempting* to blit
+            print(f"DEBUG: Drawing sprite '{self.image_path}' at {scaled_rect.topleft}")
+            screen.blit(self.surface, scaled_rect.topleft)
+        # else: # Optionally log when surface is None
+            # print(f"DEBUG: Skipping draw for sprite '{self.image_path}' - surface not loaded.") # Uncomment if needed
+
+        # No placeholder drawing here; if load failed, it simply won't draw.
+
+    # Static sprites typically don't need update or collision handling
+    def update(self, *args, **kwargs): 
+        pass
+
+    def handle_collision(self, *args, **kwargs):
+        return None
