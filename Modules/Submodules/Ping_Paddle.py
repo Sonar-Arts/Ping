@@ -1,4 +1,5 @@
 import pygame
+import os
 
 class Paddle:
     def __init__(self, x, y, width, height, is_left_paddle=True):
@@ -8,6 +9,24 @@ class Paddle:
         self.speed = 300  # Standard paddle speed
         self.moving_up = False
         self.moving_down = False
+        
+        # Load the appropriate sprite based on paddle side
+        sprite_path = os.path.join('Ping Assets', 'Images', 'Sprites',
+                                 'Protag Paddle.webp' if is_left_paddle else 'Anttag Paddle.webp')
+        self.sprite = pygame.image.load(sprite_path).convert_alpha()
+        
+        # Scale sprite to match paddle dimensions
+        self.sprite = pygame.transform.scale(self.sprite, (width, height))
+        
+        # Create mask for pixel-perfect collision
+        self.mask = pygame.mask.from_surface(self.sprite)
+    
+    def draw(self, screen, scale_rect):
+        """Draw the paddle using its sprite."""
+        scaled_rect = scale_rect(self.rect)
+        # Scale the sprite to match the scaled rect
+        scaled_sprite = pygame.transform.scale(self.sprite, (scaled_rect.width, scaled_rect.height))
+        screen.blit(scaled_sprite, scaled_rect)
     
     def move(self, delta_time, scoreboard_height, arena_height):
         """Move the paddle based on input flags and time delta."""

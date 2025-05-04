@@ -37,15 +37,31 @@ class Ball:
         self.velocity_y = self.speed * self.dy
 
     def handle_paddle_collision(self, paddle):
-        """Handle collision with a paddle."""
+        """Handle collision with a paddle using mask-based collision."""
         if not self.rect.colliderect(paddle.rect):
             return False
             
+        # Create offset for mask collision check
+        offset_x = self.rect.x - paddle.rect.x
+        offset_y = self.rect.y - paddle.rect.y
+        
+        # Create a temporary mask for the ball
+        ball_surface = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+        pygame.draw.circle(ball_surface, (255, 255, 255, 255),
+                         (self.size//2, self.size//2), self.size//2)
+        ball_mask = pygame.mask.from_surface(ball_surface)
+        
+        # Check for mask collision using the underlying paddle's mask
+        if not paddle.paddle.mask.overlap(ball_mask, (offset_x, offset_y)): # Access mask via paddle.paddle
+            return False
+
+        # Handle collision response
+        buffer = 1 # Small buffer to prevent sticking
         if paddle.is_left_paddle:
-            self.rect.left = paddle.rect.right  # Place ball outside paddle
+            self.rect.left = paddle.rect.right + buffer # Place ball slightly past paddle
             self.dx = 1  # Ensure ball moves right
         else:
-            self.rect.right = paddle.rect.left  # Place ball outside paddle
+            self.rect.right = paddle.rect.left - buffer # Place ball slightly past paddle
             self.dx = -1  # Ensure ball moves left
         
         # Calculate angle based on where ball hits the paddle

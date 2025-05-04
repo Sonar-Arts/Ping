@@ -58,135 +58,9 @@ class PaddleObject(ArenaObject):
         """Move the paddle based on input flags and time delta."""
         self.paddle.move(delta_time, self.scoreboard_height, self.arena_height)
     
-    def lerp_color(self, color1, color2, t):
-        """Linearly interpolate between two colors, clamping values between 0 and 255."""
-        t = max(0, min(1, t))  # Clamp t between 0 and 1
-        return tuple(max(0, min(255, int(a + (b - a) * t))) for a, b in zip(color1, color2))
-    
     def draw(self, screen, color):
-        """Draw the paddle with retro Sega Genesis style, gradient, border and drop shadow."""
-        scaled_rect = self.scale_rect(self.rect)
-        
-        # Draw drop shadow
-        shadow_offset = 4
-        shadow_rect = pygame.Rect(
-            scaled_rect.left + shadow_offset,
-            scaled_rect.top + shadow_offset,
-            scaled_rect.width,
-            scaled_rect.height
-        )
-        pygame.draw.rect(screen, (20, 20, 20), shadow_rect, border_radius=3)  # Dark shadow
-        
-        # Define key colors
-        light_brown = (205, 175, 149)  # Back side
-        base_color = color             # Middle
-        green_shade = (60, 220, 60)    # Left paddle front (even brighter green)
-        red_shade = (220, 60, 60)      # Right paddle front (even brighter red)
-        
-        # Reduced number of sections for more distinct pixelated look
-        num_sections = 5
-        section_width = scaled_rect.width / num_sections
-        
-        if self.is_left_paddle:
-            # Left paddle gradient (light brown → base → green)
-            for i in range(num_sections):
-                t = i / (num_sections - 1)  # Interpolation factor
-                
-                # First half: brown to base color
-                if i < num_sections // 2:
-                    t_adjusted = t * 2.0  # Slightly gentler gradient for first half
-                    current_color = self.lerp_color(light_brown, base_color, t_adjusted)
-                # Second half: base color to green (emphasized)
-                else:
-                    t_adjusted = (t - 0.5) * 2.0  # Adjusted transition point
-                    current_color = self.lerp_color(base_color, green_shade, t_adjusted)
-                
-                # Draw section
-                section_rect = pygame.Rect(
-                    scaled_rect.left + (i * section_width),
-                    scaled_rect.top,
-                    section_width + 1,  # +1 to prevent gaps
-                    scaled_rect.height
-                )
-                
-                # Apply border radius consistently
-                if i == 0:  # Left-most section (back)
-                    # Draw section with border
-                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
-                                  border_radius=3,
-                                  border_top_right_radius=0,
-                                  border_bottom_right_radius=0)
-                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
-                    pygame.draw.rect(screen, current_color, section_rect,
-                                  border_radius=3,
-                                  border_top_right_radius=0,
-                                  border_bottom_right_radius=0)
-                elif i == num_sections - 1:  # Right-most section (front)
-                    # Draw section with border
-                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
-                                  border_radius=3,
-                                  border_top_left_radius=0,
-                                  border_bottom_left_radius=0)
-                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
-                    pygame.draw.rect(screen, current_color, section_rect,
-                                  border_radius=3,
-                                  border_top_left_radius=0,
-                                  border_bottom_left_radius=0)
-                else:  # Middle sections
-                    # Draw section with border
-                    pygame.draw.rect(screen, (30, 30, 30), section_rect)
-                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
-                    pygame.draw.rect(screen, current_color, section_rect)
-        else:
-            # Right paddle gradient (brown → base → red)
-            for i in range(num_sections):
-                t = i / (num_sections - 1)
-                
-                # First half: brown to base color
-                if i < num_sections // 2:
-                    t_adjusted = t * 2.0  # Slightly gentler gradient for first half
-                    current_color = self.lerp_color(light_brown, base_color, t_adjusted)
-                # Second half: base color to red (emphasized)
-                else:
-                    t_adjusted = (t - 0.5) * 2.0  # Adjusted transition point
-                    current_color = self.lerp_color(base_color, red_shade, t_adjusted)
-                
-                # Draw section
-                section_rect = pygame.Rect(
-                    scaled_rect.right - ((i + 1) * section_width),
-                    scaled_rect.top,
-                    section_width + 1,  # +1 to prevent gaps
-                    scaled_rect.height
-                )
-                
-                # Apply border radius consistently
-                if i == 0:  # Right-most section (back)
-                    # Draw section with border
-                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
-                                  border_radius=3,
-                                  border_top_left_radius=0,
-                                  border_bottom_left_radius=0)
-                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
-                    pygame.draw.rect(screen, current_color, section_rect,
-                                  border_radius=3,
-                                  border_top_left_radius=0,
-                                  border_bottom_left_radius=0)
-                elif i == num_sections - 1:  # Left-most section (front)
-                    # Draw section with border
-                    pygame.draw.rect(screen, (30, 30, 30), section_rect,
-                                  border_radius=3,
-                                  border_top_right_radius=0,
-                                  border_bottom_right_radius=0)
-                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
-                    pygame.draw.rect(screen, current_color, section_rect,
-                                  border_radius=3,
-                                  border_top_right_radius=0,
-                                  border_bottom_right_radius=0)
-                else:  # Middle sections
-                    # Draw section with border
-                    pygame.draw.rect(screen, (30, 30, 30), section_rect)
-                    section_rect.inflate_ip(-2, -2)  # Shrink for inner colored part
-                    pygame.draw.rect(screen, current_color, section_rect)
+        """Draw the paddle using its sprite."""
+        self.paddle.draw(screen, self.scale_rect)
 
     def reset_position(self):
         """Reset paddle to starting position."""
@@ -399,9 +273,9 @@ class ObstacleObject(ArenaObject):
         """
         return self.obstacle.handle_collision(ball, sound_manager)
         
-    def draw(self, screen, color):
+    def draw(self, screen, colors, scale_rect):
         """Draw the obstacle as a pixelated brick wall with drop shadow."""
-        scaled_rect = self.scale_rect(self.rect)
+        scaled_rect = scale_rect(self.rect)
 
         # Draw drop shadow first
         shadow_offset = 4
@@ -413,8 +287,9 @@ class ObstacleObject(ArenaObject):
         )
         pygame.draw.rect(screen, (20, 20, 20), shadow_rect)  # Dark shadow
 
-        # Create brick and mortar colors with brown tinting
-        r, g, b = color
+        # Get base color from colors dict, default to white if not found
+        base_color = colors.get('WHITE', (255, 255, 255))
+        r, g, b = base_color
         # Mix with brown (139, 69, 19) for brick color
         brick_color = (min(255, (r + 139) // 2), min(255, (g + 69) // 2), min(255, (b + 19) // 2))
         # Darker brown shading

@@ -72,7 +72,7 @@ def update_screen_size(width=None, height=None):
     return init_display(width, height)
 
 # Game constants
-PADDLE_WIDTH = 20
+PADDLE_WIDTH = 40  # Increased width to better match sprite proportions
 PADDLE_HEIGHT = 120
 BALL_SIZE = 20
 FRAME_TIME = 1.0 / 60.0  # Target 60 FPS
@@ -213,7 +213,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         nonlocal paddle_a, paddle_b, ball
         # Recreate game objects with new dimensions
         paddle_a = PaddleObject(
-            x=50,
+            x=60,  # Moved slightly right to account for wider paddle
             y=(arena.height - PADDLE_HEIGHT) // 2,
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
@@ -224,7 +224,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
             is_left_paddle=True
         )
         paddle_b = PaddleObject(
-            x=arena.width - 70,
+            x=arena.width - 100,  # Moved slightly left to account for wider paddle
             y=(arena.height - PADDLE_HEIGHT) // 2,
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
@@ -244,7 +244,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
 
     # Create game objects with proper params
     paddle_a = PaddleObject(
-        x=50,
+        x=60,  # Moved slightly right to account for wider paddle
         y=(arena.height - PADDLE_HEIGHT) // 2,
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
@@ -255,7 +255,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         is_left_paddle=True
     )
     paddle_b = PaddleObject(
-        x=arena.width - 70,
+        x=arena.width - 100,  # Moved slightly left to account for wider paddle
         y=(arena.height - PADDLE_HEIGHT) // 2,
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
