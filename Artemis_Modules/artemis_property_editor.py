@@ -9,8 +9,8 @@ is selected.
 import os
 import pygame # Need for getting image dimensions
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFormLayout, QLineEdit,
-                             QCheckBox, QScrollArea, QFrame, QPushButton,
-                             QHBoxLayout, QFileDialog) # Added missing imports
+                              QCheckBox, QScrollArea, QFrame, QPushButton,
+                              QHBoxLayout, QFileDialog, QComboBox) # Added QComboBox
 from PyQt6.QtCore import Qt, QObject, pyqtSignal # Correct Qt Imports
 from functools import partial
 import copy # Keep existing copy import
@@ -30,6 +30,7 @@ class PropertyEditorWidget(QWidget):
         self.object_prop_widgets = {} # Store object property widgets {key: widget or layout_widget}
         self._block_signals = False # Flag to prevent update loops
         self._sprite_browse_button = None # Reference to the browse button
+        self._block_size_updates = False # Flag to prevent size update loops
 
         self.setMinimumWidth(220) # Slightly wider
         self.main_layout = QVBoxLayout(self)
@@ -149,32 +150,46 @@ class PropertyEditorWidget(QWidget):
                         continue # Skip adding main widget for 'properties' dict itself
                     # Correct Indentation for image_path block
                     elif key == 'image_path':
-                        # Special handling for image path - needs browse button
-                        if obj_type == 'sprite':
-                            layout_widget = QWidget() # Container for LineEdit and Button
-                            h_layout = QHBoxLayout(layout_widget)
-                            h_layout.setContentsMargins(0, 0, 0, 0)
-                            h_layout.setSpacing(2) # Add spacing
+                        # Special handling for image path - add sprite selector
+                        layout_widget = QWidget()
+                        h_layout = QHBoxLayout(layout_widget)
+                        h_layout.setContentsMargins(0, 0, 0, 0)
+                        h_layout.setSpacing(4)
 
-                            path_edit = QLineEdit(str(value))
-                            path_edit.setReadOnly(True) # Path displayed, set via browse
-                            # Still connect to handle changes triggered by _browse_for_sprite
-                            # path_edit.textChanged.connect(partial(self._handle_object_property_changed, key))
-                            h_layout.addWidget(path_edit)
+                        sprite_combo = QComboBox()
+                        sprite_combo.addItem("None")  # Allow removing sprite
+                        
+                        # Populate sprite list from Sprites directory
+                        sprite_dir = os.path.join("Ping Assets", "Images", "Sprites")
+                        if os.path.exists(sprite_dir):
+                            for filename in sorted(os.listdir(sprite_dir)):
+                                if any(filename.lower().endswith(ext) for ext in ['.png', '.webp', '.jpg', '.jpeg']):
+                                    sprite_combo.addItem(filename)
 
-                            browse_button = QPushButton("Browse...")
-                            browse_button.clicked.connect(self._browse_for_sprite)
-                            self._sprite_browse_button = browse_button # Store reference
-                            h_layout.addWidget(browse_button)
-
-                            # Add the combined layout to the form
-                            label_text = key.replace('_', ' ').title() + ":"
-                            self.form_layout.addRow(label_text, layout_widget)
-                            # Store the path_edit widget for potential updates, using key 'image_path_edit'
-                            self.object_prop_widgets['image_path_edit'] = path_edit
-                            continue # Skip default widget adding logic below
+                        # Select current value or appropriate default based on type
+                        current_value = str(value) if value else None
+                        default_sprite = f"default_{obj_type}.png"  # e.g., default_ball.png
+                        
+                        if current_value:
+                            index = sprite_combo.findText(current_value)
+                            if index >= 0:
+                                sprite_combo.setCurrentIndex(index)
+                        elif default_sprite in [sprite_combo.itemText(i) for i in range(sprite_combo.count())]:
+                            index = sprite_combo.findText(default_sprite)
+                            sprite_combo.setCurrentIndex(index)
                         else:
-                            continue # Only show image path for sprites
+                            sprite_combo.setCurrentIndex(0)  # Set to "None"
+                        
+                        sprite_combo.currentTextChanged.connect(
+                            lambda text, k=key: self._on_sprite_changed(k, text))
+                        h_layout.addWidget(sprite_combo)
+
+                        # Add the combined layout to the form
+                        label_text = key.replace('_', ' ').title() + ":"
+                        self.form_layout.addRow(label_text, layout_widget)
+                        # Store the combo box widget for potential updates
+                        self.object_prop_widgets['image_path_edit'] = sprite_combo
+                        continue # Skip default widget adding logic below
 
 
                     # Correct indentation for the final 'if widget' block
@@ -190,6 +205,14 @@ class PropertyEditorWidget(QWidget):
         finally:
             self._block_signals = False # Re-enable signals
 
+
+    def _on_sprite_changed(self, key, text):
+        """Handle sprite changes from the combo box, including dimension updates"""
+        if self._block_signals:
+            return
+        
+        value = None if text == "None" else text
+        self._handle_object_property_changed(key, value)
 
     # Removed _handle_level_property_changed - Handled by LevelPropertiesWidget
     def _handle_object_property_changed(self, key, value):
@@ -250,6 +273,15 @@ class PropertyEditorWidget(QWidget):
             return
 
         if new_value is not None and current_value != new_value:
+            # Update the object's dimensions if this is an image change
+            if key == 'image_path' and new_value:
+                new_dimensions = self._get_image_size(new_value)
+                if new_dimensions:
+                    width, height = new_dimensions
+                    self.core_logic.update_object_properties(self.current_object_id, {
+                        'width': width,
+                        'height': height
+                    })
             if is_nested:
                 # Update the nested dictionary
                 updated_nested_dict = copy.deepcopy(current_nested_dict) # Work on a copy

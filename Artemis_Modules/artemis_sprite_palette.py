@@ -10,7 +10,7 @@ from PyQt6.QtCore import pyqtSignal, Qt
 
 # Define the path to the sprites directory relative to the project root
 SPRITE_DIR = "Ping Assets/Images/Sprites"
-ALLOWED_EXTENSIONS = {".png", ".webp", ".jpg", ".jpeg", ".bmp", ".gif"} # Add more if needed
+ALLOWED_EXTENSIONS = {".png", ".webp", ".jpg", ".jpeg"} # Match extensions supported by LevelView
 
 class SpritePalette(QWidget):
     """
@@ -60,11 +60,24 @@ class SpritePalette(QWidget):
         try:
             found_sprites = False
             for filename in sorted(os.listdir(SPRITE_DIR)):
-                # Check if the file has an allowed image extension
-                if os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS:
-                    item = QListWidgetItem(filename)
-                    self.sprite_list.addItem(item)
-                    found_sprites = True
+                file_ext = os.path.splitext(filename)[1].lower()
+                # Only show supported image files
+                if file_ext in ALLOWED_EXTENSIONS:
+                    try:
+                        # Validate that the file is a readable image before adding
+                        full_path = os.path.join(SPRITE_DIR, filename)
+                        with open(full_path, 'rb') as f:
+                            # Just read first few bytes to check header
+                            header = f.read(8)
+                            # Basic PNG/JPEG header check
+                            if (file_ext == '.png' and header.startswith(b'\x89PNG\r\n\x1a\n')) or \
+                               (file_ext in {'.jpg', '.jpeg'} and header.startswith(b'\xff\xd8')) or \
+                               (file_ext == '.webp' and header[8:12] == b'WEBP'):
+                                item = QListWidgetItem(filename)
+                                self.sprite_list.addItem(item)
+                                found_sprites = True
+                    except Exception as e:
+                        print(f"Warning: Invalid or corrupt sprite file '{filename}': {e}")
 
             if not found_sprites:
                 placeholder_item = QListWidgetItem("No sprites found")

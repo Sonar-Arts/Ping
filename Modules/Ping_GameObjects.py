@@ -56,8 +56,8 @@ class PaddleObject(ArenaObject):
 
     def move(self, delta_time):
         """Move the paddle based on input flags and time delta."""
-        self.paddle.move(delta_time, self.arena_height) # Removed scoreboard_height
-
+        self.paddle.move(delta_time, self.scoreboard_height, self.arena_height)
+    
     def draw(self, screen, color):
         """Draw the paddle using its sprite."""
         self.paddle.draw(screen, self.scale_rect)
@@ -109,7 +109,7 @@ class BallObject(ArenaObject):
 
     def reset_position(self):
         """Reset ball to center position."""
-        self.ball.reset_position(self.arena_width, self.arena_height) # Removed scoreboard_height
+        self.ball.reset_position(self.arena_width, self.arena_height, self.scoreboard_height) # Pass scoreboard_height
 
     def handle_paddle_collision(self, paddle):
         """Handle collision with a paddle."""
@@ -118,8 +118,8 @@ class BallObject(ArenaObject):
     def handle_wall_collision(self, bounce_walls=False):
         """Handle wall collisions."""
         # First handle vertical walls (top/bottom) - always bounce
-        collided = self.ball.handle_wall_collision(self.arena_height) # Removed scoreboard_height
-
+        collided = self.ball.handle_wall_collision(self.scoreboard_height, self.arena_height)
+        
         # Then handle horizontal walls (left/right) - only bounce if bounce_walls is True
         if bounce_walls:
             if self.rect.left <= 0:
@@ -423,9 +423,7 @@ class SpriteObject(ArenaObject):
         super().__init__(arena_width, arena_height, scoreboard_height, scale_rect)
         self.properties = properties if properties is not None else {} # Store extra properties if needed
         self.image_path = image_path
-        # Store logical rect based on PMF data, treating x, y as CENTER coordinates
-        # Calculate top-left for pygame.Rect constructor
-        self.rect = pygame.Rect(x - width // 2, y - height // 2, width, height)
+        self.rect = pygame.Rect(x, y, width, height) # Store logical rect based on PMF data
 
         # Load the original image first
         original_surface = load_sprite_image(image_path)

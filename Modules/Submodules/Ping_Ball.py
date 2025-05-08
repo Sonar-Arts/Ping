@@ -25,10 +25,12 @@ class Ball:
         self.rect.x += self.velocity_x * delta_time
         self.rect.y += self.velocity_y * delta_time
 
-    def reset_position(self, arena_width, arena_height): # Removed scoreboard_height parameter
+    def reset_position(self, arena_width, arena_height, scoreboard_height):
         """Reset ball to center position with minimum speed."""
         self.rect.x = (arena_width - self.size) // 2
-        self.rect.y = (arena_height - self.size) // 2 # Center within the playable area (Y=0 is top)
+        # Center within the playable area below the scoreboard
+        playable_height = arena_height - scoreboard_height
+        self.rect.y = scoreboard_height + (playable_height - self.size) // 2
         # Randomize initial vertical direction
         self.dy = 1 if random.random() < 0.5 else -1
         # Reset to minimum speed
@@ -86,13 +88,13 @@ class Ball:
             
         return True
     
-    def handle_wall_collision(self, arena_height): # Removed scoreboard_height parameter
-        """Handle collision with vertical walls (top Y=0 and bottom Y=arena_height)."""
+    def handle_wall_collision(self, scoreboard_height, arena_height):
+        """Handle collision with vertical walls (top and bottom)."""
         collided = False
         
-        # Handle top wall collision (Playable area top is Y=0)
-        if self.rect.top <= 0:
-            self.rect.top = 5  # Push down from the top boundary (Y=0)
+        # Handle top wall collision
+        if self.rect.top <= scoreboard_height:
+            self.rect.top = scoreboard_height + 5  # Push down more from wall
             self.dy = abs(self.dy)  # Force downward movement
             collided = True
             

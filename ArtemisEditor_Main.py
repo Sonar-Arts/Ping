@@ -147,15 +147,15 @@ class ArtemisEditorWindow(QMainWindow):
         edit_menu.addAction("Undo", self.edit_undo)
         edit_menu.addAction("Redo", self.edit_redo)
 
-        # View Menu (Renamed from Window)
-        view_menu = menu_bar.addMenu("&View") # Renamed menu
-        view_menu.addAction(self.object_palette_dock.toggleViewAction())
-        view_menu.addAction(self.property_editor_dock.toggleViewAction())
-        view_menu.addAction(self.level_properties_dock.toggleViewAction())
-        view_menu.addAction(self.tool_palette_dock.toggleViewAction()) # Add toggle for tool palette
-        view_menu.addAction(self.background_palette_dock.toggleViewAction()) # Add toggle for background palette
-        view_menu.addAction(self.sprite_palette_dock.toggleViewAction()) # Add toggle for sprite palette
-        view_menu.addSeparator()
+        # Window Menu (Formerly View)
+        window_menu = menu_bar.addMenu("&Window")
+        window_menu.addAction(self.object_palette_dock.toggleViewAction())
+        window_menu.addAction(self.property_editor_dock.toggleViewAction())
+        window_menu.addAction(self.level_properties_dock.toggleViewAction())
+        window_menu.addAction(self.tool_palette_dock.toggleViewAction()) # Add toggle for tool palette
+        window_menu.addAction(self.background_palette_dock.toggleViewAction()) # Add toggle for background palette
+        window_menu.addAction(self.sprite_palette_dock.toggleViewAction()) # Add toggle for sprite palette
+        window_menu.addSeparator()
 
         # --- Grid Snapping Toggle ---
         self.grid_snap_action = QAction("Snap to Grid", self)
@@ -163,9 +163,7 @@ class ArtemisEditorWindow(QMainWindow):
         # Initial state should ideally come from core_logic or settings later
         self.grid_snap_action.setChecked(self.level_view.grid_enabled)
         self.grid_snap_action.triggered.connect(self.toggle_grid_snapping)
-        view_menu.addAction(self.grid_snap_action) # Add to view_menu
-
-        # --- Mock Scoreboard Toggle Removed ---
+        window_menu.addAction(self.grid_snap_action)
 
         # Help Menu (Placeholder)
         help_menu = menu_bar.addMenu("&Help")
