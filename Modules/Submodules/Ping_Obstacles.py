@@ -208,7 +208,7 @@ class Obstacle:
         self.height = height
         self.x = x
         self.y = y
-        self.rect = pygame.Rect(x, y, width, height)
+        self.rect = pygame.Rect(x - width // 2, y - height // 2, width, height)
         self.shadow_offset = 4  # Pixels to offset shadow
 
     def draw(self, screen, colors, scale_rect):
@@ -412,7 +412,7 @@ class Manhole:
 
         # Define the two parts of the manhole
         # Horizontal slab stays at base position when dormant
-        self.horizontal_rect = pygame.Rect(x, y, width, height)
+        self.horizontal_rect = pygame.Rect(x - width // 2, y - height // 2, width, height)
 
         # Position vertical slab underneath horizontal
         vertical_y = y + height if is_bottom else y - self.spout_height
@@ -610,7 +610,7 @@ class Manhole:
 class PowerUpBall:
     def __init__(self, x, y, size=20):
         """Initialize a ball-shaped power up."""
-        self.rect = pygame.Rect(x, y, size, size)
+        self.rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
         self.x = x
         self.y = y
         self.width = size

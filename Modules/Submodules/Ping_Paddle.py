@@ -28,12 +28,12 @@ class Paddle:
         scaled_sprite = pygame.transform.scale(self.sprite, (scaled_rect.width, scaled_rect.height))
         screen.blit(scaled_sprite, scaled_rect)
     
-    def move(self, delta_time, scoreboard_height, arena_height):
+    def move(self, delta_time, arena_height): # Removed scoreboard_height
         """Move the paddle based on input flags and time delta."""
         movement = self.speed * delta_time
-        if self.moving_up and self.rect.top > scoreboard_height:
+        if self.moving_up and self.rect.top > 0: # Check against Y=0
             new_y = self.rect.y - movement
-            self.rect.y = max(scoreboard_height, new_y)
+            self.rect.y = max(0, new_y) # Use 0 as the minimum Y
         if self.moving_down and self.rect.bottom < arena_height:
             new_y = self.rect.y + movement
             self.rect.y = min(new_y, arena_height - self.rect.height)
