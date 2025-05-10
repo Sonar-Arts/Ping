@@ -399,6 +399,23 @@ def draw_casino_background(surface, compiler_instance):
             # Very dim inner circle when off
             pygame.draw.circle(surface, light_off_color, scaled_center, inner_light_radius)
 
+    # --- Apply Lighting Overlay ---
+    if has_lighting:
+        # lighting_level is 0-100. 0 = max darkness, 100 = no darkness overlay.
+        # We can map this to an alpha value for a black overlay.
+        # Alpha: 0 (fully transparent) to 255 (fully opaque).
+        # If lighting_level = 100, alpha = 0.
+        # If lighting_level = 0, alpha = ~200 (very dark, but not pitch black).
+        # If lighting_level = 50, alpha = ~100.
+        max_darkness_alpha = 200 # How dark it gets at lighting_level = 0
+        overlay_alpha = int(max_darkness_alpha * (1 - (lighting_level / 100.0)))
+        overlay_alpha = max(0, min(255, overlay_alpha)) # Clamp alpha
+
+        if overlay_alpha > 0:
+            lighting_overlay = pygame.Surface(scaled_full_area_rect.size, pygame.SRCALPHA)
+            lighting_overlay.fill((0, 0, 0, overlay_alpha))
+            surface.blit(lighting_overlay, scaled_full_area_rect.topleft)
+
 # --- Color Theme Definitions ---
 
 # Define the color dictionaries for each background theme
@@ -680,7 +697,544 @@ def draw_sewer_background(surface, compiler_instance):
             # pygame.draw.rect(surface, (255, 0, 255), river_rect) # Magenta placeholder
             pass # Or just draw nothing
 
-    # Offset update is handled within the compiler instance state
+    # --- Apply Lighting Overlay ---
+    if has_lighting:
+        max_darkness_alpha = 200
+        overlay_alpha = int(max_darkness_alpha * (1 - (lighting_level / 100.0)))
+        overlay_alpha = max(0, min(255, overlay_alpha))
+
+        if overlay_alpha > 0:
+            game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height)) # Define game_area_rect
+            lighting_overlay = pygame.Surface(game_area_rect.size, pygame.SRCALPHA)
+            lighting_overlay.fill((0, 0, 0, overlay_alpha))
+            surface.blit(lighting_overlay, game_area_rect.topleft)
+
+    # --- No final blit needed as we drew directly onto the surface ---
+
+def draw_factory_background(surface, compiler_instance):
+    """
+    Draws a symmetrical, top-down mechanical factory background.
+    Features a central CRT eye, circuits, pistons, and tesla coils.
+
+    Args:
+        surface: The pygame surface to draw onto.
+        compiler_instance: The LevelCompiler instance containing level data,
+                           colors, scale, offsets, objects, and state.
+    """
+    # --- Extract parameters ---
+    colors = compiler_instance.colors # Should contain FACTORY_COLORS now
+    scale = compiler_instance.scale
+    scale_rect_func = compiler_instance.scale_rect
+    arena_width = compiler_instance.width
+    arena_height = compiler_instance.height
+    dt = getattr(compiler_instance, 'dt', 1/60.0)
+    center_x_logic = arena_width / 2
+    center_y_logic = arena_height / 2
+    # Access ball objects (assuming they are in compiler_instance.balls or compiler_instance.objects)
+    # Let's try 'objects' first, and filter for BallObject later if needed.
+    game_objects = getattr(compiler_instance, 'objects', [])
+
+    # --- Get Lighting Properties ---
+    level_properties = getattr(compiler_instance, 'level_properties', {})
+    has_lighting = level_properties.get('has_lighting', False)
+    lighting_level = level_properties.get('lighting_level', 75) # Default 75%
+
+    # --- Define Factory Colors (using the theme) ---
+    pcb_base = colors.get('PCB_BASE', (35, 40, 38))
+    trace_main = colors.get('CIRCUIT_TRACE_MAIN', (160, 160, 155))
+    trace_detail = colors.get('CIRCUIT_TRACE_DETAIL', (120, 120, 115))
+    solder_point = colors.get('SOLDER_POINT', (218, 165, 32))
+    solder_point_dark = colors.get('SOLDER_POINT_DARK', (184, 134, 11))
+
+    crt_border = colors.get('CRT_BORDER', (30, 30, 30))
+    crt_screen = colors.get('CRT_SCREEN', (10, 10, 10))
+    eye_glow = colors.get('EYE_GLOW', (200, 0, 0))
+    eye_pupil_bg = colors.get('EYE_PUPIL_BG', (50, 0, 0))
+    eye_number = colors.get('EYE_NUMBER', (255, 180, 180))
+
+    piston_base_col = colors.get('PISTON_METAL_BASE', (90, 90, 100))
+    piston_shadow_col = colors.get('PISTON_METAL_SHADOW', (60, 60, 70))
+    piston_highlight_col = colors.get('PISTON_METAL_HIGHLIGHT', (130, 130, 140))
+    steam_core_col = colors.get('STEAM_COLOR_CORE', (230, 230, 230, 200))
+    steam_fade_col = colors.get('STEAM_COLOR_FADE', (180, 180, 180, 100))
+
+    tesla_base_col = colors.get('TESLA_COIL_BASE', (60, 50, 80))
+    tesla_highlight_col = colors.get('TESLA_COIL_HIGHLIGHT', (90, 80, 110))
+    spark_core_col = colors.get('TESLA_SPARK_CORE', (255, 255, 255))
+    spark_glow_col = colors.get('TESLA_SPARK_GLOW', (200, 200, 255, 150))
+
+
+    # --- Get the game area rectangle ---
+    game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height))
+
+    # --- Draw Metallic Grate Floor ---
+    grate_base_col = colors.get('GRATE_BASE', (55, 60, 65))
+    grate_dark_col = colors.get('GRATE_LINE_DARK', (40, 45, 50))
+    grate_light_col = colors.get('GRATE_LINE_LIGHT', (70, 75, 80))
+    surface.fill(grate_base_col, game_area_rect)
+
+    grate_spacing_logic = 15 # Logical pixels for grate spacing
+    scaled_grate_spacing = max(2, int(grate_spacing_logic * scale)) # Ensure minimum 2px spacing
+
+    # Draw horizontal grate lines (alternating dark/light for depth)
+    for y in range(game_area_rect.top, game_area_rect.bottom, scaled_grate_spacing):
+        pygame.draw.line(surface, grate_dark_col, (game_area_rect.left, y), (game_area_rect.right, y), 1)
+        if y + 1 < game_area_rect.bottom: # Draw highlight line below dark line
+             pygame.draw.line(surface, grate_light_col, (game_area_rect.left, y + 1), (game_area_rect.right, y + 1), 1)
+
+    # Draw vertical grate lines (alternating dark/light for depth)
+    for x in range(game_area_rect.left, game_area_rect.right, scaled_grate_spacing):
+        pygame.draw.line(surface, grate_dark_col, (x, game_area_rect.top), (x, game_area_rect.bottom), 1)
+        if x + 1 < game_area_rect.right: # Draw highlight line to the right of dark line
+             pygame.draw.line(surface, grate_light_col, (x + 1, game_area_rect.top), (x + 1, game_area_rect.bottom), 1)
+
+
+    # --- Initialize/Update Animation State ---
+    if 'background_animation_state' not in compiler_instance.__dict__:
+         compiler_instance.background_animation_state = {}
+    anim_state = compiler_instance.background_animation_state
+
+    # --- Recalculate Scale-Dependent Geometry & Fonts ---
+    # Check if dimensions or scale have changed
+    current_dims_scale = (arena_width, arena_height, scale)
+    recalculate_geometry = False
+    if anim_state.get('factory_last_dims_scale') != current_dims_scale:
+        print(f"Factory BG: Dimensions/Scale changed from {anim_state.get('factory_last_dims_scale')} to {current_dims_scale}. Recalculating geometry & fonts.")
+        recalculate_geometry = True
+        anim_state['factory_last_dims_scale'] = current_dims_scale
+
+        # --- Font Size Recalculation ---
+        # (Moved inside the recalculation block)
+        crt_width_logic_init = arena_width * 0.3
+        crt_height_logic_init = arena_height * 0.25
+        crt_rect_scaled_init = scale_rect_func(pygame.Rect(center_x_logic - crt_width_logic_init / 2, center_y_logic - crt_height_logic_init / 2, crt_width_logic_init, crt_height_logic_init))
+        inner_screen_rect_init = crt_rect_scaled_init.inflate(-max(2, int(5 * scale))*1.5 * 2, -max(2, int(5 * scale))*1.5* 2)
+        eye_radius_x_init = inner_screen_rect_init.width * 0.35
+        eye_radius_y_init = inner_screen_rect_init.height * 0.35
+        pupil_radius_init = min(eye_radius_x_init, eye_radius_y_init) * 0.6
+
+        font_size_small_init = max(1, int(pupil_radius_init * 0.15))
+        font_size_large_init = max(8, int(pupil_radius_init * 1.2))
+        try:
+            anim_state['factory_small_font'] = pygame.font.Font(None, font_size_small_init)
+            anim_state['factory_large_font'] = pygame.font.Font(None, font_size_large_init)
+        except Exception as e_font:
+            print(f"Warning: Failed to load default font, falling back to SysFont: {e_font}")
+            try:
+                 anim_state['factory_small_font'] = pygame.font.SysFont("monospace", font_size_small_init)
+                 anim_state['factory_large_font'] = pygame.font.SysFont("monospace", font_size_large_init)
+            except Exception as e_sysfont:
+                 print(f"ERROR: Failed to load ANY font: {e_sysfont}")
+                 anim_state['factory_small_font'] = None
+                 anim_state['factory_large_font'] = None
+
+        # --- PCB Geometry Recalculation ---
+        # (Moved inside the recalculation block)
+        anim_state['factory_pcb_geometry'] = {}
+        pcb_geo = anim_state['factory_pcb_geometry']
+
+        # Store calculated scaled sizes
+        pcb_geo['trace_thickness_main'] = max(1, int(2 * scale))
+        pcb_geo['trace_thickness_shadow'] = max(2, int(3 * scale)) # Shadow slightly thicker
+        pcb_geo['trace_shadow_offset'] = max(1, int(1 * scale))
+        pcb_geo['solder_radius'] = max(2, int(3 * scale))
+        pcb_geo['solder_radius_dark'] = max(1, int(1.5 * scale))
+        pcb_geo['solder_highlight_offset'] = max(1, int(1 * scale))
+
+        pcb_geo['h_buses'] = []
+        pcb_geo['v_buses'] = []
+        pcb_geo['solder_points'] = []
+        pcb_geo['detail_traces'] = [] # Keep empty
+
+        num_horizontal_buses_init = 8
+        num_vertical_buses_init = 10
+
+        # Define the central CRT area again for generation logic
+        crt_avoid_width_logic_init = arena_width * 0.35
+        crt_avoid_height_logic_init = arena_height * 0.30
+        crt_avoid_rect_logic_init = pygame.Rect(
+            center_x_logic - crt_avoid_width_logic_init / 2,
+            center_y_logic - crt_avoid_height_logic_init / 2,
+            crt_avoid_width_logic_init, crt_avoid_height_logic_init
+        )
+
+        # Generate horizontal buses (Store logical coords first)
+        h_bus_y_coords = []
+        num_lines_per_bus = 3
+        bus_spacing_logic = 2 * 1.5 # Logical spacing based on trace thickness 2
+        for i in range(num_horizontal_buses_init):
+            y_logic = (i + 1) * (arena_height / (num_horizontal_buses_init + 1))
+            if crt_avoid_rect_logic_init.top < (y_logic - bus_spacing_logic * (num_lines_per_bus / 2)) and \
+               crt_avoid_rect_logic_init.bottom > (y_logic + bus_spacing_logic * (num_lines_per_bus / 2)):
+                continue
+            h_bus_y_coords.append(y_logic)
+            start_x = 0
+            end_x = arena_width
+            for j in range(num_lines_per_bus):
+                offset = (j - (num_lines_per_bus - 1) / 2) * bus_spacing_logic
+                # Store logical points for scaling later during drawing
+                pcb_geo['h_buses'].append(((start_x, y_logic + offset), (end_x, y_logic + offset)))
+
+        # Generate vertical buses (Store logical coords first)
+        v_bus_x_coords = []
+        for i in range(num_vertical_buses_init):
+            x_logic = (i + 1) * (arena_width / (num_vertical_buses_init + 1))
+            if crt_avoid_rect_logic_init.left < (x_logic - bus_spacing_logic * (num_lines_per_bus / 2)) and \
+               crt_avoid_rect_logic_init.right > (x_logic + bus_spacing_logic * (num_lines_per_bus / 2)):
+                continue
+            v_bus_x_coords.append(x_logic)
+            start_y = 0
+            end_y = arena_height
+            for j in range(num_lines_per_bus):
+                offset = (j - (num_lines_per_bus - 1) / 2) * bus_spacing_logic
+                # Store logical points for scaling later during drawing
+                pcb_geo['v_buses'].append(((x_logic + offset, start_y), (x_logic + offset, end_y)))
+
+        # Generate solder points (Store logical coords first)
+        for y_logic in h_bus_y_coords:
+            for x_logic in v_bus_x_coords:
+                if not crt_avoid_rect_logic_init.collidepoint(x_logic, y_logic):
+                    # Store logical point for scaling later during drawing
+                    pcb_geo['solder_points'].append((x_logic, y_logic))
+
+    # --- Draw PCB Elements (Using Calculated Geometry) ---
+    if 'factory_pcb_geometry' in anim_state:
+        pcb_geo = anim_state['factory_pcb_geometry']
+        trace_thickness_main_scaled = pcb_geo['trace_thickness_main']
+        trace_thickness_shadow_scaled = pcb_geo['trace_thickness_shadow']
+        trace_shadow_offset_scaled = pcb_geo['trace_shadow_offset']
+        solder_radius_scaled = pcb_geo['solder_radius']
+        solder_radius_dark_scaled = pcb_geo['solder_radius_dark']
+        solder_highlight_offset_scaled = pcb_geo['solder_highlight_offset']
+        trace_shadow_col = colors.get('CIRCUIT_TRACE_SHADOW', (25, 30, 30))
+        solder_highlight_col = colors.get('SOLDER_POINT_HIGHLIGHT', (240, 190, 60))
+
+        # Draw buses with shadows
+        for p1_logic, p2_logic in pcb_geo.get('h_buses', []) + pcb_geo.get('v_buses', []):
+            p1_scaled = scale_rect_func(pygame.Rect(p1_logic[0], p1_logic[1], 0, 0)).center
+            p2_scaled = scale_rect_func(pygame.Rect(p2_logic[0], p2_logic[1], 0, 0)).center
+            # Shadow (offset down-right)
+            p1_shadow = (p1_scaled[0] + trace_shadow_offset_scaled, p1_scaled[1] + trace_shadow_offset_scaled)
+            p2_shadow = (p2_scaled[0] + trace_shadow_offset_scaled, p2_scaled[1] + trace_shadow_offset_scaled)
+            pygame.draw.line(surface, trace_shadow_col, p1_shadow, p2_shadow, trace_thickness_shadow_scaled)
+            # Main trace
+            pygame.draw.line(surface, trace_main, p1_scaled, p2_scaled, trace_thickness_main_scaled)
+
+        # Draw solder points with bevel effect
+        for pos_logic in pcb_geo.get('solder_points', []):
+            pos_scaled = scale_rect_func(pygame.Rect(pos_logic[0], pos_logic[1], 0, 0)).center
+            # Dark base/shadow
+            pygame.draw.circle(surface, solder_point_dark, pos_scaled, solder_radius_scaled)
+            # Highlight (offset up-left)
+            pos_highlight = (pos_scaled[0] - solder_highlight_offset_scaled, pos_scaled[1] - solder_highlight_offset_scaled)
+            pygame.draw.circle(surface, solder_highlight_col, pos_highlight, int(solder_radius_scaled * 0.6)) # Smaller highlight circle
+            # Main solder color (slightly offset from highlight)
+            pos_main = (pos_scaled[0] - solder_highlight_offset_scaled // 2, pos_scaled[1] - solder_highlight_offset_scaled // 2)
+            pygame.draw.circle(surface, solder_point, pos_main, int(solder_radius_scaled * 0.8))
+
+
+    # --- Initialize One-Time Animation States ---
+    # (Only run if factory_initialized flag is not set)
+    if 'factory_initialized' not in anim_state:
+        anim_state['factory_initialized'] = True # Mark as initialized
+
+        # --- Eye State Init ---
+        anim_state['factory_eye_blink_timer'] = 0.0
+        anim_state['factory_eye_is_open'] = True
+        anim_state['factory_eye_blink_duration'] = 0.2
+        anim_state['factory_eye_open_interval'] = 5.0 # Set fixed 5 second open interval
+        anim_state['factory_pupil_number'] = random.randint(0, 9)
+        anim_state['factory_pupil_number_timer'] = 0.0
+        anim_state['factory_pupil_number_interval'] = 0.1
+
+        # --- Font Loading ---
+        # Calculate font sizes based on a typical pupil radius (needs CRT dimensions first)
+        crt_width_logic_init = arena_width * 0.3
+        crt_height_logic_init = arena_height * 0.25
+        # Estimate scaled CRT rect for font size calculation (might not be perfect if scale changes drastically)
+        crt_rect_scaled_init = scale_rect_func(pygame.Rect(center_x_logic - crt_width_logic_init / 2, center_y_logic - crt_height_logic_init / 2, crt_width_logic_init, crt_height_logic_init))
+        inner_screen_rect_init = crt_rect_scaled_init.inflate(-max(2, int(5 * scale))*1.5 * 2, -max(2, int(5 * scale))*1.5* 2)
+        eye_radius_x_init = inner_screen_rect_init.width * 0.35
+        eye_radius_y_init = inner_screen_rect_init.height * 0.35
+        pupil_radius_init = min(eye_radius_x_init, eye_radius_y_init) * 0.6
+
+        font_size_small_init = max(1, int(pupil_radius_init * 0.15))
+        font_size_large_init = max(8, int(pupil_radius_init * 1.2))
+        try:
+            # Try loading default font first
+            anim_state['factory_small_font'] = pygame.font.Font(None, font_size_small_init)
+            anim_state['factory_large_font'] = pygame.font.Font(None, font_size_large_init)
+        except Exception as e_font:
+            print(f"Warning: Failed to load default font, falling back to SysFont: {e_font}")
+            try:
+                 # Fallback to monospace system font
+                 anim_state['factory_small_font'] = pygame.font.SysFont("monospace", font_size_small_init)
+                 anim_state['factory_large_font'] = pygame.font.SysFont("monospace", font_size_large_init)
+            except Exception as e_sysfont:
+                 print(f"ERROR: Failed to load ANY font: {e_sysfont}")
+                 # Store None to prevent errors later, though text won't render
+                 anim_state['factory_small_font'] = None
+                 anim_state['factory_large_font'] = None
+
+
+        # --- Piston State Init ---
+        anim_state['factory_pistons'] = []
+        # Define piston positions symmetrically (example positions)
+        piston_y_offset = arena_height * 0.15
+        piston_x_offset = arena_width * 0.3
+        piston_positions_logic = [
+            (piston_x_offset, piston_y_offset), (arena_width - piston_x_offset, piston_y_offset),
+            (piston_x_offset, arena_height - piston_y_offset), (arena_width - piston_x_offset, arena_height - piston_y_offset)
+        ]
+        for i, pos in enumerate(piston_positions_logic):
+            anim_state['factory_pistons'].append({
+                'id': i, 'pos_logic': pos, 'state': 'down', # 'down', 'up', 'steaming'
+                'timer': random.uniform(0.0, 3.0), # Random start time
+                'up_interval': random.uniform(4.0, 8.0),
+                'up_duration': 0.5,
+                'steam_duration': 0.3
+            })
+
+        # --- Tesla Coil State Init ---
+        anim_state['factory_tesla_coils'] = []
+        # Define coil positions symmetrically (example positions)
+        coil_y_offset = arena_height * 0.35
+        coil_x_offset = arena_width * 0.1
+        coil_positions_logic = [
+             (coil_x_offset, coil_y_offset), (arena_width - coil_x_offset, coil_y_offset),
+             (coil_x_offset, arena_height - coil_y_offset), (arena_width - coil_x_offset, arena_height - coil_y_offset)
+        ]
+        for i, pos in enumerate(coil_positions_logic):
+             anim_state['factory_tesla_coils'].append({
+                 'id': i, 'pos_logic': pos,
+                 'timer': random.uniform(0.0, 2.0),
+                 'spark_interval': random.uniform(1.5, 4.0),
+                 'spark_duration': 0.15,
+                 'sparking': False,
+                 'spark_points': [] # Points for the lightning effect
+             })
+
+        # --- Piston/Tesla Position Recalculation (if needed, though less critical than PCB/fonts) ---
+        # Example: If piston/tesla positions were relative to arena size, recalculate here.
+        # Currently, they seem fixed relative offsets, so maybe not needed unless logic changes.
+        # if recalculate_geometry: # Or a separate check if needed
+        #    # Recalculate piston_positions_logic, coil_positions_logic based on new arena_width/height
+        #    # Update pos_logic in anim_state['factory_pistons'] and anim_state['factory_tesla_coils']
+        #    pass # Placeholder
+
+        # End of the initialization block
+
+    # --- Draw Central CRT Screen ---
+    crt_width_logic = arena_width * 0.25  # Smaller width
+    crt_height_logic = arena_height * 0.2  # Smaller height
+    crt_rect_logic = pygame.Rect(
+        center_x_logic - crt_width_logic / 2,
+        center_y_logic - crt_height_logic / 2,
+        crt_width_logic, crt_height_logic
+    )
+    crt_rect_scaled = scale_rect_func(crt_rect_logic)
+    border_thickness_scaled = max(2, int(5 * scale))
+
+    # Draw border and screen
+    pygame.draw.rect(surface, crt_border, crt_rect_scaled, border_thickness_scaled, border_radius=int(3*scale))
+    inner_screen_rect = crt_rect_scaled.inflate(-border_thickness_scaled*1.5, -border_thickness_scaled*1.5) # Slightly less inflation for effect
+    if inner_screen_rect.width > 0 and inner_screen_rect.height > 0:
+        # Draw screen background with subtle gradient/scanlines
+        screen_surf = pygame.Surface(inner_screen_rect.size, pygame.SRCALPHA)
+        screen_surf.fill(crt_screen)
+        # Slightly more visible Scanlines
+        scanline_alpha = 25 # Increased alpha
+        # Use a slightly brighter grey for scanlines on black background
+        scanline_color = (25, 25, 25, scanline_alpha)
+        for y in range(0, int(inner_screen_rect.height), max(2, int(3 * scale))):
+             pygame.draw.line(screen_surf, scanline_color, (0, y), (inner_screen_rect.width, y), 1)
+        # Subtle vertical gradient (darker at edges)
+        gradient_strength = 15
+        for x in range(int(inner_screen_rect.width)):
+            alpha = int(gradient_strength * (1 - abs(x - inner_screen_rect.width / 2) / (inner_screen_rect.width / 2)))
+            pygame.draw.line(screen_surf, (0,0,0, alpha), (x, 0), (x, inner_screen_rect.height), 1)
+
+        surface.blit(screen_surf, inner_screen_rect.topleft)
+
+
+    # --- Draw Blinking Eye (with Tracking) ---
+
+    # Create a dedicated surface for the eye, matching the inner screen size
+    eye_surface = pygame.Surface(inner_screen_rect.size, pygame.SRCALPHA)
+    eye_surface.fill((0, 0, 0, 0)) # Fill with transparent
+
+    # Center of the eye *relative to the eye_surface*
+    eye_surface_center = (inner_screen_rect.width // 2, inner_screen_rect.height // 2)
+
+    # Radii based on the eye_surface dimensions
+    # Make eye proportional to smaller screen
+    eye_radius_x_scaled = inner_screen_rect.width * 0.35
+    eye_radius_y_scaled = inner_screen_rect.height * 0.35
+    pupil_radius_scaled = min(eye_radius_x_scaled, eye_radius_y_scaled) * 0.4
+
+    # --- Eye Tracking Logic ---
+    # Initialize eye tracking state if not exists
+    if 'eye_pos' not in anim_state:
+        anim_state['eye_pos'] = {'x': eye_surface_center[0], 'y': eye_surface_center[1]}
+    
+    balls = [obj for obj in game_objects if obj.__class__.__name__ == 'BallObject']
+    target_pos = None
+
+    if balls and len(balls) > 0:
+        ball = balls[0]  # Track the first ball
+        if hasattr(ball, 'rect'):
+            # Convert ball position to eye surface space
+            ball_x = ball.rect.centerx - inner_screen_rect.left
+            ball_y = ball.rect.centery - inner_screen_rect.top
+            target_pos = (ball_x, ball_y)
+
+    # Smooth movement interpolation
+    current_pos = anim_state['eye_pos']
+    
+    # Set default target to center if no ball
+    target_x = eye_surface_center[0]
+    target_y = eye_surface_center[1]
+    
+    if target_pos:
+        # Clamp target position within eye bounds
+        max_offset = min(eye_radius_x_scaled, eye_radius_y_scaled) * 0.4
+        dx = target_pos[0] - eye_surface_center[0]
+        dy = target_pos[1] - eye_surface_center[1]
+        dist = math.hypot(dx, dy)
+        
+        if dist > 0:
+            scale = min(max_offset, dist) / dist
+            target_x = eye_surface_center[0] + dx * scale
+            target_y = eye_surface_center[1] + dy * scale
+    
+    # Smooth interpolation
+    lerp_speed = 10.0 * dt  # Adjust for smoother/faster tracking
+    current_pos['x'] += (target_x - current_pos['x']) * lerp_speed
+    current_pos['y'] += (target_y - current_pos['y']) * lerp_speed
+
+    # Final pupil position
+    pupil_draw_pos_on_surface = (current_pos['x'], current_pos['y'])
+
+
+    # Update blink timer
+    anim_state['factory_eye_blink_timer'] += dt
+    if anim_state['factory_eye_is_open']:
+        if anim_state['factory_eye_blink_timer'] >= anim_state['factory_eye_open_interval']:
+            anim_state['factory_eye_is_open'] = False
+            anim_state['factory_eye_blink_timer'] = 0.0
+            # Reset interval to the fixed value
+            anim_state['factory_eye_open_interval'] = 5.0 # Set fixed 5 second open interval
+    else: # Eye is closed (blinking)
+        if anim_state['factory_eye_blink_timer'] >= anim_state['factory_eye_blink_duration']:
+            anim_state['factory_eye_is_open'] = True
+            anim_state['factory_eye_blink_timer'] = 0.0
+            # Change the big number when blink finishes
+            anim_state['factory_pupil_number'] = random.randint(0, 9)
+
+
+    if anim_state['factory_eye_is_open']:
+        # Draw open eye components onto the eye_surface
+        if eye_radius_x_scaled > 0 and eye_radius_y_scaled > 0:
+            # Draw outer glow (larger, more transparent) onto eye_surface
+            # Enhanced glow effect
+            glow_radius_x = eye_radius_x_scaled * 1.8
+            glow_radius_y = eye_radius_y_scaled * 1.8
+            glow_color = (eye_glow[0], eye_glow[1], eye_glow[2], 80) # More subtle glow
+            # Use eye_surface_center for positioning on the eye_surface
+            glow_rect_on_surface = pygame.Rect(0, 0, glow_radius_x * 2, glow_radius_y * 2)
+            glow_rect_on_surface.center = eye_surface_center
+            pygame.draw.ellipse(eye_surface, glow_color, glow_rect_on_surface) # Draw directly on eye_surface
+
+            # Draw main eye ellipse (using eye_surface_center)
+            eye_rect_on_surface = pygame.Rect(eye_surface_center[0] - eye_radius_x_scaled, eye_surface_center[1] - eye_radius_y_scaled,
+                                              eye_radius_x_scaled * 2, eye_radius_y_scaled * 2)
+            pygame.draw.ellipse(eye_surface, eye_glow, eye_rect_on_surface)
+
+            # Inner, slightly darker ring (using eye_surface_center)
+            inner_eye_color = (max(0, eye_glow[0]-40), max(0, eye_glow[1]-10), max(0, eye_glow[2]-10))
+            inner_radius_x = eye_radius_x_scaled * 0.85
+            inner_radius_y = eye_radius_y_scaled * 0.85
+            inner_eye_rect_on_surface = pygame.Rect(eye_surface_center[0] - inner_radius_x, eye_surface_center[1] - inner_radius_y,
+                                                    inner_radius_x * 2, inner_radius_y * 2)
+            pygame.draw.ellipse(eye_surface, inner_eye_color, inner_eye_rect_on_surface, width=max(1, int(2*scale))) # Draw as outline
+
+            # Draw pupil (darker circle with changing numbers) - uses pupil_draw_pos_on_surface
+            if pupil_radius_scaled >= 1:
+                # Add subtle pulsing to pupil background
+                pulse_factor = 0.9 + 0.1 * math.sin(time.time() * 5) # Simple time-based pulse
+                current_pupil_radius = int(pupil_radius_scaled * pulse_factor)
+                current_pupil_bg = (max(0, eye_pupil_bg[0] + int(10 * pulse_factor) - 5), eye_pupil_bg[1], eye_pupil_bg[2])
+                # Use the calculated pupil_draw_pos_on_surface for drawing the pupil
+                pygame.draw.circle(eye_surface, current_pupil_bg, pupil_draw_pos_on_surface, current_pupil_radius)
+
+                # Update and draw changing numbers in pupil (around the pupil_draw_pos_on_surface)
+                anim_state['factory_pupil_number_timer'] += dt
+                if anim_state['factory_pupil_number_timer'] >= anim_state['factory_pupil_number_interval']:
+                    anim_state['factory_pupil_number_timer'] = 0.0
+                    # Draw small random numbers around the main one - with varied size/alpha
+                    num_small_numbers = 25 # Increased number of background digits
+                    base_font_size_small = max(1, int(pupil_radius_scaled * 0.2))
+
+                    for _ in range(num_small_numbers):
+                        angle = random.uniform(0, 2 * math.pi)
+                        dist = random.uniform(current_pupil_radius * 0.2, current_pupil_radius * 0.9) # Use current radius
+                        # Use pupil_draw_pos_on_surface for number positioning
+                        num_x = pupil_draw_pos_on_surface[0] + dist * math.cos(angle)
+                        num_y = pupil_draw_pos_on_surface[1] + dist * math.sin(angle)
+
+                        # Vary size and alpha
+                        current_font_size = max(1, base_font_size_small + random.randint(-1, 2))
+                        current_alpha = random.randint(100, 220)
+                        current_num_color = (eye_number[0], eye_number[1], eye_number[2], current_alpha)
+
+                        small_font = anim_state.get('factory_small_font') # Get pre-loaded font
+                        if small_font: # Check if font loaded successfully
+                             num_surf = small_font.render(str(random.randint(0,9)), True, current_num_color)
+                             # Create a surface with per-pixel alpha for the number
+                             num_alpha_surf = pygame.Surface(num_surf.get_size(), pygame.SRCALPHA)
+                             num_alpha_surf.blit(num_surf, (0,0))
+                             num_alpha_surf.set_alpha(current_alpha) # Apply overall alpha too
+
+                             num_rect = num_alpha_surf.get_rect(center=(int(num_x), int(num_y)))
+                             eye_surface.blit(num_alpha_surf, num_rect) # Blit onto eye_surface
+
+
+                # Draw the large central number
+                font_size_large = max(8, int(pupil_radius_scaled * 1.2))
+                large_font = anim_state.get('factory_large_font') # Get pre-loaded font
+                if large_font: # Check if font loaded successfully
+                     num_surf_large = large_font.render(str(anim_state['factory_pupil_number']), True, eye_number)
+                     # Use pupil_draw_pos_on_surface for the large number's center
+                     num_rect_large = num_surf_large.get_rect(center=pupil_draw_pos_on_surface)
+                     eye_surface.blit(num_surf_large, num_rect_large) # Blit onto eye_surface
+
+    else:
+        # Draw closed eye (thin horizontal line) onto eye_surface
+        # Use eye_surface_center for positioning
+        line_y = eye_surface_center[1]
+        line_start_x = eye_surface_center[0] - eye_radius_x_scaled
+        line_end_x = eye_surface_center[0] + eye_radius_x_scaled
+        line_thickness = max(1, int(3 * scale))
+        pygame.draw.line(eye_surface, eye_glow, (line_start_x, line_y), (line_end_x, line_y), line_thickness)
+
+    # Finally, blit the complete eye_surface onto the main surface at the inner screen position
+    surface.blit(eye_surface, inner_screen_rect.topleft)
+
+
+    # --- Piston and Tesla Coil drawing removed ---
+    # This logic is now handled by PistonObstacle and TeslaCoilObstacle classes
+    # in Ping_Obstacles.py
+
+    # --- Apply Lighting Overlay ---
+    if has_lighting:
+        max_darkness_alpha = 200
+        overlay_alpha = int(max_darkness_alpha * (1 - (lighting_level / 100.0)))
+        overlay_alpha = max(0, min(255, overlay_alpha))
+
+        if overlay_alpha > 0:
+            lighting_overlay = pygame.Surface(game_area_rect.size, pygame.SRCALPHA)
+            lighting_overlay.fill((0, 0, 0, overlay_alpha))
+            surface.blit(lighting_overlay, game_area_rect.topleft)
 
 # --- Populate Background Definitions ---
 # Add backgrounds to the dictionary *after* their functions are defined.

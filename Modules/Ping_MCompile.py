@@ -454,7 +454,8 @@ class LevelCompiler: # Renamed from Arena
 
         # Initialize object lists
         self.manholes = []
-        self.obstacle = None # Use singular for now, assuming max 1 obstacle from PMF/default
+        self.obstacle = None # Keep for now, might be used by other logic or default case
+        self.obstacles = []  # List to hold all types of obstacles
         self.goals = []
         self.portals = []
         self.bumpers = []
@@ -516,47 +517,42 @@ class LevelCompiler: # Renamed from Arena
                 self._log_warning(f"Created BumperObject at ({obj_x},{obj_y}) with properties: {properties}")
 
             elif obj_type == 'obstacle':
-                # Only create one obstacle for now, even if multiple are defined
-                if not obstacle_created_from_list:
-                    self.obstacle = ObstacleObject(
-                        arena_width=self.width,
-                        arena_height=self.height,
-                        scoreboard_height=self.scoreboard_height,
-                        scale_rect=self.scale_rect,
-                        x=obj_x,
-                        y=obj_y,
-                        width=obj_width,
-                        height=obj_height,
-                        properties=properties # Pass the properties dict
-                    )
-                    obstacle_created_from_list = True
-                    self._log_warning(f"Created ObstacleObject at ({obj_x},{obj_y}) with properties: {properties}")
-                else:
-                    self._log_warning(f"Ignoring additional PMF obstacle object #{obj_index} (only one supported currently): {obj}")
+                new_obstacle_obj = ObstacleObject(
+                    arena_width=self.width,
+                    arena_height=self.height,
+                    scoreboard_height=self.scoreboard_height,
+                    scale_rect=self.scale_rect,
+                    x=obj_x,
+                    y=obj_y,
+                    width=obj_width,
+                    height=obj_height,
+                    properties=properties # Pass the properties dict
+                )
+                self.obstacles.append(new_obstacle_obj)
+                obstacle_created_from_list = True
+                self._log_warning(f"Created and added ObstacleObject at ({obj_x},{obj_y}) with properties: {properties}")
 
             elif obj_type == 'roulette_spinner': # Match lowercase type from PMF
                 # Handle the new RouletteSpinner obstacle type
-                if not obstacle_created_from_list:
-                    # Extract specific properties needed by RouletteSpinner constructor
-                    # Use defaults from RouletteSpinner.__init__ if not found in PMF data
-                    radius = obj.get('radius', 100) # Get radius from top level (saved by editor)
-                    # Get properties sub-dictionary for other params
-                    spinner_props = obj.get('properties', {})
-                    num_segments = spinner_props.get('num_segments', 38)
-                    spin_speed = spinner_props.get('spin_speed_deg_s', 90)
+                # Extract specific properties needed by RouletteSpinner constructor
+                # Use defaults from RouletteSpinner.__init__ if not found in PMF data
+                radius = obj.get('radius', 100) # Get radius from top level (saved by editor)
+                # Get properties sub-dictionary for other params
+                spinner_props = obj.get('properties', {})
+                num_segments = spinner_props.get('num_segments', 38)
+                spin_speed = spinner_props.get('spin_speed_deg_s', 90)
 
-                    # Instantiate RouletteSpinner directly (it's not a GameObject wrapper)
-                    self.obstacle = RouletteSpinner(
-                        x=obj_x,
-                        y=obj_y,
-                        radius=radius,
-                        num_segments=num_segments,
-                        spin_speed_deg_s=spin_speed
-                    )
-                    obstacle_created_from_list = True
-                    self._log_warning(f"Created RouletteSpinner at ({obj_x},{obj_y}) with radius={radius}, segments={num_segments}, speed={spin_speed}")
-                else:
-                    self._log_warning(f"Ignoring additional PMF obstacle object (RouletteSpinner) #{obj_index} (only one supported currently): {obj}")
+                # Instantiate RouletteSpinner directly (it's not a GameObject wrapper)
+                new_roulette_spinner = RouletteSpinner(
+                    x=obj_x,
+                    y=obj_y,
+                    radius=radius,
+                    num_segments=num_segments,
+                    spin_speed_deg_s=spin_speed
+                )
+                self.obstacles.append(new_roulette_spinner)
+                obstacle_created_from_list = True
+                self._log_warning(f"Created and added RouletteSpinner at ({obj_x},{obj_y}) with radius={radius}, segments={num_segments}, speed={spin_speed}")
 
             elif obj_type == 'powerup_ball_duplicator': # Specific type
                 # Only create one powerup for now
@@ -601,6 +597,41 @@ class LevelCompiler: # Renamed from Arena
                  # Store ID and instance always, target_id only if present
                  self._portal_link_data.append({'instance': portal, 'id': portal_id, 'target_id': target_id})
 
+            elif obj_type == 'piston':
+                 # Use Y coordinate directly
+                 obj_y_relative_to_playable = obj_y
+                 piston = PistonObstacle(
+                     x=obj_x,
+                     y=obj_y_relative_to_playable,
+                     width=obj_width,
+                     height=obj_height,
+                     properties=properties # Pass properties dict
+                 )
+                 self.obstacles.append(piston)
+                 obstacle_created_from_list = True # Mark that an obstacle was created
+                 self._log_warning(f"Created PistonObstacle at logical ({obj_x},{obj_y}) with properties: {properties}")
+
+            elif obj_type == 'tesla_coil':
+                 # Use Y coordinate directly
+                 obj_y_relative_to_playable = obj_y
+                 # Extract specific properties for TeslaCoil constructor
+                 base_radius = obj.get('base_radius', 15) # Get from top level or default
+                 top_radius = obj.get('top_radius', 8)   # Get from top level or default
+                 tesla_props = obj.get('properties', {}) # Get properties dict
+
+                 tesla = TeslaCoilObstacle(
+                     x=obj_x,
+                     y=obj_y_relative_to_playable,
+                     base_radius=base_radius,
+                     top_radius=top_radius,
+                     height=obj_height, # Use main height
+                     properties=tesla_props # Pass properties dict
+                 )
+                 self.obstacles.append(tesla)
+                 obstacle_created_from_list = True # Mark that an obstacle was created
+                 self._log_warning(f"Created TeslaCoilObstacle at logical ({obj_x},{obj_y}) with properties: {tesla_props}")
+
+
             elif obj_type == 'sprite': # Now correctly indented
                  self._log_warning(f"DEBUG: Found PMF object of type 'sprite': {obj}") # ++ ADDED LOG ++
                  image_path = obj.get('image_path') # Standardized key from Artemis
@@ -627,7 +658,72 @@ class LevelCompiler: # Renamed from Arena
                  )
                  self._log_warning(f"DEBUG: Attempting to append SpriteObject: {sprite}") # ++ ADDED LOG ++
                  self.sprites.append(sprite)
-                 self._log_warning(f"Successfully created and appended SpriteObject with path '{image_path}' at ({obj_x},{obj_y})") # Modified log
+                 self._log_warning(f"Successfully created and appended SpriteObject with path '{image_path}' at logical ({obj_x},{obj_y})") # Modified log
+
+            elif obj_type == 'candle':
+                 # Use Y coordinate directly
+                 obj_y_relative_to_playable = obj_y
+                 candle = CandleObject(
+                     arena_width=self.width,
+                     arena_height=self.height,
+                     scoreboard_height=self.scoreboard_height,
+                     scale_rect_func=self.scale_rect, # Pass the method itself
+                     x=obj_x,
+                     y=obj_y_relative_to_playable,
+                     properties=properties
+                 )
+                 self.candles.append(candle)
+                 self._log_warning(f"Created CandleObject at logical ({obj_x},{obj_y}) with properties: {properties}")
+
+            elif obj_type == 'ghost':
+                 obj_y_relative_to_playable = obj_y
+                 # game_ball_instance is None here, will be passed during update
+                 ghost = GhostObstacleObject(
+                     arena_width=self.width,
+                     arena_height=self.height, # Playable height
+                     scoreboard_height=self.scoreboard_height,
+                     scale_rect=self.scale_rect,
+                     x=obj_x,
+                     y=obj_y_relative_to_playable,
+                     width=obj_width,
+                     height=obj_height,
+                     game_ball_instance=None,
+                     properties=properties
+                 )
+                 # The GhostObstacleObject's __init__ handles the active_ghost_count check.
+                 # We only add it to the list if it's an active instance.
+                 if ghost.is_active_instance:
+                     self.ghost_obstacles.append(ghost)
+                     self._log_warning(f"Created GhostObstacleObject at logical ({obj_x},{obj_y}) with properties: {properties}")
+                 else:
+                     self._log_warning(f"GhostObstacleObject at logical ({obj_x},{obj_y}) not added, MAX_GHOSTS_ON_SCREEN likely reached during init or instance marked inactive.")
+
+            elif obj_type == 'pickles':
+                 obj_y_relative_to_playable = obj_y
+                 
+                 # Force Pickles dimensions, overriding PMF if necessary for debugging/testing
+                 original_pmf_width = properties.get('width')
+                 original_pmf_height = properties.get('height')
+                 properties['width'] = 60  # Force desired width
+                 properties['height'] = 40 # Force desired height
+                 if original_pmf_width != 60 or original_pmf_height != 40:
+                     self._log_warning(f"Pickles object at ({obj_x},{obj_y}): Forcing width=60, height=40. Original PMF values were width={original_pmf_width}, height={original_pmf_height}.")
+                 else:
+                     self._log_warning(f"Pickles object at ({obj_x},{obj_y}): PMF values matched desired 60x40 or were absent, ensuring 60x40.")
+
+
+                 pickles_instance = Pickles(
+                     arena_width=self.width,
+                     arena_height=self.height,
+                     scoreboard_height=self.scoreboard_height,
+                     scale_rect=self.scale_rect,
+                     x=obj_x,
+                     y=obj_y_relative_to_playable,
+                     properties=properties # Pass the (potentially modified) properties
+                 )
+                 self.pickles_objects.append(pickles_instance)
+                 self._log_warning(f"Created Pickles object at logical ({obj_x},{obj_y}) with properties: {properties}")
+
 
             else: # Now correctly indented
                  self._log_warning(f"Unknown object type '{obj_type}' in PMF object #{obj_index}: {obj}")
@@ -659,18 +755,63 @@ class LevelCompiler: # Renamed from Arena
 
         # Create default obstacle if flag is set AND none were created from list
         if not obstacle_created_from_list and self.can_spawn_obstacles:
-             self._log_warning("No obstacle defined in PMF 'objects', creating default obstacle because 'can_spawn_obstacles' is true.")
+             self._log_warning("No specific obstacles defined in PMF 'objects' and 'can_spawn_obstacles' is true, creating default obstacle.")
              # Create default obstacle (ObstacleObject handles random positioning)
              # Pass empty properties dict for default obstacle
-             self.obstacle = ObstacleObject(
+             default_obstacle_obj = ObstacleObject(
                  arena_width=self.width,
                  arena_height=self.height,
                  scoreboard_height=self.scoreboard_height,
                  scale_rect=self.scale_rect,
                  properties={}
              )
+             self.obstacles.append(default_obstacle_obj) # Append default to list
 
-        # Create default powerup if flag is set AND none were created from list
+        # Create GhostObstacles if 'can_spawn_obstacles' flag is set.
+        # These are spawned in addition to any 'ghost' type objects defined in the PMF.
+        # The GhostObstacle class itself manages the maximum number on screen.
+        # GhostObstacle.reset_class_vars() was already called at the start of _create_objects_from_pmf
+        if self.can_spawn_ghosts: # Use the new specific flag
+            self._log_warning("Runtime Spawning: Checking for GhostObstacle creation as 'can_spawn_ghosts' is true.")
+            
+            # Try to spawn ghosts up to the MAX_GHOSTS_ON_SCREEN limit.
+            # PMF-defined ghosts would have already incremented active_ghost_count.
+            for _ in range(GhostObstacle.MAX_GHOSTS_ON_SCREEN):
+                if GhostObstacle.active_ghost_count >= GhostObstacle.MAX_GHOSTS_ON_SCREEN:
+                    self._log_warning(f"Runtime Spawning: Ghost limit ({GhostObstacle.MAX_GHOSTS_ON_SCREEN}) reached. No more runtime ghosts will be spawned. Current active: {GhostObstacle.active_ghost_count}")
+                    break # Stop trying if max is already met or exceeded
+
+                ghost_width = 30  # Default width for runtime spawned ghosts
+                ghost_height = 40 # Default height for runtime spawned ghosts
+                
+                # Random position within the playable area (self.height is playable height)
+                rand_x = random.randint(ghost_width // 2, self.width - ghost_width // 2)
+                rand_y = random.randint(ghost_height // 2, self.height - ghost_height // 2)
+
+                ghost = GhostObstacleObject(
+                    arena_width=self.width,
+                    arena_height=self.height, # Playable height
+                    scoreboard_height=self.scoreboard_height,
+                    scale_rect=self.scale_rect,
+                    x=rand_x,
+                    y=rand_y,
+                    width=ghost_width,
+                    height=ghost_height,
+                    game_ball_instance=None, # Will be set during update loop
+                    properties={} # No specific properties for runtime spawned
+                )
+                
+                # GhostObstacleObject.__init__ calls GhostObstacle.__init__,
+                # which increments active_ghost_count and sets ghost.is_active_instance.
+                if ghost.is_active_instance:
+                    self.ghost_obstacles.append(ghost)
+                    self._log_warning(f"Runtime Spawning: Successfully spawned and added GhostObstacleObject at logical ({rand_x},{rand_y}). Active count now: {GhostObstacle.active_ghost_count}")
+                else:
+                    # This implies GhostObstacle.__init__ decided not to activate this instance (MAX reached).
+                    self._log_warning(f"Runtime Spawning: GhostObstacleObject at logical ({rand_x},{rand_y}) created but not activated (MAX likely reached during its init). Active count: {GhostObstacle.active_ghost_count}")
+                    break # If an instance wasn't activated, the limit is hit.
+        
+         # Create default powerup if flag is set AND none were created from list
         if not powerup_created_from_list and self.can_spawn_powerups:
              self._log_warning("No powerup defined in PMF 'objects', creating default powerup because 'can_spawn_powerups' is true.")
              # Create default powerup (PowerUpBallObject handles positioning)
@@ -1104,7 +1245,7 @@ class LevelCompiler: # Renamed from Arena
             self.width,
             self.height,
             self.scoreboard_height,
-            obstacles
+            obstacles_for_spawn
         )
 
     # Removed redundant _draw_sewer_background method.
