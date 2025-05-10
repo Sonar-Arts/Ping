@@ -349,26 +349,24 @@ class LevelViewWidget(QWidget):
             obj_id = obj_data.get('id')
             x = obj_data.get('x', 0)
             y = obj_data.get('y', 0)
-            w = obj_data.get('width')
-            h = obj_data.get('height')
-            size = obj_data.get('size')
+            w = obj_data.get('width', 32)
+            h = obj_data.get('height', 32)
+            size = obj_data.get('size') # For ball/powerup, etc.
 
-            # Set dimensions
-            if w is None or h is None:
-                w = h = size if size is not None else 32
+            # Define the bounding box for drawing and selection
+            # Use width/height if available, otherwise size for circular/square objects
+            if w is not None and h is not None:
+                obj_rect = pygame.Rect(x, y, w, h)
+            elif size is not None:
+                 # Assume x,y is center for size-based objects
+                 obj_rect = pygame.Rect(x - size // 2, y - size // 2, size, size)
+            else:
+                 obj_rect = pygame.Rect(x, y, 10, 10) # Fallback small rect
 
-            # Create bounding rect
-            try:
-                draw_x = int(x)
-                draw_y = int(y)
-                draw_w = max(1, int(w))
-                draw_h = max(1, int(h))
-                rect = pygame.Rect(draw_x, draw_y, draw_w, draw_h)
-            except (ValueError, TypeError) as e:
-                print(f"Error: Invalid dimensions for object {obj_id}: {e}")
-                continue
+            # --- Determine how to draw based on type ---
+            is_paddle = "paddle_spawn" in obj_type
+            is_generic_sprite = obj_type == 'sprite'
 
-            # Initialize drawing state
             sprite_to_draw = None
             draw_placeholder = False
             placeholder_color = (100, 100, 100)
@@ -440,10 +438,12 @@ class LevelViewWidget(QWidget):
                             self.pygame_surface.blit(text, text_rect)
                 except Exception as e:
                     print(f"Warning: Could not draw placeholder text: {e}")
-            else:
-                pygame.draw.rect(self.pygame_surface, self.get_object_color(obj_data), rect)
+            elif not is_paddle and not is_generic_sprite:
+                # Draw other object types (non-sprite, non-paddle) using color
+                color = self.get_object_color(obj_data)
+                pygame.draw.rect(self.pygame_surface, color, obj_rect)
 
-            # Draw selection highlight if needed
+            # --- Draw Selection Highlight ---
             if obj_id == self.selected_object_id:
                 pygame.draw.rect(self.pygame_surface, (255, 255, 0), rect, 2)
 

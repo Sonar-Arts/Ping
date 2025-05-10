@@ -10,15 +10,15 @@ from PyQt6.QtCore import Qt, pyqtSignal
 # --- Default Properties ---
 # Derived from Ping_GameObjects.py, Ping_Obstacles.py, Ping_Paddle.py, Ping_Ball.py
 DEFAULT_OBJECT_PROPERTIES = {
-    "paddle_spawn_left": {"type": "paddle_spawn", "is_left": True, "width": 40, "height": 100, "speed": 300, "image_path": "default_paddle_left.png"},
-    "paddle_spawn_right": {"type": "paddle_spawn", "is_left": False, "width": 40, "height": 100, "speed": 300, "image_path": "default_paddle_right.png"},
-    "ball_spawn": {"type": "ball_spawn", "size": 20, "image_path": "default_ball.png"},
-    "obstacle_rect": {"type": "obstacle", "shape": "rect", "width": 20, "height": 60, "image_path": "default_obstacle.png"},
-    "goal_left": {"type": "goal", "is_left": True, "width": 20, "height": 200, "image_path": "default_goal_left.png"},
-    "goal_right": {"type": "goal", "is_left": False, "width": 20, "height": 200, "image_path": "default_goal_right.png"},
-    "portal": {"type": "portal", "width": 30, "height": 80, "target_id": None, "image_path": "default_portal.png"}, # target_id links portals
-    "powerup_ball": {"type": "powerup", "powerup_type": "ball", "size": 20, "active": True, "image_path": "default_powerup_ball.png"},
-    "manhole": {"type": "manhole", "width": 50, "height": 20, "is_bottom": True, "image_path": "default_manhole.png",
+    "paddle_spawn_left": {"type": "paddle_spawn", "is_left": True, "width": 40, "height": 100, "speed": 300},
+    "paddle_spawn_right": {"type": "paddle_spawn", "is_left": False, "width": 40, "height": 100, "speed": 300},
+    "ball_spawn": {"type": "ball_spawn", "size": 20},
+    "obstacle_rect": {"type": "obstacle", "shape": "rect", "width": 20, "height": 60},
+    "goal_left": {"type": "goal", "is_left": True, "width": 20, "height": 200},
+    "goal_right": {"type": "goal", "is_left": False, "width": 20, "height": 200},
+    "portal": {"type": "portal", "width": 30, "height": 80, "target_id": None}, # target_id links portals
+    "powerup_ball": {"type": "powerup", "powerup_type": "ball", "size": 20, "active": True},
+    "manhole": {"type": "manhole", "width": 50, "height": 20, "is_bottom": True,
                 "properties": {'spout_min_interval_sec': 5, 'spout_max_interval_sec': 20, 'spout_duration_sec': 1.0}},
     "bumper": {"type": "bumper", "width": 60, "height": 60, "properties": {"radius": 30}, "image_path": "default_bumper.png"},
     "roulette_spinner": {"type": "roulette_spinner", "radius": 50, "properties": {"num_segments": 8, "spin_speed_deg_s": 180}},
