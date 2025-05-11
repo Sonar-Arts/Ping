@@ -37,8 +37,6 @@ class LevelPropertiesWidget(QWidget):
         self.has_lighting_cb = QCheckBox() # Added Has Lighting checkbox
         self.level_music_combo = QComboBox() # Added Music Combo Box
         self.lighting_level_slider = QSlider(Qt.Orientation.Horizontal) # Added Lighting Level Slider
-        self.level_background_edit = QLineEdit() # Added for level background image
-
         # Configure spin boxes (adjust ranges as needed)
         self.level_width_spin.setRange(100, 10000)
         self.level_width_spin.setSuffix(" px")
@@ -61,8 +59,6 @@ class LevelPropertiesWidget(QWidget):
         form_layout.addRow("Has Lighting?:", self.has_lighting_cb) # Added Has Lighting row
         form_layout.addRow("Lighting Level:", self.lighting_level_slider) # Added Lighting Level row
         form_layout.addRow("Level Music:", self.level_music_combo) # Added Music Row
-        form_layout.addRow("Level Background:", self.level_background_edit) # Added Level Background row
-
         # Populate Music Dropdown
         self._populate_music_dropdown()
 
@@ -79,8 +75,6 @@ class LevelPropertiesWidget(QWidget):
         self.level_prop_widgets["has_lighting"] = self.has_lighting_cb # Added Has Lighting widget
         self.level_prop_widgets["lighting_level"] = self.lighting_level_slider # Added Lighting Level widget
         self.level_prop_widgets["level_music"] = self.level_music_combo # Added Music Widget
-        self.level_prop_widgets["level_background"] = self.level_background_edit # Added Level Background widget
-
         layout.addLayout(form_layout)
         self.setLayout(layout)
 
@@ -90,7 +84,6 @@ class LevelPropertiesWidget(QWidget):
         self.level_width_spin.valueChanged.connect(self._on_lineedit_finished) # Changed to _on_lineedit_finished
         self.level_height_spin.valueChanged.connect(self._on_lineedit_finished) # Changed to _on_lineedit_finished
         self.background_color_edit.editingFinished.connect(self._on_lineedit_finished) # Use specific handler
-        self.level_background_edit.editingFinished.connect(self._on_lineedit_finished) # Connect level background
         # Connect checkboxes to a dedicated handler
         self.bounce_walls_cb.stateChanged.connect(partial(self._on_checkbox_changed, "bounce_walls"))
         self.use_goals_cb.stateChanged.connect(partial(self._on_checkbox_changed, "use_goals"))
@@ -162,7 +155,6 @@ class LevelPropertiesWidget(QWidget):
         self.spawn_ghosts_cb.setChecked(level_data.get("can_spawn_ghosts", False)) # Default False
         self.has_lighting_cb.setChecked(level_data.get("has_lighting", False)) # Default False
         self.lighting_level_slider.setValue(level_data.get("lighting_level", 75)) # Default 75
-        self.level_background_edit.setText(level_data.get("level_background", "")) # Added level background
         # Update Music Dropdown
         current_music = level_data.get("level_music", "")
         music_index = self.level_music_combo.findData(current_music) # Find by user data
@@ -193,8 +185,6 @@ class LevelPropertiesWidget(QWidget):
         self.has_lighting_cb.blockSignals(blocked) # Block has_lighting checkbox
         self.lighting_level_slider.blockSignals(blocked) # Block lighting_level slider
         self.level_music_combo.blockSignals(blocked) # Block music combo
-        self.level_background_edit.blockSignals(blocked) # Block level background
-
 
     def _on_lineedit_finished(self):
         """Called when a QLineEdit or QSpinBox finishes editing."""
@@ -211,9 +201,6 @@ class LevelPropertiesWidget(QWidget):
             prop_key = 'height'
         elif sender == self.background_color_edit:
             prop_key = 'background_color'
-        elif sender == self.level_background_edit:
-            prop_key = 'level_background'
-
         if prop_key:
             self._update_core_property(prop_key)
         else:
