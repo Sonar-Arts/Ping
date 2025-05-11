@@ -8,6 +8,7 @@ import math
 import pygame # Ensure pygame is imported if not already
 
 import os # Needed for path manipulation
+import time # Import time for blinking animation
 
 # Global cache for loaded sprite images
 # Key: relative path (e.g., "MySprite.png"), Value: pygame.Surface
@@ -128,10 +129,6 @@ def generate_sludge_texture(width, height, scale, colors):
     return sludge_texture
 
 
-import time # Import time for blinking animation
-
-import math # Ensure math is imported for angles
-
 # Helper function to generate points along an arc for pixelated look
 def get_arc_points(center_x, center_y, radius_x, radius_y, start_angle, end_angle, num_segments):
     """ Calculates points along an elliptical arc segment. Angles in radians. """
@@ -167,6 +164,11 @@ def draw_casino_background(surface, compiler_instance):
     dt = getattr(compiler_instance, 'dt', 1/60.0)
     center_x_logic = arena_width / 2
 
+    # --- Get Lighting Properties ---
+    level_properties = getattr(compiler_instance, 'level_properties', {})
+    has_lighting = level_properties.get('has_lighting', False)
+    lighting_level = level_properties.get('lighting_level', 75) # Default 75%
+
     # --- Define Pixelated Retro Pinball Colors ---
     base_color = colors.get('PINBALL_BASE', (10, 5, 25))          # Even Darker Blue/Purple
     lane_color = colors.get('PINBALL_LANE', (0, 200, 255))        # Bright Cyan
@@ -182,14 +184,31 @@ def draw_casino_background(surface, compiler_instance):
     ]
 
     # --- Define Layout Parameters ---
-    # border_thickness_ratio = 0.04 # Removed wood border
-    # border_thickness_logic = arena_width * border_thickness_ratio # Removed wood border
     inner_x_start_logic = 0 # Start from edge
-    inner_y_start_logic = scoreboard_height # Start from scoreboard
-    inner_width_logic = arena_width # Use full width
-    inner_height_logic = arena_height - scoreboard_height # Use full height below scoreboard
-    # inner_rect_logic = pygame.Rect(inner_x_start_logic, inner_y_start_logic, inner_width_logic, inner_height_logic) # Not directly used
+    inner_y_start_logic = 0 # Logical Y for playable area starts at 0
+    inner_width_logic = arena_width # Use full logical width
+    inner_height_logic = arena_height # Use full logical playable height (compiler_instance.height)
     inner_center_x_logic = inner_x_start_logic + inner_width_logic / 2
+
+    # --- Get the game area rectangle ---
+    # Use scale_rect_func to get the position of the game area on screen
+    game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height))
+
+    # --- Draw Base Background and Retro Details ---
+    # Draw the base color covering the game area
+    pygame.draw.rect(surface, base_color, game_area_rect)
+
+    # Add subtle grid lines for more retro detail
+    grid_spacing_logic = 50 # Logical pixels between grid lines
+    scaled_grid_spacing = max(1, int(grid_spacing_logic * scale))
+    grid_color = (base_color[0]+10, base_color[1]+10, base_color[2]+15, 50) # Slightly lighter, semi-transparent
+
+    # Vertical lines - only within game area
+    for x in range(game_area_rect.left, game_area_rect.right, scaled_grid_spacing):
+        pygame.draw.line(surface, grid_color, (x, game_area_rect.top), (x, game_area_rect.bottom), 1)
+    # Horizontal lines - only within game area
+    for y in range(game_area_rect.top, game_area_rect.bottom, scaled_grid_spacing):
+        pygame.draw.line(surface, grid_color, (game_area_rect.left, y), (game_area_rect.right, y), 1)
 
     # --- Initialize/Update Animation State ---
     if 'background_animation_state' not in compiler_instance.__dict__:
@@ -259,34 +278,6 @@ def draw_casino_background(surface, compiler_instance):
             if light['on']:
                  light['color_index'] = random.randint(0, len(light_colors) - 1)
 
-    # --- Draw Base Background and Retro Details ---
-    full_area_rect_logic = pygame.Rect(0, scoreboard_height, arena_width, arena_height - scoreboard_height)
-    scaled_full_area_rect = scale_rect_func(full_area_rect_logic)
-    pygame.draw.rect(surface, base_color, scaled_full_area_rect)
-
-    # Add subtle grid lines for more retro detail
-    grid_spacing_logic = 50 # Logical pixels between grid lines
-    scaled_grid_spacing = max(1, int(grid_spacing_logic * scale))
-    grid_color = (base_color[0]+10, base_color[1]+10, base_color[2]+15, 50) # Slightly lighter, semi-transparent
-
-    # Vertical lines
-    for x in range(scaled_full_area_rect.left, scaled_full_area_rect.right, scaled_grid_spacing):
-        pygame.draw.line(surface, grid_color, (x, scaled_full_area_rect.top), (x, scaled_full_area_rect.bottom), 1)
-    # Horizontal lines
-    for y in range(scaled_full_area_rect.top, scaled_full_area_rect.bottom, scaled_grid_spacing):
-        pygame.draw.line(surface, grid_color, (scaled_full_area_rect.left, y), (scaled_full_area_rect.right, y), 1)
-
-
-    # --- Draw Wooden Border --- (Removed)
-    # top_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height, arena_width, border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, top_border_rect)
-    # bottom_border_rect = scale_rect_func(pygame.Rect(0, arena_height - border_thickness_logic, arena_width, border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, bottom_border_rect)
-    # left_border_rect = scale_rect_func(pygame.Rect(0, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, left_border_rect)
-    # right_border_rect = scale_rect_func(pygame.Rect(arena_width - border_thickness_logic, scoreboard_height + border_thickness_logic, border_thickness_logic, arena_height - scoreboard_height - 2 * border_thickness_logic))
-    # pygame.draw.rect(surface, wood_border_color, right_border_rect)
-
     # --- Draw Small Details ---
     detail_radius_logic = inner_width_logic * 0.005
     scaled_detail_radius = max(1, int(detail_radius_logic * scale))
@@ -304,7 +295,6 @@ def draw_casino_background(surface, compiler_instance):
          abs_y = inner_y_start_logic + inner_height_logic * rel_y
          scaled_center = scale_rect_func(pygame.Rect(abs_x, abs_y, 0, 0)).center
          pygame.draw.circle(surface, detail_color, scaled_center, scaled_detail_radius)
-
 
     # --- Draw Pixelated Curved Lane Guides with Shadows ---
     num_segments = 12 # Increase segments slightly for smoother pixel curve
@@ -344,7 +334,7 @@ def draw_casino_background(surface, compiler_instance):
     scaled_shadow_offset_y = max(1, int(arena_height * shadow_offset_scale * scale))
 
     # Create a temporary surface for drawing shadows with alpha
-    shadow_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    shadow_surface = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
     shadow_surface.fill((0,0,0,0)) # Transparent
 
     if len(scaled_left_points) > 1:
@@ -412,9 +402,9 @@ def draw_casino_background(surface, compiler_instance):
         overlay_alpha = max(0, min(255, overlay_alpha)) # Clamp alpha
 
         if overlay_alpha > 0:
-            lighting_overlay = pygame.Surface(scaled_full_area_rect.size, pygame.SRCALPHA)
+            lighting_overlay = pygame.Surface(game_area_rect.size, pygame.SRCALPHA)
             lighting_overlay.fill((0, 0, 0, overlay_alpha))
-            surface.blit(lighting_overlay, scaled_full_area_rect.topleft)
+            surface.blit(lighting_overlay, game_area_rect.topleft)
 
 # --- Color Theme Definitions ---
 
@@ -446,11 +436,57 @@ SEWER_COLORS = {
     'SLUDGE_HIGHLIGHT': (100, 105, 75),
     # Add any other sewer-specific colors here
 }
+FACTORY_COLORS = {
+    # Floor/Circuit Colors (Metallic Grate & PCB Theme)
+    'GRATE_BASE': (55, 60, 65),          # Medium-dark metallic grey base
+    'GRATE_LINE_DARK': (40, 45, 50),     # Darker grey for grate lines
+    'GRATE_LINE_LIGHT': (70, 75, 80),    # Lighter grey for grate lines/highlights
+    'CIRCUIT_TRACE_MAIN': (160, 160, 155), # Light grey for main traces
+    'CIRCUIT_TRACE_SHADOW': (25, 30, 30), # Dark shadow for traces
+    'SOLDER_POINT': (218, 165, 32),     # Gold color for solder points
+    'SOLDER_POINT_DARK': (184, 134, 11), # Darker gold for shading/bevel
+    'SOLDER_POINT_HIGHLIGHT': (240, 190, 60), # Lighter gold for highlight/bevel
+
+    # CRT/Eye Colors
+    'CRT_BORDER': (30, 30, 30),           # Dark border for the screen
+    'CRT_SCREEN': (0, 0, 0),             # Black screen background
+    'EYE_GLOW': (200, 0, 0),            # Bright red glow
+    'EYE_PUPIL_BG': (50, 0, 0),           # Dark red background for pupil numbers
+    'EYE_NUMBER': (255, 180, 180),      # Light red/pink for numbers
+
+    # Piston/Tesla Colors
+    'PISTON_METAL_BASE': (90, 90, 100),   # Base metal color
+    'PISTON_METAL_SHADOW': (60, 60, 70),  # Shadow color
+    'PISTON_METAL_HIGHLIGHT': (130, 130, 140), # Highlight color
+    'STEAM_COLOR_CORE': (230, 230, 230, 200), # Brighter core steam
+    'STEAM_COLOR_FADE': (180, 180, 180, 100), # Faded outer steam
+    'TESLA_COIL_BASE': (60, 50, 80),      # Darker purple/grey base
+    'TESLA_COIL_HIGHLIGHT': (90, 80, 110), # Lighter highlight for coil
+    'TESLA_SPARK_CORE': (255, 255, 255),   # Bright white core spark
+    'TESLA_SPARK_GLOW': (200, 200, 255, 150), # Light blue glow
+}
+
+HAUNTED_HOVEL_COLORS = {
+    'FLOOR_WOOD_DARK': (40, 30, 20),        # Dark brown for wood
+    'FLOOR_WOOD_LIGHT': (60, 45, 30),       # Lighter brown for wood grain/highlights
+    'WALL_STONE_DARK': (50, 50, 60),        # Dark grey-blue for stone walls
+    'WALL_STONE_LIGHT': (70, 70, 80),       # Lighter grey-blue for stone highlights
+    'COBWEB': (100, 100, 100, 100),         # Semi-transparent grey for cobwebs
+    'DUST_MOTE': (120, 120, 100, 80),       # Faint yellowish dust
+    'SHADOW': (10, 10, 15, 150),            # Dark, moody shadow color
+    'FURNITURE_DARK': (30, 25, 20),         # Very dark for furniture outlines
+    'FURNITURE_SHEET': (180, 170, 160, 200), # Off-white for sheets over furniture
+    'FURNITURE_SHEET_PATTERN': (170, 160, 150, 200), # Slightly darker for subtle pattern on sheets
+    'WINDOW_FRAME': (20, 15, 10),           # Dark frame for boarded/broken windows
+    'WINDOW_PANE_MOONLIGHT': (100, 120, 150, 70), # Faint moonlight through a dirty pane
+}
 
 # Dictionary mapping background identifiers to their color themes
 BACKGROUND_COLOR_THEMES = {
     "casino": CASINO_COLORS,
     "sewer": SEWER_COLORS,
+    "factory": FACTORY_COLORS,
+    "haunted_hovel": HAUNTED_HOVEL_COLORS,
     # Add themes for other backgrounds here
 }
 
@@ -458,6 +494,497 @@ BACKGROUND_COLOR_THEMES = {
 
 # Dictionary mapping background identifiers to their drawing functions.
 AVAILABLE_BACKGROUNDS = {} # Initialize first
+
+def draw_haunted_hovel_background(surface, compiler_instance):
+    """
+    Draws a pixelated, top-down view of a haunted hovel interior.
+    Features detailed elements like wooden floors, cobwebs, and blinking candles.
+    """
+    # --- Extract parameters ---
+    colors = compiler_instance.colors
+    scale = compiler_instance.scale
+    scale_rect_func = compiler_instance.scale_rect
+    arena_width = compiler_instance.width
+    arena_height = compiler_instance.height
+    dt = getattr(compiler_instance, 'dt', 1/60.0)
+    center_x_logic = arena_width / 2
+    center_y_logic = arena_height / 2
+    wall_thickness_logic = 10 # Moved up for use in cobweb pre-calculation
+
+    # --- Get Lighting Properties ---
+    level_properties = getattr(compiler_instance, 'level_properties', {})
+    has_lighting = level_properties.get('has_lighting', False)
+    lighting_level = level_properties.get('lighting_level', 75) # Default 75%
+
+    # --- Initialize/Update Animation State ---
+    # This will now cover furniture drapes, dust motes, and animated chair
+    if 'background_animation_state' not in compiler_instance.__dict__:
+         compiler_instance.background_animation_state = {}
+    anim_state = compiler_instance.background_animation_state
+
+    recalculate_bg_details = False
+    current_dims_scale_bg = (arena_width, arena_height, scale)
+    last_dims_scale_tuple = anim_state.get('hovel_bg_last_dims_scale')
+
+    if last_dims_scale_tuple is None:
+        recalculate_bg_details = True
+    else:
+        last_w, last_h, last_s = last_dims_scale_tuple
+        # Define a small tolerance for scale comparison
+        scale_tolerance = 0.0001 # Example tolerance for floating point comparison
+        if last_w != arena_width or \
+           last_h != arena_height or \
+           abs(last_s - scale) > scale_tolerance:
+            recalculate_bg_details = True
+    
+    if recalculate_bg_details:
+        anim_state['hovel_bg_last_dims_scale'] = current_dims_scale_bg
+        # print(f"Haunted Hovel BG: Dimensions/Scale changed OR first run. Recalculating details.") # Optional debug
+        # Initialize/clear drape details storage
+        anim_state['hovel_furniture_drapes'] = {} # Store by furniture index or a unique ID
+        anim_state['hovel_animated_chair'] = {} # For the moving chair
+        anim_state['hovel_bookshelf_details'] = {} # For pre-calculating book details
+        anim_state['hovel_bookshelf_details'] = {} # For pre-calculating book details
+
+        # Initialize dust motes (moved here to be part of the same recalculation)
+        anim_state['hovel_dust_motes'] = []
+        num_motes = 50
+        for _ in range(num_motes):
+            anim_state['hovel_dust_motes'].append({
+                'pos_logic': (random.uniform(0, arena_width), random.uniform(0, arena_height)),
+                'size_logic': random.uniform(0.5, 1.5),
+                'alpha': random.randint(40, 100)
+            })
+        
+        # Pre-calculate cobweb scaled data
+        anim_state['hovel_cobwebs_scaled_data'] = []
+        cobweb_points_sets_local = [
+            [(wall_thickness_logic, wall_thickness_logic), (wall_thickness_logic + 60, wall_thickness_logic), (wall_thickness_logic, wall_thickness_logic + 60)], # Top-left corner
+            # Removed the problematic small cobweb definition that was here
+            [(arena_width - wall_thickness_logic, wall_thickness_logic), (arena_width - wall_thickness_logic - 60, wall_thickness_logic), (arena_width - wall_thickness_logic, wall_thickness_logic + 60)], # Top-right corner
+            [(wall_thickness_logic, arena_height - wall_thickness_logic), (wall_thickness_logic + 60, arena_height - wall_thickness_logic), (wall_thickness_logic, arena_height - wall_thickness_logic - 60)], # Bottom-left corner
+        ]
+        for point_set_logic in cobweb_points_sets_local:
+            current_scaled_points = [scale_rect_func(pygame.Rect(p[0], p[1], 0, 0)).center for p in point_set_logic]
+            if len(current_scaled_points) >= 3:
+                current_center_of_web = ((current_scaled_points[0][0] + current_scaled_points[1][0] + current_scaled_points[2][0]) / 3,
+                                         (current_scaled_points[0][1] + current_scaled_points[1][1] + current_scaled_points[2][1]) / 3)
+                strand_lines_data = []
+                for p_s in current_scaled_points:
+                    strand_lines_data.append({'start': current_center_of_web, 'end': p_s})
+                anim_state['hovel_cobwebs_scaled_data'].append({
+                    'polygon_points': current_scaled_points,
+                    'strand_lines': strand_lines_data
+                })
+
+    # --- Define Haunted Hovel Colors (from theme) ---
+    floor_dark = colors.get('FLOOR_WOOD_DARK', (40, 30, 20))
+    floor_light = colors.get('FLOOR_WOOD_LIGHT', (60, 45, 30))
+    wall_dark = colors.get('WALL_STONE_DARK', (50, 50, 60))
+    wall_light = colors.get('WALL_STONE_LIGHT', (70, 70, 80))
+    cobweb_color = colors.get('COBWEB', (100, 100, 100, 100))
+    shadow_color = colors.get('SHADOW', (10, 10, 15, 150))
+    furniture_dark_color = colors.get('FURNITURE_DARK', (30, 25, 20))
+    furniture_sheet_color = colors.get('FURNITURE_SHEET', (180, 170, 160, 200))
+    furniture_sheet_pattern_color = colors.get('FURNITURE_SHEET_PATTERN', (170, 160, 150, 200))
+    window_frame_color = colors.get('WINDOW_FRAME', (20, 15, 10))
+    moonlight_color = colors.get('WINDOW_PANE_MOONLIGHT', (100, 120, 150, 70))
+
+    # --- Get the game area rectangle ---
+    game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height))
+    # --- Draw Base Floor (Pixelated Wood Planks) ---
+    surface.fill(floor_dark, game_area_rect)
+    # DEBUG: Draw a small red rectangle to test if any drawing is happening
+    test_rect = pygame.Rect(game_area_rect.left + 10, game_area_rect.top + 10, 20, 20)
+    surface.fill((255, 0, 0), test_rect)
+    plank_width_logic = 20
+    scaled_plank_width = max(1, int(plank_width_logic * scale))
+    for x_screen in range(game_area_rect.left, game_area_rect.right, scaled_plank_width):
+        # Alternate plank color for texture, or add grain lines
+        if (x_screen // scaled_plank_width) % 3 == 0: # Every 3rd plank slightly lighter
+            pygame.draw.line(surface, floor_light, (x_screen, game_area_rect.top), (x_screen, game_area_rect.bottom), max(1, int(2*scale)))
+        else: # Draw thin dark lines for plank separation
+             pygame.draw.line(surface, (floor_dark[0]-5, floor_dark[1]-5, floor_dark[2]-5), (x_screen, game_area_rect.top), (x_screen, game_area_rect.bottom), 1)
+
+    # --- Draw Walls (Simple Outlines) ---
+    # wall_thickness_logic is already defined earlier
+    scaled_wall_thickness = max(1, int(wall_thickness_logic * scale))
+    # Top wall
+    pygame.draw.rect(surface, wall_dark, scale_rect_func(pygame.Rect(0, 0, arena_width, wall_thickness_logic)))
+    # Bottom wall
+    pygame.draw.rect(surface, wall_dark, scale_rect_func(pygame.Rect(0, arena_height - wall_thickness_logic, arena_width, wall_thickness_logic)))
+    # Left wall
+    pygame.draw.rect(surface, wall_dark, scale_rect_func(pygame.Rect(0, 0, wall_thickness_logic, arena_height)))
+    # Right wall
+    pygame.draw.rect(surface, wall_dark, scale_rect_func(pygame.Rect(arena_width - wall_thickness_logic, 0, wall_thickness_logic, arena_height)))
+
+    # --- Draw Dilapidated Furniture (Covered with Sheets - more specific shapes) ---
+    furniture_definitions = [
+        {'type': 'bed', 'rect_logic': pygame.Rect(arena_width * 0.65, arena_height * 0.2, arena_width * 0.25, arena_height * 0.35), 'sheeted': True},
+        {'type': 'round_table', 'pos_logic': (arena_width * 0.25, arena_height * 0.65), 'radius_logic': arena_width * 0.08, 'sheeted': True},
+        {'type': 'grandfather_clock', 'rect_logic': pygame.Rect(arena_width * 0.05, arena_height * 0.25, arena_width * 0.05, arena_height * 0.4), 'sheeted': False}, # Usually not sheeted
+        {'type': 'dresser', 'rect_logic': pygame.Rect(arena_width * 0.4, arena_height * 0.8, arena_width * 0.2, arena_height * 0.1), 'sheeted': True},
+        {'type': 'rickety_chair', 'base_rect_logic': pygame.Rect(arena_width * 0.15, arena_height * 0.45, arena_width * 0.07, arena_height * 0.1), 'sheeted': False, 'animated': True},
+        {'type': 'bookshelf', 'rect_logic': pygame.Rect(arena_width * 0.75, wall_thickness_logic + arena_height * 0.05, arena_width * 0.15, arena_height * 0.25), 'sheeted': False},
+        {'type': 'broken_mirror', 'rect_logic': pygame.Rect(arena_width * 0.5, arena_height * 0.12, arena_width * 0.04, arena_height * 0.15), 'sheeted': False},
+    ]
+
+    for idx, item_def in enumerate(furniture_definitions): # Added enumerate for unique key
+        item_type = item_def['type']
+        sheeted = item_def['sheeted']
+        furniture_key = f"{item_type}_{idx}" # Unique key for anim_state
+        is_animated_chair = item_def.get('animated', False) and item_type == 'rickety_chair'
+
+        if recalculate_bg_details:
+            # Pre-calculate random drape parameters if this item has drapes
+            if item_type == 'bed' and sheeted:
+                anim_state['hovel_furniture_drapes'][furniture_key] = []
+                for _ in range(4): # 4 drape lines for bed
+                    anim_state['hovel_furniture_drapes'][furniture_key].append({
+                        'start_x_factor': random.uniform(0.1, 0.9),
+                        'end_x_offset_factor': random.uniform(-0.2, 0.2),
+                        'start_y_factor': random.uniform(0.2, 0.8),
+                        'end_y_offset_factor': random.uniform(0.05, 0.15)
+                    })
+            elif item_type == 'round_table' and sheeted:
+                anim_state['hovel_furniture_drapes'][furniture_key] = []
+                for i in range(6): # 6 drape lines for table
+                    anim_state['hovel_furniture_drapes'][furniture_key].append({
+                        'angle_offset': random.uniform(-0.1, 0.1),
+                        'start_r_factor': random.uniform(0.3, 0.6),
+                        'end_r_factor': random.uniform(0.7, 0.95)
+                    })
+            elif is_animated_chair:
+                # Initialize animated chair state
+                if furniture_key not in anim_state['hovel_animated_chair']:
+                    anim_state['hovel_animated_chair'][furniture_key] = {
+                        'base_rect_logic': item_def['base_rect_logic'].copy(), # Store a copy
+                        'current_offset_logic': pygame.math.Vector2(0, 0),
+                        'target_offset_logic': pygame.math.Vector2(0, 0),
+                        'move_timer': random.uniform(2.0, 5.0), # Start with a random delay
+                        'move_interval': random.uniform(4.0, 8.0), # How often to consider moving
+                        'is_moving': False,
+                        'move_duration': random.uniform(0.3, 0.7), # How long a move takes
+                        'current_move_time': 0.0,
+                        'max_offset_pixels': 3, # Max movement in logical pixels
+                    }
+            elif item_type == 'bookshelf':
+                # Pre-calculate book details only if not already done or if recalculating
+                if furniture_key not in anim_state['hovel_bookshelf_details'] or recalculate_bg_details:
+                    anim_state['hovel_bookshelf_details'][furniture_key] = {'books': []}
+                    shelf_rect_logic = item_def['rect_logic']
+                    book_colors_options = [(80,40,30), (40,60,50), (70,70,50), (30,30,60), (50,50,50), (60, 60, 80)] # Added more variety
+                    num_shelves_for_calc = 4 # Must match drawing logic
+                    
+                    for i_shelf in range(num_shelves_for_calc):
+                        # Relative Y calculation for books on this shelf, within the shelf's logical rect
+                        # These are factors of the shelf's own height for this specific shelf level
+                        shelf_level_top_y_factor = (i_shelf + 0.1) / num_shelves_for_calc
+                        shelf_level_bottom_y_factor = (i_shelf + 0.9) / num_shelves_for_calc
+                        
+                        current_x_factor = 0.05 # Start books a bit inset, relative to shelf width
+                        while current_x_factor < 0.90: # Leave some space at the end
+                            book_width_factor = random.uniform(0.04, 0.12) # Relative to shelf width, slightly wider books
+                            # Book height is relative to the height of this specific shelf level
+                            book_height_factor = (shelf_level_bottom_y_factor - shelf_level_top_y_factor) * random.uniform(0.85, 0.98) # Slightly vary height
+                            
+                            # Store relative rect (x,y,w,h are factors of the parent bookshelf rect) and color
+                            anim_state['hovel_bookshelf_details'][furniture_key]['books'].append({
+                                'rel_x': current_x_factor,
+                                'rel_y': shelf_level_top_y_factor + ((shelf_level_bottom_y_factor - shelf_level_top_y_factor) - book_height_factor), # Align to bottom of shelf space
+                                'rel_w': book_width_factor,
+                                'rel_h': book_height_factor,
+                                'color': random.choice(book_colors_options)
+                            })
+                            current_x_factor += book_width_factor + random.uniform(0.008, 0.02) # Small gap, relative
+            elif item_type == 'bookshelf':
+                if furniture_key not in anim_state['hovel_bookshelf_details']:
+                    anim_state['hovel_bookshelf_details'][furniture_key] = {'books': []}
+                    shelf_rect_logic = item_def['rect_logic']
+                    book_colors_options = [(80,40,30), (40,60,50), (70,70,50), (30,30,60), (50,50,50)]
+                    num_shelves_for_calc = 4 # Must match drawing logic
+                    
+                    for i in range(num_shelves_for_calc):
+                        # Relative Y calculation for books on this shelf
+                        # These are factors of the shelf's own height
+                        shelf_y_top_factor = (i + 0.1) / num_shelves_for_calc
+                        shelf_y_bottom_factor = (i + 0.9) / num_shelves_for_calc
+                        
+                        current_x_factor = 0.05 # Start books a bit inset, relative to shelf width
+                        while current_x_factor < 0.90: # Leave some space at the end
+                            book_width_factor = random.uniform(0.03, 0.08) # Relative to shelf width
+                            book_height_factor = shelf_y_bottom_factor - shelf_y_top_factor # Full height of available space on this shelf level
+                            
+                            # Store relative rect and color
+                            anim_state['hovel_bookshelf_details'][furniture_key]['books'].append({
+                                'rel_x': current_x_factor,
+                                'rel_y': shelf_y_top_factor,
+                                'rel_w': book_width_factor,
+                                'rel_h': book_height_factor,
+                                'color': random.choice(book_colors_options)
+                            })
+                            current_x_factor += book_width_factor + random.uniform(0.005, 0.015) # Small gap, relative
+
+        if item_type == 'bed':
+            bed_rect_logic = item_def['rect_logic']
+            scaled_bed_rect = scale_rect_func(bed_rect_logic)
+            pygame.draw.rect(surface, furniture_dark_color, scaled_bed_rect, border_radius=max(1, int(2*scale)))
+            if sheeted:
+                sheet_rect = scaled_bed_rect.inflate(-max(1,int(2*scale)), -max(1,int(2*scale)))
+                if sheet_rect.width > 0 and sheet_rect.height > 0:
+                    pygame.draw.rect(surface, furniture_sheet_color, sheet_rect, border_radius=max(1, int(1*scale)))
+                    # Pattern on sheet
+                    for r in range(0, sheet_rect.height, max(2,int(4*scale))):
+                        pygame.draw.line(surface, furniture_sheet_pattern_color, (sheet_rect.left, sheet_rect.top + r), (sheet_rect.right, sheet_rect.top + r), 1)
+                    # Drape lines - use stored random values
+                    if furniture_key in anim_state['hovel_furniture_drapes']:
+                        for drape_params in anim_state['hovel_furniture_drapes'][furniture_key]:
+                            start_x = sheet_rect.left + drape_params['start_x_factor'] * sheet_rect.width
+                            end_x = start_x + drape_params['end_x_offset_factor'] * sheet_rect.width
+                            start_y = sheet_rect.top + drape_params['start_y_factor'] * sheet_rect.height
+                            end_y = start_y + drape_params['end_y_offset_factor'] * sheet_rect.height
+                            pygame.draw.line(surface, (furniture_sheet_color[0]-15, furniture_sheet_color[1]-15, furniture_sheet_color[2]-15), (start_x, start_y), (end_x, min(sheet_rect.bottom -1, end_y)), 1)
+            # Bed posts
+            post_size_logic = 5
+            scaled_post_size = max(1, int(post_size_logic * scale))
+            posts_logic = [
+                (bed_rect_logic.left, bed_rect_logic.top), (bed_rect_logic.right - post_size_logic, bed_rect_logic.top),
+                (bed_rect_logic.left, bed_rect_logic.bottom - post_size_logic), (bed_rect_logic.right - post_size_logic, bed_rect_logic.bottom - post_size_logic)
+            ]
+            for post_l_x, post_l_y in posts_logic:
+                scaled_post_rect = scale_rect_func(pygame.Rect(post_l_x, post_l_y, post_size_logic, post_size_logic))
+                pygame.draw.rect(surface, furniture_dark_color, scaled_post_rect)
+
+        elif item_type == 'round_table':
+            pos_logic = item_def['pos_logic']
+            radius_logic = item_def['radius_logic']
+            scaled_center = scale_rect_func(pygame.Rect(pos_logic[0], pos_logic[1],0,0)).center
+            scaled_radius = max(2, int(radius_logic * scale))
+            pygame.draw.circle(surface, furniture_dark_color, scaled_center, scaled_radius)
+            if sheeted:
+                sheet_radius = max(1, int(scaled_radius * 0.9))
+                if sheet_radius > 0:
+                    pygame.draw.circle(surface, furniture_sheet_color, scaled_center, sheet_radius)
+                    # Pattern on sheet (concentric circles)
+                    for r_offset in range(max(1,int(3*scale)), sheet_radius, max(2,int(4*scale))):
+                         pygame.draw.circle(surface, furniture_sheet_pattern_color, scaled_center, sheet_radius - r_offset, 1)
+                    # Drape lines (radial) - use stored random values
+                    if furniture_key in anim_state['hovel_furniture_drapes']:
+                        for i, drape_params in enumerate(anim_state['hovel_furniture_drapes'][furniture_key]):
+                            angle = (math.pi * 2 / 6) * i + drape_params['angle_offset']
+                            start_r = sheet_radius * drape_params['start_r_factor']
+                            end_r = sheet_radius * drape_params['end_r_factor']
+                            p1 = (scaled_center[0] + start_r * math.cos(angle), scaled_center[1] + start_r * math.sin(angle))
+                            p2 = (scaled_center[0] + end_r * math.cos(angle), scaled_center[1] + end_r * math.sin(angle))
+                            pygame.draw.line(surface, (furniture_sheet_color[0]-15, furniture_sheet_color[1]-15, furniture_sheet_color[2]-15), p1, p2, 1)
+
+        elif item_type == 'grandfather_clock':
+            clock_rect_logic = item_def['rect_logic']
+            scaled_clock_rect = scale_rect_func(clock_rect_logic)
+            pygame.draw.rect(surface, furniture_dark_color, scaled_clock_rect)
+            # Simple face detail
+            face_center_x = scaled_clock_rect.centerx
+            face_center_y = scaled_clock_rect.top + scaled_clock_rect.width // 2 # Assume square top for face
+            face_radius = scaled_clock_rect.width // 3
+            if face_radius > 1:
+                pygame.draw.circle(surface, floor_light, (face_center_x, face_center_y), face_radius) # Clock face
+                pygame.draw.circle(surface, floor_dark, (face_center_x, face_center_y), max(1, face_radius-int(1*scale))) # Inner dark
+
+        elif item_type == 'dresser':
+            dresser_rect_logic = item_def['rect_logic']
+            scaled_dresser_rect = scale_rect_func(dresser_rect_logic)
+            pygame.draw.rect(surface, furniture_dark_color, scaled_dresser_rect, border_radius=max(1, int(1*scale)))
+            if sheeted:
+                sheet_rect = scaled_dresser_rect.inflate(-max(1,int(1*scale)), -max(1,int(1*scale)))
+                if sheet_rect.width > 0 and sheet_rect.height > 0:
+                    pygame.draw.rect(surface, furniture_sheet_color, sheet_rect, border_radius=max(1, int(1*scale)))
+                    # Pattern on sheet
+                    for r in range(0, sheet_rect.height, max(2,int(3*scale))): # Tighter pattern
+                        pygame.draw.line(surface, furniture_sheet_pattern_color, (sheet_rect.left, sheet_rect.top + r), (sheet_rect.right, sheet_rect.top + r), 1)
+        
+        elif is_animated_chair:
+            chair_state = anim_state['hovel_animated_chair'].get(furniture_key)
+            if chair_state:
+                chair_state['move_timer'] -= dt
+                if not chair_state['is_moving'] and chair_state['move_timer'] <= 0:
+                    chair_state['is_moving'] = True
+                    chair_state['current_move_time'] = 0.0
+                    # Choose a small random offset
+                    offset_x = random.uniform(-chair_state['max_offset_pixels'], chair_state['max_offset_pixels'])
+                    offset_y = random.uniform(-chair_state['max_offset_pixels'], chair_state['max_offset_pixels'])
+                    chair_state['target_offset_logic'] = pygame.math.Vector2(offset_x, offset_y)
+                    chair_state['move_timer'] = chair_state['move_interval'] # Reset timer for next potential move
+
+                if chair_state['is_moving']:
+                    chair_state['current_move_time'] += dt
+                    progress = min(1.0, chair_state['current_move_time'] / chair_state['move_duration'])
+                    # Simple linear interpolation for movement
+                    chair_state['current_offset_logic'] = chair_state['target_offset_logic'] * progress
+                    
+                    if progress >= 1.0:
+                        chair_state['is_moving'] = False
+                        # Snap to target, then reset target to 0 for next idle phase or make it drift back
+                        chair_state['current_offset_logic'] = chair_state['target_offset_logic'].copy()
+                        # Option: make it slowly drift back to 0,0 or just stay put until next move
+                        # For now, it stays put until the next explicit move.
+                        # To make it drift back, you'd set a new target_offset_logic to (0,0)
+                        # and a new move_duration for the drift back.
+
+                # Apply offset to base rect
+                animated_rect_logic = chair_state['base_rect_logic'].move(chair_state['current_offset_logic'].x, chair_state['current_offset_logic'].y)
+                scaled_chair_rect = scale_rect_func(animated_rect_logic)
+                chair_main_color = furniture_dark_color
+                chair_detail_color = (min(255,chair_main_color[0]+20), min(255,chair_main_color[1]+20), min(255,chair_main_color[2]+20))
+
+                # Seat (main rectangle)
+                seat_rect = scaled_chair_rect
+                pygame.draw.rect(surface, chair_main_color, seat_rect)
+                pygame.draw.rect(surface, chair_detail_color, seat_rect, max(1, int(1*scale))) # Outline
+
+                # Backrest
+                back_width = seat_rect.width
+                back_height_abs = seat_rect.height * 1.1 # Absolute height for backrest
+                back_top_y = seat_rect.top - back_height_abs
+                
+                # Main backrest panel
+                back_panel_rect = pygame.Rect(seat_rect.left, back_top_y, back_width, back_height_abs)
+                pygame.draw.rect(surface, chair_main_color, back_panel_rect)
+                pygame.draw.rect(surface, chair_detail_color, back_panel_rect, max(1, int(1*scale)))
+
+                # Spindles for backrest (3 vertical spindles)
+                num_spindles = 3
+                spindle_width_abs = max(1, int(back_width * 0.1)) # Absolute width
+                total_spindle_width = num_spindles * spindle_width_abs
+                spacing_between_spindles = (back_width - total_spindle_width) / (num_spindles + 1)
+                
+                for i in range(num_spindles):
+                    spindle_x = back_panel_rect.left + spacing_between_spindles * (i + 1) + spindle_width_abs * i
+                    spindle_rect = pygame.Rect(spindle_x, back_panel_rect.top + max(1, int(1*scale)), spindle_width_abs, back_panel_rect.height - max(2, int(2*scale)))
+                    pygame.draw.rect(surface, chair_detail_color, spindle_rect)
+                
+                # Top rail of backrest
+                top_rail_height = max(1, int(back_height_abs * 0.15))
+                top_rail_rect = pygame.Rect(back_panel_rect.left, back_panel_rect.top, back_panel_rect.width, top_rail_height)
+                pygame.draw.rect(surface, chair_detail_color, top_rail_rect)
+
+
+                # Legs (more distinct)
+                leg_width_abs = max(1, int(seat_rect.width * 0.12)) # Absolute width
+                leg_height_abs = max(1, int(seat_rect.height * 0.5)) # Legs are usually longer than seat height from side, but appear shorter top-down
+
+                # Front legs (drawn slightly "under" the front edge of the seat)
+                pygame.draw.rect(surface, chair_main_color, (seat_rect.left + leg_width_abs*0.3, seat_rect.bottom - leg_height_abs*0.7, leg_width_abs, leg_height_abs))
+                pygame.draw.rect(surface, chair_main_color, (seat_rect.right - leg_width_abs*1.3, seat_rect.bottom - leg_height_abs*0.7, leg_width_abs, leg_height_abs))
+                
+                # Back legs (drawn slightly "under" the back edge of the seat, aligned with backrest posts if any)
+                pygame.draw.rect(surface, chair_main_color, (seat_rect.left + leg_width_abs*0.3, seat_rect.top + seat_rect.height - leg_height_abs*1.0, leg_width_abs, leg_height_abs))
+                pygame.draw.rect(surface, chair_main_color, (seat_rect.right - leg_width_abs*1.3, seat_rect.top + seat_rect.height - leg_height_abs*1.0, leg_width_abs, leg_height_abs))
+
+
+        elif item_type == 'bookshelf':
+            shelf_rect_logic = item_def['rect_logic']
+            scaled_shelf_rect = scale_rect_func(shelf_rect_logic)
+            # Main frame of the bookshelf
+            pygame.draw.rect(surface, furniture_dark_color, scaled_shelf_rect)
+            pygame.draw.rect(surface, (furniture_dark_color[0]+10, furniture_dark_color[1]+10, furniture_dark_color[2]+10), scaled_shelf_rect, max(1,int(1*scale))) # Outline
+
+            # Draw shelves
+            num_shelves = 4 # Should match pre-calculation
+            shelf_thickness_scaled = max(1, int(2*scale)) # Thickness of the shelf plank
+            # Calculate available height for shelf content (excluding thickness of planks and top/bottom frame)
+            content_height_total = scaled_shelf_rect.height - (num_shelves + 1) * shelf_thickness_scaled
+            shelf_content_height_each = content_height_total / num_shelves if num_shelves > 0 else 0
+            
+            shelf_plank_color = (furniture_dark_color[0]+20, furniture_dark_color[1]+20, furniture_dark_color[2]+20)
+
+            for i_shelf in range(num_shelves):
+                # Y position of the top of the shelf plank
+                plank_y_pos = scaled_shelf_rect.top + shelf_thickness_scaled * (i_shelf +1) + shelf_content_height_each * i_shelf
+                pygame.draw.rect(surface, shelf_plank_color,
+                                 (scaled_shelf_rect.left + int(1*scale), plank_y_pos, scaled_shelf_rect.width - int(2*scale), shelf_thickness_scaled))
+            
+            # Draw pre-calculated books using stored details
+            if furniture_key in anim_state['hovel_bookshelf_details']:
+                shelf_details_data = anim_state['hovel_bookshelf_details'][furniture_key]
+                for book_info in shelf_details_data['books']:
+                    # Calculate absolute book position and size based on stored relative factors and current scaled_shelf_rect
+                    book_abs_x = scaled_shelf_rect.left + book_info['rel_x'] * scaled_shelf_rect.width
+                    book_abs_y = scaled_shelf_rect.top + book_info['rel_y'] * scaled_shelf_rect.height
+                    book_abs_w = book_info['rel_w'] * scaled_shelf_rect.width
+                    book_abs_h = book_info['rel_h'] * scaled_shelf_rect.height
+                    
+                    book_abs_w = max(1, book_abs_w) # Ensure min width 1px
+                    book_abs_h = max(1, book_abs_h) # Ensure min height 1px
+
+                    current_book_rect = pygame.Rect(book_abs_x, book_abs_y, book_abs_w, book_abs_h)
+                    pygame.draw.rect(surface, book_info['color'], current_book_rect)
+                    # Add a darker outline to each book for definition
+                    outline_color = (max(0, book_info['color'][0]-20), max(0, book_info['color'][1]-20), max(0, book_info['color'][2]-20))
+                    pygame.draw.rect(surface, outline_color, current_book_rect, 1)
+
+        elif item_type == 'broken_mirror':
+            mirror_rect_logic = item_def['rect_logic']
+            scaled_mirror_rect = scale_rect_func(mirror_rect_logic)
+            # Frame
+            pygame.draw.rect(surface, window_frame_color, scaled_mirror_rect, max(1, int(2*scale)))
+            # Glass (slightly reflective, greyish)
+            glass_color = (100, 105, 110, 150)
+            inner_mirror_rect = scaled_mirror_rect.inflate(-max(1,int(2*scale))*2, -max(1,int(2*scale))*2)
+            if inner_mirror_rect.width > 0 and inner_mirror_rect.height > 0:
+                 pygame.draw.rect(surface, glass_color, inner_mirror_rect)
+                 # Cracks
+                 crack_color_mirror = (30,30,30, 200)
+                 # Store crack points in animation state if not already set
+                 if 'mirror_cracks' not in anim_state:
+                     anim_state['mirror_cracks'] = []
+                     for _ in range(3): # Generate 3 crack lines
+                         start_pt = (random.randint(inner_mirror_rect.left, inner_mirror_rect.right),
+                                   random.randint(inner_mirror_rect.top, inner_mirror_rect.bottom))
+                         end_pt = (random.randint(inner_mirror_rect.left, inner_mirror_rect.right),
+                                 random.randint(inner_mirror_rect.top, inner_mirror_rect.bottom))
+                         anim_state['mirror_cracks'].append((start_pt, end_pt))
+                 
+                 # Draw stored crack lines
+                 for start_pt, end_pt in anim_state['mirror_cracks']:
+                     pygame.draw.line(surface, crack_color_mirror, start_pt, end_pt, max(1,int(1*scale)))
+
+
+    # --- Draw Cobwebs (in corners) ---
+    # Use pre-calculated scaled data from anim_state
+    if 'hovel_cobwebs_scaled_data' in anim_state:
+        for cobweb_data in anim_state['hovel_cobwebs_scaled_data']:
+            scaled_polygon_points = cobweb_data['polygon_points']
+            pygame.draw.polygon(surface, cobweb_color, scaled_polygon_points, 0) # Filled polygon for base
+            
+            strand_color_r = cobweb_color[0] + 10 if cobweb_color[0] < 245 else 255
+            strand_color_g = cobweb_color[1] + 10 if cobweb_color[1] < 245 else 255
+            strand_color_b = cobweb_color[2] + 10 if cobweb_color[2] < 245 else 255
+            strand_color_a = cobweb_color[3] - 20 if cobweb_color[3] > 20 else cobweb_color[3]
+            strand_final_color = (strand_color_r, strand_color_g, strand_color_b, strand_color_a)
+
+            for line_data in cobweb_data['strand_lines']:
+                pygame.draw.line(surface, strand_final_color, line_data['start'], line_data['end'], 1)
+
+    # --- Draw some dust motes (optional, for mood) ---
+    # Dust mote generation is now handled above, triggered by recalculate_bg_details
+    dust_mote_color_base = colors.get('DUST_MOTE', (120, 120, 100, 80))
+    for mote in anim_state['hovel_dust_motes']:
+        scaled_mote_pos = scale_rect_func(pygame.Rect(mote['pos_logic'][0], mote['pos_logic'][1],0,0)).center
+        scaled_mote_size = max(1, int(mote['size_logic'] * scale))
+        mote_color = (dust_mote_color_base[0], dust_mote_color_base[1], dust_mote_color_base[2], mote['alpha'])
+        pygame.draw.circle(surface, mote_color, scaled_mote_pos, scaled_mote_size)
+
+    # --- Apply Lighting Overlay ---
+    if has_lighting:
+        max_darkness_alpha = 200
+        overlay_alpha = int(max_darkness_alpha * (1 - (lighting_level / 100.0)))
+        overlay_alpha = max(0, min(255, overlay_alpha))
+
+        if overlay_alpha > 0:
+            lighting_overlay = pygame.Surface(game_area_rect.size, pygame.SRCALPHA)
+            lighting_overlay.fill((0, 0, 0, overlay_alpha))
+            surface.blit(lighting_overlay, game_area_rect.topleft)
+
 
 def draw_sewer_background(surface, compiler_instance):
     """
@@ -479,22 +1006,39 @@ def draw_sewer_background(surface, compiler_instance):
     scoreboard_height = compiler_instance.scoreboard_height
     all_objects = compiler_instance.manholes # Use the specific manholes list from compiler
 
+    # --- Get Lighting Properties ---
+    level_properties = getattr(compiler_instance, 'level_properties', {})
+    has_lighting = level_properties.get('has_lighting', False)
+    lighting_level = level_properties.get('lighting_level', 75) # Default 75%
+
     # Get background details directly from the compiler instance attribute
     background_details = compiler_instance.background_details # Direct access
     if not background_details:
-        print("Warning: No background_details found in compiler instance for sewer background.")
-        # Attempt to use defaults if details are missing entirely
+        # Only show warning once using static flag
+        if not hasattr(draw_sewer_background, '_warned_about_details'):
+            print("Warning: No background_details found in compiler instance for sewer background.")
+            print("Warning: Using default sewer background details.")
+            draw_sewer_background._warned_about_details = True
+        
+        # Use defaults if details are missing entirely
         background_details = {
-             'brick_width': 50, 'brick_height': 25, 'river_width_ratio': 0.25,
-             'manhole_brick_padding': 5, 'crack_frequency': 0.05,
-             'vegetation_frequency': 0.02, 'river_animation_speed': 1
+              'brick_width': 50, 'brick_height': 25, 'river_width_ratio': 0.25,
+              'manhole_brick_padding': 5, 'crack_frequency': 0.05,
+              'vegetation_frequency': 0.02, 'river_animation_speed': 1
         }
-        print("Warning: Using default sewer background details.")
         # Do not return here, proceed with defaults
 
     # Get level dimensions directly from compiler instance
     arena_width = compiler_instance.width
     arena_height = compiler_instance.height
+
+    # --- Get the game area rectangle ---
+    game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height))
+
+    # --- Draw Base Background Color ---
+    # Use a dark base color, e.g., Mortar or Brick Dark, filling only the game area
+    base_sewer_color = colors.get('MORTAR', (15, 15, 15))
+    surface.fill(base_sewer_color, game_area_rect)
 
     # Use the already filtered manholes list from the compiler instance
     # IMPORTANT: Assumes ManHoleObject class is imported or accessible where LevelCompiler is defined
@@ -525,14 +1069,17 @@ def draw_sewer_background(surface, compiler_instance):
     scaled_brick_h = brick_h * scale
     scaled_river_x_start = river_x_start * scale + offset_x
     scaled_river_width = river_width * scale
-    scaled_river_y_start = scoreboard_height * scale + offset_y
-    scaled_river_height = (arena_height - scoreboard_height) * scale
+    # River Y starts at the top of the playable area in logical coordinates (Y=0)
+    # scale_rect_func will handle adding the scoreboard offset for screen coordinates
+    scaled_river_y_start = scale_rect_func(pygame.Rect(0, 0, 0, 0)).top # Get scaled top Y of playable area
+    scaled_river_height = arena_height * scale # Use the full playable height
 
     # --- Draw Brick Pattern ---
-    # (Brick drawing logic remains largely the same, using extracted variables)
-    for y_logic in range(scoreboard_height, arena_height, brick_h):
+    # Iterate through logical Y coordinates of the playable area (0 to arena_height)
+    for y_logic in range(0, arena_height, brick_h): # Start Y loop from 0
         row_offset = (y_logic // brick_h) % 2 * (brick_w // 2)  # Staggered pattern
         for x_logic in range(0, arena_width, brick_w):
+            # Create rect with logical coordinates relative to playable area top-left (0,0)
             brick_rect_logic = pygame.Rect(x_logic - row_offset, y_logic, brick_w, brick_h)
 
             # Skip drawing bricks fully covered by the river
@@ -556,7 +1103,6 @@ def draw_sewer_background(surface, compiler_instance):
                      # print(f"Warning: Manhole object {manhole} lacks a valid rect attribute.")
                      pass
 
-
             # Determine brick color (Hardcoded darker values, solid manhole border)
             manhole_border_color = (20, 20, 20) # Very dark for border
             brick_light_color = (45, 45, 45)    # Darker light brick
@@ -572,32 +1118,11 @@ def draw_sewer_background(surface, compiler_instance):
 
             # Scale and draw the brick using the provided function
             scaled_brick_rect = scale_rect_func(brick_rect_logic) # Use extracted function
+            # Draw directly onto the main surface
             pygame.draw.rect(surface, brick_color, scaled_brick_rect)
             pygame.draw.rect(surface, mortar_color, scaled_brick_rect, 1)  # Mortar outline
 
-            # Vegetation drawing (removed crack generation from here)
-            if not is_near_manhole:
-                veg_freq = details.get('vegetation_frequency', 0.02)
-                veg_color = colors.get('VEGETATION_COLOR', (0, 80, 0)) # Keep vegetation color from theme
-                # if random.random() < veg_freq: # Keep vegetation random for now
-                #      # Ensure scaled rect has positive dimensions before random range
-                #     if scaled_brick_rect.width > 5 and scaled_brick_rect.height > 5:
-                #         veg_x = scaled_brick_rect.left + random.randint(0, scaled_brick_rect.width - 5)
-                #         veg_y = scaled_brick_rect.top + random.randint(0, scaled_brick_rect.height - 5)
-                #         # Scale veg size too, ensure minimum size of 1
-                #         veg_w = max(1, int(5 * scale))
-                #         veg_h = max(1, int(5 * scale))
-                #         pygame.draw.rect(surface, veg_color, (veg_x, veg_y, veg_w, veg_h))
-
-                # if random.random() < veg_freq:
-                #      # Ensure scaled rect has positive dimensions before random range
-                #     if scaled_brick_rect.width > 5 and scaled_brick_rect.height > 5:
-                #         veg_x = scaled_brick_rect.left + random.randint(0, scaled_brick_rect.width - 5)
-                #         veg_y = scaled_brick_rect.top + random.randint(0, scaled_brick_rect.height - 5)
-                #         # Scale veg size too, ensure minimum size of 1
-                #         veg_w = max(1, int(5 * scale))
-                #         veg_h = max(1, int(5 * scale))
-                #         pygame.draw.rect(surface, veg_color, (veg_x, veg_y, veg_w, veg_h))
+            # Vegetation drawing (removed for simplicity)
 
     # --- Draw Pre-calculated Cracks ---
     crack_color = (10, 10, 10) # Hardcoded dark crack color
@@ -611,11 +1136,16 @@ def draw_sewer_background(surface, compiler_instance):
                     scaled_point = scale_rect_func(pygame.Rect(point[0], point[1], 0, 0)).topleft
                     scaled_points.append(scaled_point)
 
-                # Draw the connected line segments (zig-zag)
-                pygame.draw.lines(surface, crack_color, False, scaled_points, 1) # False for non-closed polyline
+                # Draw the connected line segments (zig-zag) on the temp surface
+                # Draw directly onto the main surface
+                pygame.draw.lines(surface, crack_color, False, scaled_points, 1)
 
     # --- Draw Sewer River ---
-    river_rect = pygame.Rect(scaled_river_x_start, scaled_river_y_start, scaled_river_width, scaled_river_height)
+    # Define the logical rectangle for the river within the playable area
+    river_rect_logic = pygame.Rect(river_x_start, 0, river_width, arena_height)
+    # Scale the logical rect to get the screen drawing area
+    river_rect_scaled = scale_rect_func(river_rect_logic)
+
     # Use blue shades for the river (can still use theme colors here)
     # Define murky sludge colors inspired by the image
     sludge_base_color = colors.get('SLUDGE_BASE', (60, 65, 45))
@@ -624,14 +1154,15 @@ def draw_sewer_background(surface, compiler_instance):
     sludge_highlight_color_rgb = colors.get('SLUDGE_HIGHLIGHT', (100, 105, 75))
 
     # Draw the base river rectangle first
-    pygame.draw.rect(surface, sludge_base_color, river_rect)
+    # Draw the base river rectangle directly onto the main surface
+    pygame.draw.rect(surface, sludge_base_color, river_rect_scaled)
 
     # --- Animate Sludge Flow ---
     # Ensure valid dimensions for drawing and calculations
-    if scaled_river_width > 0 and scaled_river_height > 0:
-        anim_speed = details.get('river_animation_speed', 0.5) # Use speed from details, default 0.5
-        # Define speed in pixels per second (doubled speed)
-        pixels_per_second = anim_speed * scale * 50 # Doubled speed factor
+    if river_rect_scaled.width > 0 and river_rect_scaled.height > 0:
+        anim_speed = details.get('river_animation_speed', 0.5)
+        # Define speed in pixels per second
+        pixels_per_second = anim_speed * scale * 50 # Speed relative to scaled pixels
 
         # Get dt from compiler_instance
         dt = getattr(compiler_instance, 'dt', 1/60.0) # Default to 1/60
@@ -639,10 +1170,11 @@ def draw_sewer_background(surface, compiler_instance):
         # --- Update Scroll Offset ---
         current_offset = river_animation_offset # Get current offset
         offset_change = pixels_per_second * dt
-        texture_height = scaled_river_height # Use river height for looping
+        # Use the scaled river height for looping the texture offset
+        texture_loop_height = river_rect_scaled.height
 
-        if texture_height > 0:
-            new_offset = (current_offset + offset_change) % texture_height
+        if texture_loop_height > 0:
+            new_offset = (current_offset + offset_change) % texture_loop_height
         else:
             new_offset = 0
         compiler_instance.background_animation_state['river_offset'] = new_offset # Store updated offset
@@ -656,46 +1188,34 @@ def draw_sewer_background(surface, compiler_instance):
         if sludge_texture and sludge_texture.get_height() > 0:
             tex_h = sludge_texture.get_height()
             # Ensure the texture height matches the expected river height for seamless tiling
-            # If not, it might indicate an issue with texture generation or scaling.
-            # For now, we proceed, but ideally, they should match.
-            if tex_h != int(texture_height):
-                 # print(f"Warning: Sludge texture height ({tex_h}) differs from river height ({int(texture_height)}).")
-                 # Optionally resize texture here, but it's better to generate it correctly.
+            if tex_h != int(river_rect_scaled.height):
                  pass # Proceeding with potentially mismatched texture
 
             # Calculate the integer offset for blitting
             blit_offset = int(new_offset)
 
             # Define the area on the main surface where the river is drawn
-            target_area = pygame.Rect(scaled_river_x_start, scaled_river_y_start, scaled_river_width, scaled_river_height)
+            # Define the target area on the screen (the scaled river rect)
+            target_area = river_rect_scaled
 
-            # Blit the first instance of the texture
-            # Source rect starts from the top of the texture
-            # Destination y is offset by the negative scroll amount
-            src_rect1 = pygame.Rect(0, 0, scaled_river_width, tex_h)
-            dest_y1 = scaled_river_y_start - blit_offset
-            surface.blit(sludge_texture, (scaled_river_x_start, dest_y1), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD) # Use additive blend if desired, or remove flag
+            # Create a temporary surface for the sludge texture with the right size
+            sludge_target = pygame.Surface((target_area.width, target_area.height), pygame.SRCALPHA)
+            sludge_target.fill((0, 0, 0, 0))  # Clear with transparent
 
-            # Blit the second instance of the texture, positioned above the first
-            # Destination y is offset by texture height minus the scroll amount
-            dest_y2 = scaled_river_y_start - blit_offset + tex_h
-            surface.blit(sludge_texture, (scaled_river_x_start, dest_y2), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD) # Use additive blend if desired, or remove flag
+            # Blit the first instance of the texture to the temporary surface
+            src_rect1 = pygame.Rect(0, 0, target_area.width, tex_h)
+            # Destination Y is offset by the negative scroll amount
+            dest_y1 = -blit_offset
+            sludge_target.blit(sludge_texture, (0, dest_y1), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD)
 
-            # --- Clipping --- (Optional but recommended)
-            # To ensure the sludge only draws within the river_rect bounds,
-            # set a clipping rectangle before blitting and reset it after.
-            # original_clip = surface.get_clip()
-            # surface.set_clip(river_rect)
-            # surface.blit(sludge_texture, ...) # Blit 1
-            # surface.blit(sludge_texture, ...) # Blit 2
-            # surface.set_clip(original_clip)
-            # Note: The current blit operations might implicitly handle clipping if
-            # the target coordinates are outside the surface, but explicit clipping is safer.
+            # Blit the second instance of the texture, positioned below the first (wrapping around)
+            dest_y2 = -blit_offset + tex_h
+            sludge_target.blit(sludge_texture, (0, dest_y2), area=src_rect1, special_flags=pygame.BLEND_RGBA_ADD)
 
+            # Blit the animated sludge texture directly onto the main surface at the river position
+            surface.blit(sludge_target, river_rect_scaled.topleft) # Use river_rect_scaled.topleft
         elif not sludge_texture:
-            # Optionally draw a placeholder if texture isn't ready yet
-            # pygame.draw.rect(surface, (255, 0, 255), river_rect) # Magenta placeholder
-            pass # Or just draw nothing
+            pass # If no sludge texture is available
 
     # --- Apply Lighting Overlay ---
     if has_lighting:
@@ -704,7 +1224,6 @@ def draw_sewer_background(surface, compiler_instance):
         overlay_alpha = max(0, min(255, overlay_alpha))
 
         if overlay_alpha > 0:
-            game_area_rect = scale_rect_func(pygame.Rect(0, 0, arena_width, arena_height)) # Define game_area_rect
             lighting_overlay = pygame.Surface(game_area_rect.size, pygame.SRCALPHA)
             lighting_overlay.fill((0, 0, 0, overlay_alpha))
             surface.blit(lighting_overlay, game_area_rect.topleft)
@@ -1239,7 +1758,9 @@ def draw_factory_background(surface, compiler_instance):
 # --- Populate Background Definitions ---
 # Add backgrounds to the dictionary *after* their functions are defined.
 AVAILABLE_BACKGROUNDS["sewer"] = draw_sewer_background
-AVAILABLE_BACKGROUNDS["casino"] = draw_casino_background # Add the new background
+AVAILABLE_BACKGROUNDS["casino"] = draw_casino_background
+AVAILABLE_BACKGROUNDS["factory"] = draw_factory_background
+AVAILABLE_BACKGROUNDS["haunted_hovel"] = draw_haunted_hovel_background
 # Add more backgrounds here in the future, e.g.:
 # AVAILABLE_BACKGROUNDS["factory"] = draw_factory_background
 

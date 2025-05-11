@@ -6,6 +6,7 @@ This module contains the widget that displays available game objects
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
+from Modules.Ping_GameObjects import Pickles
 
 # --- Default Properties ---
 # Derived from Ping_GameObjects.py, Ping_Obstacles.py, Ping_Paddle.py, Ping_Ball.py
@@ -13,15 +14,27 @@ DEFAULT_OBJECT_PROPERTIES = {
     "paddle_spawn_left": {"type": "paddle_spawn", "is_left": True, "width": 40, "height": 100, "speed": 300},
     "paddle_spawn_right": {"type": "paddle_spawn", "is_left": False, "width": 40, "height": 100, "speed": 300},
     "ball_spawn": {"type": "ball_spawn", "size": 20},
-    "obstacle_rect": {"type": "obstacle", "shape": "rect", "width": 20, "height": 60},
     "goal_left": {"type": "goal", "is_left": True, "width": 20, "height": 200},
     "goal_right": {"type": "goal", "is_left": False, "width": 20, "height": 200},
     "portal": {"type": "portal", "width": 30, "height": 80, "target_id": None}, # target_id links portals
-    "powerup_ball": {"type": "powerup", "powerup_type": "ball", "size": 20, "active": True},
     "manhole": {"type": "manhole", "width": 50, "height": 20, "is_bottom": True,
                 "properties": {'spout_min_interval_sec': 5, 'spout_max_interval_sec': 20, 'spout_duration_sec': 1.0}},
-    "bumper": {"type": "bumper", "width": 60, "height": 60, "properties": {"radius": 30}, "image_path": "default_bumper.png"},
+    "bumper": {"type": "bumper", "width": 60, "height": 60, "properties": {"radius": 30}},
     "roulette_spinner": {"type": "roulette_spinner", "radius": 50, "properties": {"num_segments": 8, "spin_speed_deg_s": 180}},
+    "piston": {"type": "piston", "width": 20, "height": 30, "properties": {"up_interval": 6.0, "up_duration": 0.5, "steam_duration": 0.3}},
+    "tesla_coil": {"type": "tesla_coil", "base_radius": 15, "top_radius": 8, "height": 40, "properties": {"spark_interval": 2.75, "spark_duration": 0.15}},
+    "candle": {"type": "candle", "width": 4, "height": 8, "properties": {
+        "body_color": [150, 140, 100],
+        "wick_color": [30, 30, 20],
+        "flame_core_color": [255, 220, 150],
+        "flame_outer_color": [255, 150, 50],
+        "drip_color": [140, 130, 90],
+        "wick_height": 2,
+        "flame_height": 6,
+        "flame_width": 3,
+        "initial_on_state": True
+    }},
+    "pickles": {"type": "pickles", "width": 30, "height": 20, "properties": {"width": 30, "height": 20, "speed": 100}},
     # Add other object types and their defaults here as needed
 }
 # --- End Default Properties ---
@@ -58,16 +71,18 @@ class ObjectPaletteWidget(QWidget):
             "paddle_spawn_left": "Paddle Spawn (Left)",
             "paddle_spawn_right": "Paddle Spawn (Right)",
             "ball_spawn": "Ball Spawn",
-            "obstacle_rect": "Obstacle (Rect)",
             "goal_left": "Goal (Left)",
             "goal_right": "Goal (Right)",
             "portal": "Portal",
-            "powerup_ball": "Power-Up (Ball)",
             "manhole": "Manhole",
             "bumper": "Pinball Bumper",
-            "roulette_spinner": "Roulette Spinner"
+            "roulette_spinner": "Roulette Spinner",
+            "piston": "Piston",
+            "tesla_coil": "Tesla Coil",
+            "candle": "Candle",
+            "pickles": "Pickles Cat"
         }
- 
+
         # Create buttons for each object type defined in defaults
         for obj_type_key in DEFAULT_OBJECT_PROPERTIES.keys():
             display_name = object_display_names.get(obj_type_key, obj_type_key) # Fallback to key if no display name

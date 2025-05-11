@@ -12,8 +12,11 @@
         "use_goals": true,
         "can_spawn_obstacles": true,
         "can_spawn_powerups": true,
+        "can_spawn_ghosts": false,
         "level_music": "PPinballMusicTemp",
-        "level_background": "casino"
+        "level_background": "casino",
+        "has_lighting": false,
+        "lighting_level": 75
     },
     "objects": [
         {
@@ -89,8 +92,8 @@
             "properties": {
                 "radius": 30
             },
-            "x": 340,
-            "y": 200,
+            "x": 350,
+            "y": 152,
             "id": 4
         },
         {
@@ -100,8 +103,8 @@
             "properties": {
                 "radius": 30
             },
-            "x": 920,
-            "y": 200,
+            "x": 934,
+            "y": 153,
             "id": 5
         },
         {

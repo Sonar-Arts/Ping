@@ -1,7 +1,7 @@
 import os
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFormLayout,
-                             QLineEdit, QSpinBox, QCheckBox, QComboBox) # Added QCheckBox, QComboBox
-from PyQt6.QtCore import Qt
+                             QLineEdit, QSpinBox, QCheckBox, QComboBox, QSlider) # Added QCheckBox, QComboBox, QSlider
+from PyQt6.QtCore import Qt, pyqtSignal
 from functools import partial # Added partial
 # Import SoundManager to access music definitions
 from Modules.Submodules.Ping_Sound import SoundManager
@@ -33,13 +33,21 @@ class LevelPropertiesWidget(QWidget):
         self.use_goals_cb = QCheckBox()
         self.spawn_obstacles_cb = QCheckBox()
         self.spawn_powerups_cb = QCheckBox()
+        self.spawn_ghosts_cb = QCheckBox() # Added for ghost spawning
+        self.has_lighting_cb = QCheckBox() # Added Has Lighting checkbox
         self.level_music_combo = QComboBox() # Added Music Combo Box
+        self.lighting_level_slider = QSlider(Qt.Orientation.Horizontal) # Added Lighting Level Slider
+        self.level_background_edit = QLineEdit() # Added for level background image
 
         # Configure spin boxes (adjust ranges as needed)
         self.level_width_spin.setRange(100, 10000)
         self.level_width_spin.setSuffix(" px")
         self.level_height_spin.setRange(100, 10000)
         self.level_height_spin.setSuffix(" px")
+
+        # Configure slider
+        self.lighting_level_slider.setRange(0, 100) # Example range 0-100%
+        self.lighting_level_slider.setValue(75) # Default value
 
         form_layout.addRow("Level Name:", self.level_name_edit)
         form_layout.addRow("Width:", self.level_width_spin)
@@ -49,7 +57,11 @@ class LevelPropertiesWidget(QWidget):
         form_layout.addRow("Use Goals:", self.use_goals_cb)
         form_layout.addRow("Runtime Spawn Obstacles:", self.spawn_obstacles_cb)
         form_layout.addRow("Runtime Spawn Powerups:", self.spawn_powerups_cb)
+        form_layout.addRow("Runtime Spawn Ghosts:", self.spawn_ghosts_cb) # Added ghost spawn row
+        form_layout.addRow("Has Lighting?:", self.has_lighting_cb) # Added Has Lighting row
+        form_layout.addRow("Lighting Level:", self.lighting_level_slider) # Added Lighting Level row
         form_layout.addRow("Level Music:", self.level_music_combo) # Added Music Row
+        form_layout.addRow("Level Background:", self.level_background_edit) # Added Level Background row
 
         # Populate Music Dropdown
         self._populate_music_dropdown()
@@ -63,7 +75,11 @@ class LevelPropertiesWidget(QWidget):
         self.level_prop_widgets["use_goals"] = self.use_goals_cb
         self.level_prop_widgets["can_spawn_obstacles"] = self.spawn_obstacles_cb
         self.level_prop_widgets["can_spawn_powerups"] = self.spawn_powerups_cb
+        self.level_prop_widgets["can_spawn_ghosts"] = self.spawn_ghosts_cb # Added ghost spawn widget
+        self.level_prop_widgets["has_lighting"] = self.has_lighting_cb # Added Has Lighting widget
+        self.level_prop_widgets["lighting_level"] = self.lighting_level_slider # Added Lighting Level widget
         self.level_prop_widgets["level_music"] = self.level_music_combo # Added Music Widget
+        self.level_prop_widgets["level_background"] = self.level_background_edit # Added Level Background widget
 
         layout.addLayout(form_layout)
         self.setLayout(layout)
@@ -74,12 +90,31 @@ class LevelPropertiesWidget(QWidget):
         self.level_width_spin.valueChanged.connect(self._on_lineedit_finished) # Changed to _on_lineedit_finished
         self.level_height_spin.valueChanged.connect(self._on_lineedit_finished) # Changed to _on_lineedit_finished
         self.background_color_edit.editingFinished.connect(self._on_lineedit_finished) # Use specific handler
+        self.level_background_edit.editingFinished.connect(self._on_lineedit_finished) # Connect level background
         # Connect checkboxes to a dedicated handler
         self.bounce_walls_cb.stateChanged.connect(partial(self._on_checkbox_changed, "bounce_walls"))
         self.use_goals_cb.stateChanged.connect(partial(self._on_checkbox_changed, "use_goals"))
         self.spawn_obstacles_cb.stateChanged.connect(partial(self._on_checkbox_changed, "can_spawn_obstacles"))
         self.spawn_powerups_cb.stateChanged.connect(partial(self._on_checkbox_changed, "can_spawn_powerups"))
+        self.spawn_ghosts_cb.stateChanged.connect(partial(self._on_checkbox_changed, "can_spawn_ghosts")) # Connect ghost spawn checkbox
+        self.has_lighting_cb.stateChanged.connect(partial(self._on_checkbox_changed, "has_lighting")) # Connect has_lighting checkbox
+        self.lighting_level_slider.valueChanged.connect(self._on_slider_changed) # Connect lighting_level slider
         self.level_music_combo.currentTextChanged.connect(self._on_music_changed) # Connect music combo
+
+
+    def _on_slider_changed(self):
+        """Called when a QSlider value changes."""
+        if self._block_signals: return
+        sender = self.sender()
+        print(f"Level property (slider) changed by user via widget: {sender}")
+        prop_key = None
+        if sender == self.lighting_level_slider:
+            prop_key = 'lighting_level'
+
+        if prop_key:
+            self._update_core_property(prop_key, sender.value())
+        else:
+            print(f"Warning: Could not determine property key for sender: {sender}")
 
 
     def _populate_music_dropdown(self):
@@ -124,6 +159,10 @@ class LevelPropertiesWidget(QWidget):
         self.use_goals_cb.setChecked(level_data.get("use_goals", False))
         self.spawn_obstacles_cb.setChecked(level_data.get("can_spawn_obstacles", False))
         self.spawn_powerups_cb.setChecked(level_data.get("can_spawn_powerups", True)) # Default True
+        self.spawn_ghosts_cb.setChecked(level_data.get("can_spawn_ghosts", False)) # Default False
+        self.has_lighting_cb.setChecked(level_data.get("has_lighting", False)) # Default False
+        self.lighting_level_slider.setValue(level_data.get("lighting_level", 75)) # Default 75
+        self.level_background_edit.setText(level_data.get("level_background", "")) # Added level background
         # Update Music Dropdown
         current_music = level_data.get("level_music", "")
         music_index = self.level_music_combo.findData(current_music) # Find by user data
@@ -150,7 +189,11 @@ class LevelPropertiesWidget(QWidget):
         self.use_goals_cb.blockSignals(blocked)
         self.spawn_obstacles_cb.blockSignals(blocked)
         self.spawn_powerups_cb.blockSignals(blocked)
+        self.spawn_ghosts_cb.blockSignals(blocked) # Block ghost spawn checkbox
+        self.has_lighting_cb.blockSignals(blocked) # Block has_lighting checkbox
+        self.lighting_level_slider.blockSignals(blocked) # Block lighting_level slider
         self.level_music_combo.blockSignals(blocked) # Block music combo
+        self.level_background_edit.blockSignals(blocked) # Block level background
 
 
     def _on_lineedit_finished(self):
@@ -168,6 +211,8 @@ class LevelPropertiesWidget(QWidget):
             prop_key = 'height'
         elif sender == self.background_color_edit:
             prop_key = 'background_color'
+        elif sender == self.level_background_edit:
+            prop_key = 'level_background'
 
         if prop_key:
             self._update_core_property(prop_key)
@@ -222,6 +267,9 @@ class LevelPropertiesWidget(QWidget):
               # For combo boxes, the value is passed directly from the handler
               # (We store the filename/"" in the user data)
               new_value = value
+         elif isinstance(widget, QSlider):
+             # For sliders, the value is passed directly from the handler
+             new_value = value
          else:
              print(f"Warning: Unknown widget type for key '{key}'. Cannot determine value.")
              return

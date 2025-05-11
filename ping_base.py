@@ -14,8 +14,8 @@ from Modules.Submodules.Ping_DBConsole import get_console
 from Modules.Submodules.Ping_Fonts import get_pixel_font  # Moved import here
 from Modules.Submodules.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
 from Modules.Submodules.Ping_LevelIntro import play_level_intro # Import the level intro function
-
-from Modules.Submodules.Ping_Obstacles import RouletteSpinner # Import the RouletteSpinner class
+ 
+from Modules.Submodules.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle # Import the RouletteSpinner, PistonObstacle, and TeslaCoilObstacle classes
 """
 Ping Base Code
 This is the base code for the Ping game, which includes the main game loop, event handling, and rendering.
@@ -214,7 +214,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         # Recreate game objects with new dimensions
         paddle_a = PaddleObject(
             x=60,  # Moved slightly right to account for wider paddle
-            y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+            y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
             arena_width=arena.width,
@@ -225,7 +225,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         )
         paddle_b = PaddleObject(
             x=arena.width - 100,  # Moved slightly left to account for wider paddle
-            y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+            y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
             width=PADDLE_WIDTH,
             height=PADDLE_HEIGHT,
             arena_width=arena.width,
@@ -245,7 +245,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     # Create game objects with proper params
     paddle_a = PaddleObject(
         x=60,  # Moved slightly right to account for wider paddle
-        y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+        y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
         arena_width=arena.width,
@@ -256,7 +256,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
     )
     paddle_b = PaddleObject(
         x=arena.width - 100,  # Moved slightly left to account for wider paddle
-        y=arena.scoreboard_height + (arena.height - arena.scoreboard_height - PADDLE_HEIGHT) // 2, # Center in playable area
+        y=(arena.height - PADDLE_HEIGHT) // 2, # Position relative to playable area (no scoreboard addition)
         width=PADDLE_WIDTH,
         height=PADDLE_HEIGHT,
         arena_width=arena.width,
@@ -500,9 +500,21 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 if arena.manholes:
                     arena.update_manholes(FRAME_TIME) # Pass frame time for smooth particle animation
 
-                # Update RouletteSpinner state if it exists
-                if isinstance(arena.obstacle, RouletteSpinner):
-                    arena.obstacle.update(FRAME_TIME)
+                # Update RouletteSpinner states (iterate through obstacles)
+                for obstacle in arena.obstacles:
+                    if isinstance(obstacle, RouletteSpinner):
+                        obstacle.update(FRAME_TIME)
+                    elif isinstance(obstacle, PistonObstacle): # Add update call for Pistons
+                        obstacle.update(FRAME_TIME)
+                    elif isinstance(obstacle, TeslaCoilObstacle): # Add update call for Tesla Coils
+                        # Pass scale for spark generation (assuming arena.scale is correct)
+                        obstacle.update(FRAME_TIME, arena.scale)
+                
+                # Update Ghost Obstacles
+                if hasattr(arena, 'update_ghosts'):
+                    # Pass the first ball instance if available, otherwise None
+                    current_main_ball = balls[0] if balls else None
+                    arena.update_ghosts(FRAME_TIME, current_main_ball)
 
                 # Handle all active balls
                 scored = None
@@ -520,21 +532,32 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     if current_ball.handle_paddle_collision(paddle_a) or current_ball.handle_paddle_collision(paddle_b):
                         sound_manager.play_sfx('paddle') # Use new method
 
-                    # Ball collision with obstacle (check if obstacle exists first)
-                    if arena.obstacle:
-                        collision_handled = False
-                        # Check the type of obstacle to call the correct collision handler
-                        if isinstance(arena.obstacle, RouletteSpinner):
-                            # RouletteSpinner handles its own logic, doesn't need sound_manager here
-                            if arena.obstacle.handle_collision(current_ball):
-                                collision_handled = True
-                                # RouletteSpinner manages its own state, no reset needed here
-                        elif hasattr(arena.obstacle, 'handle_collision'):
-                            # Assume other obstacles might use the old signature
-                            if arena.obstacle.handle_collision(current_ball, sound_manager):
-                                collision_handled = True
-                                # Reset only if it's not a RouletteSpinner (assuming old behavior)
-                                arena.reset_obstacle()
+                    # Ball collision with obstacles (iterate through the list)
+                    for obstacle in arena.obstacles: # Loop through the list
+                        if obstacle: # Check if the obstacle instance exists
+                            collision_handled = False
+                            # Check the type of obstacle to call the correct collision handler
+                            if isinstance(obstacle, RouletteSpinner):
+                                # RouletteSpinner handles its own logic
+                                if obstacle.handle_collision(current_ball):
+                                    collision_handled = True
+                                    # No reset needed for RouletteSpinner
+                            elif hasattr(obstacle, 'handle_collision'):
+                                # Assume other obstacles might use the old signature
+                                if obstacle.handle_collision(current_ball, sound_manager):
+                                    collision_handled = True
+                                    # Decide if this specific obstacle type should be reset upon collision
+                                    # For now, let's assume only the old ObstacleObject might need resetting
+                                    # (Though reset_obstacle now clears the whole list, which might be undesirable here)
+                                    # TODO: Revisit obstacle reset logic per-type if needed.
+                                    # For now, removing the reset call here to avoid clearing all obstacles.
+                                    # arena.reset_obstacle() # Removed reset call here
+
+                            # If a collision was handled by any obstacle, we might want to break
+                            # or continue checking depending on game design (e.g., can ball hit multiple obstacles?)
+                            # For now, let's assume ball can only interact with one obstacle per frame check.
+                            if collision_handled:
+                                break # Exit the obstacle loop for this ball if collision occurred
 
                     # Check portal collisions
                     arena.check_portal_collisions(current_ball)
@@ -547,6 +570,15 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     for bumper in arena.bumpers:
                         if bumper.handle_collision(current_ball, sound_manager):
                             sound_manager.play_sfx('bumper')  # Play bumper sound
+                    
+                    # Ghost obstacle collision check
+                    if hasattr(arena, 'ghost_obstacles'):
+                        for ghost_obj in arena.ghost_obstacles:
+                            # The main collision logic (possession) is handled within the ghost's update method.
+                            # The handle_collision here could be for other effects or sounds if needed.
+                            if ghost_obj.handle_collision(current_ball):
+                                # Example: sound_manager.play_sfx('ghost_pass_through')
+                                pass # Specific effects are in GhostObstacle's update
 
                     # Power-up collision check (applies if powerups allowed and exist)
                     # Arena.check_power_up_collision returns a raw Ball instance or None
@@ -647,6 +679,9 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
         # arena.update_scaling(width, height) # Removed
         # Create or update scaled font
         scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
+ 
+        # Store delta_time in arena for background animations before drawing
+        arena.dt = delta_time
 
         # Draw complete game state using arena
         game_objects = [paddle_a, paddle_b] + balls  # Include all active balls

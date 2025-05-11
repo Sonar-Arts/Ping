@@ -56,8 +56,11 @@ class ArtemisCore(QObject): # Inherit from QObject
             "use_goals": False,    # Use side walls for scoring instead of Goal objects
             "can_spawn_obstacles": False, # Dynamic obstacle spawning (runtime flag)
             "can_spawn_powerups": True,  # Dynamic power-up spawning (runtime flag)
+            "can_spawn_ghosts": False, # Dynamic ghost spawning (runtime flag)
             "level_music": "",         # Filename of the music track (e.g., "PMainMusicTemp.wav")
             "level_background": None,  # Identifier for the background (e.g., "sewer")
+            "has_lighting": False,     # Boolean to indicate if the level uses the lighting system
+            "lighting_level": 75,      # Integer 0-100 for lighting intensity
             # Add other level-wide properties here
         }
 
@@ -166,6 +169,9 @@ class ArtemisCore(QObject): # Inherit from QObject
                      continue
                  # Convert list to tuple if necessary
                  value = tuple(value)
+            elif key == 'lighting_level' and (not isinstance(value, int) or not (0 <= value <= 100)):
+                print(f"Warning: Invalid value '{value}' for level property '{key}'. Must be integer 0-100. Skipping.")
+                continue
 
             if self.level_properties.get(key) != value:
                 self.level_properties[key] = value
@@ -189,7 +195,7 @@ class ArtemisCore(QObject): # Inherit from QObject
         return copy.deepcopy(self.level_properties)
 
     def update_level_property(self, key, value):
-        """Updates a specific level property."""
+        """Updates a specific level property. Returns True if value changed, False otherwise."""
         # This method might be redundant now with update_level_properties
         # If kept, it should also emit levelPropertiesChanged
         if key in self.level_properties:
@@ -198,8 +204,12 @@ class ArtemisCore(QObject): # Inherit from QObject
                 self.unsaved_changes = True # Setter emits signal
                 print(f"Level property '{key}' updated to: {value}")
                 self.levelPropertiesChanged.emit() # Emit signal
+                return True # Value was changed
+            else:
+                return False # Value was the same, no change made
         else:
             print(f"Warning: Attempted to update unknown level property '{key}'")
+            return False # Key not found
 
     def add_object(self, obj_data):
         """Adds a new object to the level."""

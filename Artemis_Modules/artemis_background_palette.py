@@ -18,7 +18,7 @@ class BackgroundPalette(QWidget):
     """
     A widget that displays available level backgrounds and allows selection.
     """
-    backgroundSelected = pyqtSignal(str) # Signal emitting the selected background identifier
+    backgroundSelected = pyqtSignal(object) # Signal emitting the selected background identifier (str or None)
 
     def __init__(self, parent=None):
         super().__init__(parent)
