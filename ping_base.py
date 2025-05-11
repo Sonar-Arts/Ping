@@ -41,35 +41,77 @@ class MainGameObject:
         self.arena = None
         self.balls = []
 
-def read_settings():
-    """Read window dimensions from settings file."""
-    try:
-        with open("Game Parameters/settings.txt", "r") as f:
-            settings = {}
-            for line in f:
-                key, value = line.strip().split('=')
-                settings[key] = int(value)
-        return settings['WINDOW_WIDTH'], settings['WINDOW_HEIGHT']
-    except (FileNotFoundError, KeyError, ValueError):
-        # If file doesn't exist or is invalid, return defaults and create file
-        default_width, default_height = 800, 600
-        with open("Game Parameters/settings.txt", "w") as f:
-            f.write(f"WINDOW_WIDTH={default_width}\nWINDOW_HEIGHT={default_height}")
-        return default_width, default_height
-
-# Initialize settings and load initial window dimensions
+# Global settings instance, loads all settings including display mode
 settings = SettingsScreen()
-width, height = settings.get_dimensions()
-screen = init_display(width, height)
 
-def update_screen_size(width=None, height=None):
-    """Update screen dimensions and reinitialize display."""
-    global settings
-    if width is None or height is None:
-        width, height = settings.get_dimensions()
-    # Update the settings (which will also write to file)
-    settings.update_dimensions(width, height)
-    return init_display(width, height)
+def get_pygame_display_flags(mode_str):
+    """Convert display mode string to Pygame flags."""
+    flags = 0
+    if mode_str == "Fullscreen":
+        flags = pygame.FULLSCREEN
+    elif mode_str == "Borderless":
+        flags = pygame.NOFRAME
+    # "Windowed" uses default flags (0)
+    return flags
+
+# Initial screen setup using loaded settings
+initial_width, initial_height = settings.get_dimensions() # Gets W/H based on current_size_index
+current_mode_str = settings.current_display_mode # Gets loaded display mode
+
+if current_mode_str == "Borderless":
+    desktop_info = pygame.display.Info()
+    initial_width = desktop_info.current_w
+    initial_height = desktop_info.current_h
+    # Update settings object to reflect this actual size for borderless,
+    # though it won't be saved unless user explicitly saves in settings.
+    # This is tricky because current_size_index might not match.
+    # For now, just use desktop size for init, settings will hold the *selected* res.
+    # When saving, Ping_Settings will save the *selected* res, not necessarily desktop res.
+    # This means if user selects 800x600, then Borderless, it's borderless at desktop res.
+    # If they then go to settings and save, it saves 800x600 and Borderless.
+    # On next load, it will be Borderless at desktop res again.
+
+mode_flags = get_pygame_display_flags(current_mode_str)
+screen = init_display(initial_width, initial_height, flags=mode_flags)
+# Update global width/height to reflect the actual initialized screen size
+width, height = initial_width, initial_height
+
+
+def update_screen_size(new_width=None, new_height=None, new_mode_str=None):
+    """
+    Reinitialize display with provided dimensions and mode.
+    If not provided, uses current state from the 'settings' object.
+    This function DOES NOT save settings to file; it only applies them to the display.
+    """
+    global screen, settings, width, height # Ensure global width/height are updated
+
+    target_w, target_h = new_width, new_height
+    target_mode_str = new_mode_str
+
+    if target_mode_str is None:
+        target_mode_str = settings.current_display_mode
+    
+    if target_w is None or target_h is None:
+        # Use dimensions from the settings object's current selection
+        target_w, target_h = settings.screen_sizes[settings.current_size_index]
+
+    # Override dimensions for Borderless mode to use desktop resolution
+    if target_mode_str == "Borderless":
+        desktop_info = pygame.display.Info()
+        w_to_set = desktop_info.current_w
+        h_to_set = desktop_info.current_h
+        debug_console.log(f"Borderless mode selected. Using desktop resolution: {w_to_set}x{h_to_set}")
+    else:
+        w_to_set, h_to_set = target_w, target_h
+            
+    flags_to_set = get_pygame_display_flags(target_mode_str)
+    
+    screen = init_display(w_to_set, h_to_set, flags=flags_to_set)
+    width, height = w_to_set, h_to_set # Update global width/height
+    
+    # If game objects exist and need rescaling, that should be handled by the caller
+    # (e.g., in VIDEORESIZE handler or after settings screen)
+    return screen
 
 # Game constants
 PADDLE_WIDTH = 40  # Increased width to better match sprite proportions
@@ -392,15 +434,29 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 exit()
             elif event.type == pygame.VIDEORESIZE:
                 # Handle window resizing
-                width, height = event.w, event.h
-                screen = init_display(width, height)
-                settings.update_dimensions(width, height) # Update settings object and file
-                arena.update_scaling(width, height)     # Update arena scaling factors
-                update_game_objects()                   # Recreate/reposition game objects
-                scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y))) # Update font
-                # Reset scoreboard debug flag to show message after resize
-                arena.scoreboard._debug_shown = False
-                debug_console.log(f"Window resized to {width}x{height}")
+                new_event_width, new_event_height = event.w, event.h
+                
+                # Update settings: set mode to Windowed, save new W/H and mode
+                settings.current_display_mode = "Windowed"
+                # Find if new_event_width, new_event_height match a preset, otherwise it's "custom"
+                # For simplicity, we'll just save the direct W/H. Ping_Settings.update_dimensions handles this.
+                # Ping_Settings.current_size_index might become out of sync if it's not a preset.
+                # This is a limitation if we want the dropdown to always reflect the true current size.
+                # For now, save_settings will store the current_display_mode.
+                # update_dimensions will store W/H.
+                SettingsScreen.update_dimensions(new_event_width, new_event_height) # Class method saves W/H
+                settings.save_settings() # Instance method saves current_display_mode and other settings
+
+                # Apply the new size and "Windowed" mode
+                screen = update_screen_size(new_event_width, new_event_height, "Windowed")
+                # Global width, height are updated by update_screen_size
+
+                if 'arena' in locals() and arena: # Check if arena exists (i.e., in game)
+                    arena.update_scaling(width, height)
+                    update_game_objects()
+                    scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
+                    arena.scoreboard._debug_shown = False
+                debug_console.log(f"Window resized to {width}x{height}, mode set to Windowed.")
                 # No need to redraw here, the main loop will handle it
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
@@ -433,22 +489,47 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         elif menu_result == "settings":
                             # Handle settings screen
                             # Added sound_manager argument
-                            settings_result = settings_screen(screen, clock, sound_manager, width, height, in_game=True, debug_console=debug_console)
+                            # The settings_screen function itself is an instance method of SettingsScreen now.
+                            # settings_result = settings_screen(screen, clock, sound_manager, width, height, in_game=True, debug_console=debug_console)
+                            # Call as instance method:
+                            settings_instance = SettingsScreen() # Create a fresh instance or use global 'settings'
+                                                              # Using global 'settings' is better to preserve UI state if not saved.
+                            settings_result = settings.display(screen, clock, sound_manager, width, height, in_game=True, debug_console=debug_console)
+
                             if isinstance(settings_result, tuple):
-                                if settings_result[0] == "back_to_pause":
-                                    # Update player name if it has changed
-                                    current_player_name = settings.get_player_name()
-                                    # Update dimensions and refresh display
-                                    settings.update_dimensions(settings_result[1], settings_result[2])
-                                    width, height = settings.get_dimensions()
-                                    screen = init_display(width, height)
-                                    debug_console.draw(screen, width, height)  # Draw console after init
-                                    pygame.display.flip()
+                                action = settings_result[0]
+                                if action == "display_change":
+                                    _, new_w, new_h, new_mode_str = settings_result
+                                    # Settings are already saved by Ping_Settings.py if this is returned.
+                                    # Apply them to the current game session.
+                                    screen = update_screen_size(new_w, new_h, new_mode_str)
+                                    # width, height are updated by update_screen_size
                                     arena.update_scaling(width, height)
-                                    # Reset scoreboard debug flag to show message after settings update
-                                    arena.scoreboard._debug_shown = False
                                     update_game_objects()
                                     scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
+                                    arena.scoreboard._debug_shown = False
+                                elif action == "display_and_name_change":
+                                    _, new_w, new_h, new_mode_str, new_name = settings_result
+                                    current_player_name = new_name # Name change handled here
+                                    # Display settings are saved by Ping_Settings.py
+                                    screen = update_screen_size(new_w, new_h, new_mode_str)
+                                    arena.update_scaling(width, height)
+                                    update_game_objects()
+                                    scaled_font = get_pixel_font(max(12, int(28 * arena.scale_y)))
+                                    arena.scoreboard._debug_shown = False
+                                elif action == "name_change": # Name changed, but no display change that requires re-init
+                                    current_player_name = settings_result[1]
+                                    # Name is not saved by Ping_Settings, main menu flow handles saving.
+                                elif action == "back_to_pause":
+                                    # This implies no *saved* display changes requiring re-init.
+                                    # Ping_Settings returns active game W/H.
+                                    # If settings UI was used to change name, get it.
+                                    current_player_name = settings.get_player_name() # Ensure name is current
+                                    # No screen re-initialization needed as per Ping_Settings logic for this return.
+                                    pass
+                            # Always redraw console and flip after settings, regardless of outcome
+                            debug_console.draw(screen, width, height)
+                            pygame.display.flip()
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_w:
                     paddle_a_up = False
@@ -738,19 +819,36 @@ if __name__ == "__main__":
                 break
 
             if game_mode == "settings":
-                # Added sound_manager argument
-                settings_result = settings_screen(screen, clock, sound_manager, width, height, in_game=False, debug_console=debug_console)
+                # Call as instance method of the global 'settings' object
+                settings_result = settings.display(screen, clock, sound_manager, width, height, in_game=False, debug_console=debug_console)
+                
                 if isinstance(settings_result, tuple):
-                    # Handle different return types from settings screen
-                    if settings_result[0] == "name_change":
-                        # Update player name
+                    action = settings_result[0]
+                    if action == "display_change":
+                        _, new_w, new_h, new_mode_str = settings_result
+                        # Settings (resolution, mode) are saved by Ping_Settings.py. Apply them.
+                        screen = update_screen_size(new_w, new_h, new_mode_str)
+                        # width, height are updated by update_screen_size
+                    elif action == "display_and_name_change":
+                        _, new_w, new_h, new_mode_str, new_name = settings_result
+                        player_name = new_name # Update local player_name for title screen context
+                        settings.update_player_name(player_name) # Save the name
+                        # Display settings are saved by Ping_Settings.py. Apply them.
+                        screen = update_screen_size(new_w, new_h, new_mode_str)
+                    elif action == "name_change":
                         player_name = settings_result[1]
-                        settings.update_player_name(player_name)
-                    elif len(settings_result) == 2:
-                        # Normal settings return from title screen - update dimensions
-                        settings.update_dimensions(settings_result[0], settings_result[1])
-                        screen = init_display(settings_result[0], settings_result[1])
-                continue
+                        settings.update_player_name(player_name) # Save the name
+                    elif action == "title": # Returned to title, no specific changes to apply here
+                        pass
+                    elif len(settings_result) == 2 and action != "title": # Fallback for old (width, height) tuple
+                        # This case implies only resolution changed from an older settings version.
+                        # Ping_Settings would have saved new W/H. Mode remains current.
+                        new_w, new_h = settings_result
+                        current_mode_str_fallback = settings.current_display_mode
+                        screen = update_screen_size(new_w, new_h, current_mode_str_fallback)
+                elif settings_result == "title": # Explicitly returned "title"
+                    pass # No changes to apply, just continue to title screen
+                continue # Loop back to display title screen
             # Check if game_mode is None (which could happen if the display loop exits unexpectedly)
             # or if it's False (for 2P mode) or True (for 1P mode)
             elif game_mode is None:
@@ -774,17 +872,26 @@ if __name__ == "__main__":
             if game_result == "title":
                 break  # Go back to title screen
             elif game_result == "settings":
-                width, height = settings.get_dimensions()
-                # Removed sound preview args - update settings_screen function later
-                settings_result = settings_screen(screen, clock, width, height, in_game=False, debug_console=debug_console)
+                # This 'settings' option after game_result should ideally not be hit if game ends.
+                # If it is, it's like going to settings from title.
+                # width, height = settings.get_dimensions() # Already have current w/h
+                settings_result = settings.display(screen, clock, sound_manager, width, height, in_game=False, debug_console=debug_console)
                 if isinstance(settings_result, tuple):
-                    if settings_result[0] == "name_change":
-                        player_name = settings_result[1]  # Update player name immediately
-                    elif len(settings_result) == 2:
-                        settings.update_dimensions(settings_result[0], settings_result[1])
-                        screen = init_display(settings_result[0], settings_result[1])
+                    action = settings_result[0]
+                    if action == "display_change":
+                        _, new_w, new_h, new_mode_str = settings_result
+                        screen = update_screen_size(new_w, new_h, new_mode_str)
+                    elif action == "display_and_name_change":
+                        _, new_w, new_h, new_mode_str, new_name = settings_result
+                        player_name = new_name
+                        settings.update_player_name(player_name)
+                        screen = update_screen_size(new_w, new_h, new_mode_str)
+                    elif action == "name_change":
+                        player_name = settings_result[1]
+                        settings.update_player_name(player_name)
+                    # No specific action needed for "title" return here, will break to title.
                 # After settings, return to title screen
-                break
+                break # Break from the inner while, back to title screen loop
     # Ensure Pygame quits properly if the loop exits
     sound_manager.shutdown() # Clean up sounds before quitting
     pygame.quit()

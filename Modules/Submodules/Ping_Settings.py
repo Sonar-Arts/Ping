@@ -22,6 +22,7 @@ class SettingsScreen:
     MUSIC_VOLUME = 100  # Default value
     SCORE_EFFECT_INTENSITY = 50  # Default value
     WIN_SCORES = 10  # Default value for scores needed to win
+    DISPLAY_MODE_DEFAULT = "Windowed" # Default display mode
 
     @classmethod
     def get_dimensions(cls):
@@ -195,11 +196,33 @@ class SettingsScreen:
         # Colors
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
-        self.screen_sizes = [(800, 600), (1024, 768), (1280, 720), (1920, 1080)]
+        self.screen_sizes = [
+            (640, 480), (800, 600), (1024, 768), (1280, 720), (1280, 1024),
+            (1366, 768), (1440, 900), (1600, 900), (1680, 1050), (1920, 1080),
+            (2560, 1440), (3440, 1440)
+        ]
+        self.screen_sizes.sort() # Ensure they are sorted
         self.dropdown_item_height = 25  # Height for dropdown menu items
+        self.dropdown_scroll_offset = 0 # For scrolling resolution options
+        self.dropdown_max_visible_items = 5 # Max items visible in dropdown
+
+        self.display_modes = ["Windowed", "Borderless", "Fullscreen"]
+        self.current_display_mode = self.DISPLAY_MODE_DEFAULT
+        self.original_loaded_display_mode = self.DISPLAY_MODE_DEFAULT
+        # Find default index for original_loaded_size_index
+        default_w, default_h = self.WINDOW_WIDTH, self.WINDOW_HEIGHT
+        self.original_loaded_size_index = 0
+        for i, (w, h) in enumerate(self.screen_sizes):
+            if w == default_w and h == default_h:
+                self.original_loaded_size_index = i
+                break
+        
+        self._display_settings_changed_on_save = False
+        self.show_display_modes = False # For the new display mode dropdown
+
 
         # Initialize settings with defaults
-        self.current_size_index = 0
+        self.current_size_index = self.original_loaded_size_index # Start with default/loaded
         self.player_name = self.PLAYER_NAME
         self.player_b_name = self.PLAYER_B_NAME
         self.shader_enabled = self.SHADER_ENABLED
@@ -255,10 +278,14 @@ class SettingsScreen:
                 height = int(settings.get('WINDOW_HEIGHT', self.WINDOW_HEIGHT))
 
                 # Find matching resolution index
-                for i, (w, h) in enumerate(self.screen_sizes):
-                    if w == width and h == height:
+                for i, (w_s, h_s) in enumerate(self.screen_sizes): # Renamed w,h to avoid conflict
+                    if w_s == width and h_s == height:
                         self.current_size_index = i
                         break
+                self.original_loaded_size_index = self.current_size_index
+
+                self.current_display_mode = settings.get('DISPLAY_MODE', self.DISPLAY_MODE_DEFAULT)
+                self.original_loaded_display_mode = self.current_display_mode
 
                 self.player_name = settings.get('PLAYER_NAME', self.PLAYER_NAME)
                 self.player_b_name = settings.get('PLAYER_B_NAME', self.PLAYER_B_NAME)
@@ -279,10 +306,17 @@ class SettingsScreen:
     def save_settings(self):
         """Save current settings to file."""
         try:
-            width, height = self.screen_sizes[self.current_size_index]
-            settings = {
-                'WINDOW_WIDTH': width,
-                'WINDOW_HEIGHT': height,
+            if self.current_display_mode == "Borderless":
+                desktop_info = pygame.display.Info()
+                width_to_save = desktop_info.current_w
+                height_to_save = desktop_info.current_h
+            else:
+                width_to_save, height_to_save = self.screen_sizes[self.current_size_index]
+            
+            settings_dict = {
+                'WINDOW_WIDTH': width_to_save,
+                'WINDOW_HEIGHT': height_to_save,
+                'DISPLAY_MODE': self.current_display_mode,
                 'PLAYER_NAME': self.player_name,
                 'PLAYER_B_NAME': self.player_b_name,
                 'SHADER_ENABLED': str(self.shader_enabled).lower(),
@@ -298,7 +332,7 @@ class SettingsScreen:
             }
 
             with open("Game Parameters/settings.txt", "w") as f:
-                for key, value in settings.items():
+                for key, value in settings_dict.items():
                     f.write(f"{key}={value}\n")
             return True
         except Exception as e:
@@ -357,31 +391,38 @@ class SettingsScreen:
 
             # Handle return action (could be "title" or "back_to_pause")
             if result == "title" or result == "back_to_pause":
-                # Return tuple for back_to_pause to include new dimensions
-                if result == "back_to_pause":
-                    new_width, new_height = self.screen_sizes[self.current_size_index]
-                    return (result, new_width, new_height)
-                else: # Returning to title screen
-                    # Return name change info if applicable
-                    if hasattr(self, '_name_changed') and self._name_changed:
-                        del self._name_changed # Reset flag
-                        # Return dimensions as well if they changed
-                        new_width, new_height = self.screen_sizes[self.current_size_index]
-                        # Check against original dimensions (assuming WINDOW_WIDTH/HEIGHT hold them)
-                        if new_width != WINDOW_WIDTH or new_height != WINDOW_HEIGHT:
-                             return ("name_change_and_resize", self.player_name, new_width, new_height)
-                        else:
-                             return ("name_change", self.player_name)
-                    # Return dimensions if changed from title screen
-                    elif not in_game:
-                        new_width, new_height = self.screen_sizes[self.current_size_index]
-                        if new_width != WINDOW_WIDTH or new_height != WINDOW_HEIGHT:
-                            return (new_width, new_height)
-                        else:
-                             # If nothing changed, just return "title"
-                             return "title"
-                    else: # Should not happen if in_game is true and result is "title"
-                        return "title"
+                # Determine the width, height, and mode to be potentially returned.
+                # This should reflect the current UI selection that was just saved or is active.
+                returned_mode = self.current_display_mode
+                if returned_mode == "Borderless":
+                    # If borderless is selected, the W/H to return for application
+                    # should be the desktop's W/H.
+                    desktop_info = pygame.display.Info()
+                    returned_width = desktop_info.current_w
+                    returned_height = desktop_info.current_h
+                else:
+                    # For Windowed/Fullscreen, use the resolution from the UI selection.
+                    returned_width, returned_height = self.screen_sizes[self.current_size_index]
+
+                name_changed_flag = hasattr(self, '_name_changed') and self._name_changed
+
+                if self._display_settings_changed_on_save:
+                    self._display_settings_changed_on_save = False # Reset flag
+                    if name_changed_flag:
+                        if hasattr(self, '_name_changed'): del self._name_changed
+                        return ("display_and_name_change", returned_width, returned_height, returned_mode, self.player_name)
+                    else:
+                        return ("display_change", returned_width, returned_height, returned_mode)
+                elif name_changed_flag:
+                    if hasattr(self, '_name_changed'): del self._name_changed
+                    # Name change is signalled, main menu will handle saving it if user confirms.
+                    # If display settings were also changed in UI but not saved, they are discarded here.
+                    return ("name_change", self.player_name)
+                elif result == "back_to_pause":
+                    # No save, or save with no display changes. Discard UI display changes.
+                    return (result, WINDOW_WIDTH, WINDOW_HEIGHT) # Return active game dimensions
+                else: # result == "title", no save or save with no display changes
+                    return "title" # Discard UI display changes
 
     def _check_button_hover(self, rect, mouse_pos):
         """Helper function to check button hover with proper scroll offset and title area adjustment"""
@@ -412,7 +453,7 @@ class SettingsScreen:
         button_width = min(200, width // 4)  # Limit button width
 
         # Create a surface for scrollable content
-        total_height = 1600  # Height for scrollable content
+        total_height = 1800  # Further Increased height for potential display mode dropdown
         content_surface = pygame.Surface((width, total_height))
         content_surface.fill(self.BLACK)
 
@@ -425,26 +466,62 @@ class SettingsScreen:
         for event in events:
             if event.type == pygame.MOUSEWHEEL:
                 mouse_pos = pygame.mouse.get_pos()
-                # Don't scroll if mouse is over resolution dropdown
+                # Handle scrolling for resolution dropdown or main content
+                # Check if mouse is over an open dropdown first (resolution or display mode)
+                
+                # Resolution Dropdown Scroll Check
+                is_over_res_dropdown = False
                 if hasattr(self, 'show_resolutions') and self.show_resolutions:
-                    # Calculate the absolute screen rect of the dropdown area
-                    # Need the absolute rect of the button first
-                    res_btn_rect_abs = pygame.Rect(right_column_x - button_width//2,
-                                                   20 + self.scroll_y + title_area_height, # 20 is initial current_y for res button
-                                                   button_width, 35)
-                    dropdown_area_abs = pygame.Rect(
-                        res_btn_rect_abs.x,
-                        res_btn_rect_abs.bottom,
-                        res_btn_rect_abs.width,
-                        self.dropdown_item_height * len(self.screen_sizes)
+                    # Calculate the absolute screen rect of the resolution button
+                    # Initial current_y for display mode button is 20, then spacing, then res button
+                    # So, res_btn_y_on_surface = 20 (initial) + spacing (for display_mode)
+                    res_btn_y_on_surface = 20 + spacing
+                    res_btn_rect_abs = pygame.Rect(
+                        right_column_x - button_width // 2,
+                        res_btn_y_on_surface + self.scroll_y + title_area_height,
+                        button_width, 35
                     )
-                    # Combine button and dropdown area for hover check
+                    num_visible_dd_items = min(len(self.screen_sizes), self.dropdown_max_visible_items)
+                    actual_visible_dropdown_height = num_visible_dd_items * self.dropdown_item_height
+                    dropdown_area_abs = pygame.Rect(
+                        res_btn_rect_abs.x, res_btn_rect_abs.bottom,
+                        res_btn_rect_abs.width, actual_visible_dropdown_height
+                    )
                     full_dropdown_area_abs = res_btn_rect_abs.union(dropdown_area_abs)
-
                     if full_dropdown_area_abs.collidepoint(mouse_pos):
-                        continue # Skip scrolling if mouse is over dropdown
+                        is_over_res_dropdown = True
+                        scroll_direction = event.y
+                        max_scroll_dd = len(self.screen_sizes) - num_visible_dd_items
+                        if max_scroll_dd > 0:
+                            self.dropdown_scroll_offset -= scroll_direction
+                            self.dropdown_scroll_offset = max(0, min(self.dropdown_scroll_offset, max_scroll_dd))
+                        if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
+                            print(f"[DEBUG] Resolution Dropdown scroll offset: {self.dropdown_scroll_offset}")
+                        continue
 
-                scroll_amount = event.y * 30
+                # Display Mode Dropdown Scroll Check (no scroll needed as it's short)
+                # but we need to prevent main scroll if mouse is over it.
+                is_over_dm_dropdown = False
+                if hasattr(self, 'show_display_modes') and self.show_display_modes:
+                    dm_btn_y_on_surface = 20 # Initial current_y for display_mode button
+                    dm_btn_rect_abs = pygame.Rect(
+                        right_column_x - button_width // 2,
+                        dm_btn_y_on_surface + self.scroll_y + title_area_height,
+                        button_width, 35
+                    )
+                    dm_dropdown_height = len(self.display_modes) * self.dropdown_item_height
+                    dm_dropdown_area_abs = pygame.Rect(
+                        dm_btn_rect_abs.x, dm_btn_rect_abs.bottom,
+                        dm_btn_rect_abs.width, dm_dropdown_height
+                    )
+                    full_dm_dropdown_area_abs = dm_btn_rect_abs.union(dm_dropdown_area_abs)
+                    if full_dm_dropdown_area_abs.collidepoint(mouse_pos):
+                        is_over_dm_dropdown = True
+                        continue # Prevent main page scrolling if over display mode dropdown
+
+                # If not scrolling any dropdown, scroll main content
+                if not is_over_res_dropdown and not is_over_dm_dropdown:
+                    scroll_amount = event.y * 30
                 # Adjust max_scroll calculation
                 max_scroll = -(total_height - (height - title_area_height - 80)) # Subtract title and button area heights
                 self.scroll_y = min(0, max(max_scroll, self.scroll_y + scroll_amount))
@@ -466,6 +543,58 @@ class SettingsScreen:
         button = get_button()
 
         # --- Draw Content onto content_surface ---
+        
+        # Calculate mouse_pos_rel once for all scrollable items
+        mouse_pos_rel = list(pygame.mouse.get_pos())
+        mouse_pos_rel[1] -= (title_area_height + self.scroll_y) # Adjust for title and scroll
+
+        # Display Mode settings section
+        self.display_mode_section_height = spacing # Default height
+        display_mode_label = font.render("Display Mode:", True, self.WHITE)
+        content_surface.blit(display_mode_label, (left_column_x - display_mode_label.get_width()//2, current_y))
+        
+        display_mode_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 35)
+        is_dm_btn_hovered = display_mode_btn_rect.collidepoint(mouse_pos_rel)
+        button.draw(content_surface, display_mode_btn_rect, self.current_display_mode, font, is_hovered=is_dm_btn_hovered)
+
+        # Draw display mode dropdown triangle
+        dm_triangle_size = 6
+        dm_triangle_margin = 10
+        dm_triangle_x = display_mode_btn_rect.right - dm_triangle_margin - dm_triangle_size
+        dm_triangle_y = display_mode_btn_rect.centery - dm_triangle_size // 2
+        is_dm_open = hasattr(self, 'show_display_modes') and self.show_display_modes
+        if is_dm_open:
+            dm_triangle_points = [(dm_triangle_x, dm_triangle_y + dm_triangle_size), (dm_triangle_x + dm_triangle_size, dm_triangle_y + dm_triangle_size), (dm_triangle_x + dm_triangle_size // 2, dm_triangle_y)]
+        else:
+            dm_triangle_points = [(dm_triangle_x, dm_triangle_y), (dm_triangle_x + dm_triangle_size, dm_triangle_y), (dm_triangle_x + dm_triangle_size // 2, dm_triangle_y + dm_triangle_size)]
+        pygame.draw.polygon(content_surface, self.WHITE, dm_triangle_points)
+
+        # Handle display mode dropdown drawing
+        if hasattr(self, 'show_display_modes') and self.show_display_modes:
+            dm_dropdown_height = len(self.display_modes) * self.dropdown_item_height
+            self.display_mode_section_height = spacing + dm_dropdown_height
+            dm_dropdown_bg = pygame.Rect(display_mode_btn_rect.x, display_mode_btn_rect.bottom, display_mode_btn_rect.width, dm_dropdown_height)
+            pygame.draw.rect(content_surface, (30, 30, 50), dm_dropdown_bg)
+            pygame.draw.rect(content_surface, (80, 80, 100), dm_dropdown_bg, 1)
+
+            for i, mode_text in enumerate(self.display_modes):
+                dm_option_rect = pygame.Rect(display_mode_btn_rect.x, display_mode_btn_rect.bottom + i * self.dropdown_item_height, display_mode_btn_rect.width, self.dropdown_item_height)
+                is_dm_option_hovered = dm_option_rect.collidepoint(mouse_pos_rel)
+                
+                dm_option_inner = pygame.Rect(dm_option_rect.x + 2, dm_option_rect.y + 2, dm_option_rect.width - 4, dm_option_rect.height - 4)
+                dm_bg_color = (80, 40, 60) if is_dm_option_hovered else (60, 30, 50)
+                pygame.draw.rect(content_surface, dm_bg_color, dm_option_inner)
+                pygame.draw.rect(content_surface, (100, 60, 80), dm_option_inner, 1)
+                pygame.draw.rect(content_surface, (100, 100, 140), dm_option_rect, 1)
+
+                dm_text_surf = small_font.render(mode_text, True, self.WHITE)
+                dm_text_rect = dm_text_surf.get_rect(center=dm_option_inner.center)
+                content_surface.blit(dm_text_surf, dm_text_rect)
+        else:
+            self.display_mode_section_height = spacing
+        
+        current_y += self.display_mode_section_height
+
 
         # Resolution settings section
         self.resolution_section_height = spacing  # Default height
@@ -473,15 +602,26 @@ class SettingsScreen:
         content_surface.blit(res_label, (left_column_x - res_label.get_width()//2, current_y))
 
         # Current resolution button
-        current_res = f"{self.screen_sizes[self.current_size_index][0]}x{self.screen_sizes[self.current_size_index][1]}"
+        if self.current_display_mode == "Borderless":
+            try:
+                desktop_info = pygame.display.Info()
+                current_res = f"{desktop_info.current_w}x{desktop_info.current_h}"
+            except pygame.error:
+                # Fallback if display info fails during drawing, though unlikely in settings.
+                # save_settings and runtime will still prioritize actual desktop info.
+                _w, _h = self.screen_sizes[self.current_size_index]
+                current_res = f"{_w}x{_h}"
+        else:
+            _w, _h = self.screen_sizes[self.current_size_index]
+            current_res = f"{_w}x{_h}"
         res_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 35)
-        # Use relative mouse pos for hover check on content surface
-        mouse_pos_rel = list(pygame.mouse.get_pos())
-        mouse_pos_rel[1] -= (title_area_height + self.scroll_y) # Adjust for title and scroll
-        is_hovered = res_btn_rect.collidepoint(mouse_pos_rel)
+        
+        # mouse_pos_rel is already calculated above before display mode section
+        
+        is_res_btn_hovered = res_btn_rect.collidepoint(mouse_pos_rel)
 
         # Draw the resolution button
-        button.draw(content_surface, res_btn_rect, current_res, font, is_hovered=is_hovered)
+        button.draw(content_surface, res_btn_rect, current_res, font, is_hovered=is_res_btn_hovered)
 
         # Draw dropdown triangle
         triangle_size = 6
@@ -497,16 +637,33 @@ class SettingsScreen:
 
         # Handle resolution dropdown drawing
         if hasattr(self, 'show_resolutions') and self.show_resolutions:
-            dropdown_height = len(self.screen_sizes) * self.dropdown_item_height
-            self.resolution_section_height = spacing + dropdown_height # Adjust height dynamically
-            dropdown_bg = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom, res_btn_rect.width, dropdown_height)
+            num_total_options = len(self.screen_sizes)
+            num_visible_options = min(num_total_options, self.dropdown_max_visible_items)
+            actual_dropdown_height = num_visible_options * self.dropdown_item_height
+
+            self.resolution_section_height = spacing + actual_dropdown_height # Adjust height dynamically
+            dropdown_bg = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom, res_btn_rect.width, actual_dropdown_height)
             pygame.draw.rect(content_surface, (30, 30, 50), dropdown_bg)
             pygame.draw.rect(content_surface, (80, 80, 100), dropdown_bg, 1)
 
-            for i, (w, h) in enumerate(self.screen_sizes):
-                option_rect = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom + i * self.dropdown_item_height, res_btn_rect.width, self.dropdown_item_height)
+            # Ensure scroll_offset is valid
+            max_offset = max(0, num_total_options - num_visible_options)
+            self.dropdown_scroll_offset = max(0, min(self.dropdown_scroll_offset, max_offset))
+
+            for i_visible in range(num_visible_options):
+                actual_option_index = self.dropdown_scroll_offset + i_visible
+                if actual_option_index >= num_total_options:
+                    break
+                
+                w, h = self.screen_sizes[actual_option_index]
+                option_rect = pygame.Rect(
+                    res_btn_rect.x,
+                    res_btn_rect.bottom + i_visible * self.dropdown_item_height,
+                    res_btn_rect.width,
+                    self.dropdown_item_height
+                )
                 option_text = f"{w}x{h}"
-                is_option_hovered = option_rect.collidepoint(mouse_pos_rel) # Use relative mouse pos
+                is_option_hovered = option_rect.collidepoint(mouse_pos_rel)
 
                 option_inner = pygame.Rect(option_rect.x + 2, option_rect.y + 2, option_rect.width - 4, option_rect.height - 4)
                 bg_color = (80, 40, 60) if is_option_hovered else (60, 30, 50)
@@ -741,13 +898,24 @@ class SettingsScreen:
                     if success:
                         print("Settings saved successfully")
                         if sound_manager:
-                            sound_manager._load_volume_settings() # Reload settings in sound manager
-                        # Check if resolution changed
-                        current_width, current_height = self.screen_sizes[self.current_size_index]
-                        if current_width != width or current_height != height:
-                             # Signal resolution change requires going back
-                             if back_fn: return back_fn() # Use back_fn to return correctly
-                        # No resolution change, continue in settings
+                            sound_manager._load_volume_settings()
+
+                        newly_saved_width, newly_saved_height = self.screen_sizes[self.current_size_index]
+                        newly_saved_mode = self.current_display_mode
+
+                        resolution_changed = self.current_size_index != self.original_loaded_size_index
+                        mode_changed = newly_saved_mode != self.original_loaded_display_mode
+                        
+                        self._display_settings_changed_on_save = resolution_changed or mode_changed
+
+                        if self._display_settings_changed_on_save:
+                            # Update original loaded values to reflect the save for subsequent comparisons
+                            self.original_loaded_display_mode = newly_saved_mode
+                            self.original_loaded_size_index = self.current_size_index
+                            if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
+                                print(f"[DEBUG] Display settings changed and saved. Mode: {newly_saved_mode}, Res: {newly_saved_width}x{newly_saved_height}")
+                            if back_fn: return back_fn() # Trigger display update via main loop
+                        # No display-related changes, continue in settings
                     else:
                         print("Error saving settings")
                     continue # Prevent further click processing
@@ -764,32 +932,55 @@ class SettingsScreen:
                 mouse_pos_rel = list(mouse_pos_abs)
                 mouse_pos_rel[1] -= (title_area_height + self.scroll_y) # Adjust for title and scroll
 
-                # Check resolution dropdown button/options
-                # Need to check dropdown options *before* other buttons if dropdown is open
-                dropdown_handled = False
+                # Check resolution dropdown button/options OR Display Mode dropdown
+                res_dropdown_handled = False
                 if hasattr(self, 'show_resolutions') and self.show_resolutions:
-                    # Check each option in the dropdown
-                    for i, (w, h) in enumerate(self.screen_sizes):
-                        option_rect = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom + i * self.dropdown_item_height, res_btn_rect.width, self.dropdown_item_height)
-                        if option_rect.collidepoint(mouse_pos_rel):
-                            self.current_size_index = i
-                            self.show_resolutions = False
-                            new_width, new_height = self.screen_sizes[i]
-                            if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
-                                print(f"[DEBUG] Selected resolution: {new_width}x{new_height}")
-                            # Don't update dimensions/display here, let save/back handle it
-                            dropdown_handled = True
-                            break
-                    # If click was inside dropdown bg but not on an option, just close it
-                    dropdown_bg_rect = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom, res_btn_rect.width, len(self.screen_sizes) * self.dropdown_item_height)
-                    if not dropdown_handled and dropdown_bg_rect.collidepoint(mouse_pos_rel):
-                         self.show_resolutions = False
-                         dropdown_handled = True # Prevent other clicks if click was in dropdown bg
+                    num_total_res_options = len(self.screen_sizes)
+                    num_visible_res_options_drawn = min(num_total_res_options, self.dropdown_max_visible_items)
+                    actual_res_dropdown_height_drawn = num_visible_res_options_drawn * self.dropdown_item_height
 
-                # If dropdown wasn't handled, check other buttons
-                if not dropdown_handled:
-                    if res_btn_rect.collidepoint(mouse_pos_rel):
+                    for i_visible in range(num_visible_res_options_drawn):
+                        actual_option_index = self.dropdown_scroll_offset + i_visible
+                        if actual_option_index >= num_total_res_options: break
+                        option_rect = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom + i_visible * self.dropdown_item_height, res_btn_rect.width, self.dropdown_item_height)
+                        if option_rect.collidepoint(mouse_pos_rel):
+                            self.current_size_index = actual_option_index
+                            self.show_resolutions = False
+                            self.dropdown_scroll_offset = 0
+                            if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings: print(f"[DEBUG] Selected resolution index: {actual_option_index}")
+                            res_dropdown_handled = True
+                            break
+                    dropdown_bg_rect_drawn = pygame.Rect(res_btn_rect.x, res_btn_rect.bottom, res_btn_rect.width, actual_res_dropdown_height_drawn)
+                    if not res_dropdown_handled and dropdown_bg_rect_drawn.collidepoint(mouse_pos_rel):
+                         self.show_resolutions = False
+                         self.dropdown_scroll_offset = 0
+                         res_dropdown_handled = True
+                
+                dm_dropdown_handled = False
+                if hasattr(self, 'show_display_modes') and self.show_display_modes:
+                    dm_dropdown_height = len(self.display_modes) * self.dropdown_item_height
+                    for i, mode_text in enumerate(self.display_modes):
+                        dm_option_rect = pygame.Rect(display_mode_btn_rect.x, display_mode_btn_rect.bottom + i * self.dropdown_item_height, display_mode_btn_rect.width, self.dropdown_item_height)
+                        if dm_option_rect.collidepoint(mouse_pos_rel):
+                            self.current_display_mode = mode_text
+                            self.show_display_modes = False
+                            if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings: print(f"[DEBUG] Selected display mode: {mode_text}")
+                            dm_dropdown_handled = True
+                            break
+                    dm_dropdown_bg_rect = pygame.Rect(display_mode_btn_rect.x, display_mode_btn_rect.bottom, display_mode_btn_rect.width, dm_dropdown_height)
+                    if not dm_dropdown_handled and dm_dropdown_bg_rect.collidepoint(mouse_pos_rel):
+                        self.show_display_modes = False
+                        dm_dropdown_handled = True
+                
+                # If no dropdown handled the click, check other buttons
+                if not res_dropdown_handled and not dm_dropdown_handled:
+                    if display_mode_btn_rect.collidepoint(mouse_pos_rel):
+                        self.show_display_modes = not getattr(self, 'show_display_modes', False)
+                        if self.show_display_modes: self.show_resolutions = False # Close other dropdown
+                    elif res_btn_rect.collidepoint(mouse_pos_rel):
                         self.show_resolutions = not getattr(self, 'show_resolutions', False)
+                        if self.show_resolutions: self.show_display_modes = False # Close other dropdown
+                        if not self.show_resolutions: self.dropdown_scroll_offset = 0
                     elif name_btn_rect.collidepoint(mouse_pos_rel):
                         from ..Ping_UI import player_name_screen # Local import
                         # Pass debug console if available
@@ -839,9 +1030,18 @@ class SettingsScreen:
                             self.glow_intensity = max(0, self.glow_intensity - 5)
                         elif glow_plus_rect.collidepoint(mouse_pos_rel):
                             self.glow_intensity = min(100, self.glow_intensity + 5)
-                    else: # Clicked outside any interactive element
-                         self.show_resolutions = False # Close dropdown if open
-
+                    else: # Clicked outside any interactive element on the scrollable surface
+                         # Close any open dropdown if click was outside them
+                         clicked_outside_all_buttons = True # Assume true initially
+                         # Check if click was on any button (add all relevant rects here)
+                         # For simplicity, just closing dropdowns if no button was hit by this point.
+                         
+                         if self.show_resolutions:
+                            self.show_resolutions = False
+                            self.dropdown_scroll_offset = 0
+                         if self.show_display_modes:
+                            self.show_display_modes = False
+            
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE and back_fn:
                     # Check for name change before returning via escape

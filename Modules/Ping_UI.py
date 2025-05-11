@@ -434,9 +434,9 @@ from .Submodules.Ping_LevelSelect import LevelSelect
 from .Submodules.Ping_Fonts import get_pixel_font
 from .Submodules.Ping_Button import get_button
 
-def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
-    """Initialize the display with the given dimensions."""
-    screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, flags=0):
+    """Initialize the display with the given dimensions and flags."""
+    screen = pygame.display.set_mode((width, height), pygame.RESIZABLE | flags)
     pygame.display.set_caption("Ping")
     return screen
 
