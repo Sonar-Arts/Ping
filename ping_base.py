@@ -141,9 +141,9 @@ debug_console.sound_manager = sound_manager
 def generate_random_name():
     """Generate a random name from First_Names.txt and Last_Name.txt."""
     try:
-        with open("First_Names.txt") as f:
+        with open("Ping Assets/names/First_Names.txt") as f:
             first_names = f.read().splitlines()
-        with open("Last_Name.txt") as f:
+        with open("Ping Assets/names/Last_Name.txt") as f:
             last_names = f.read().splitlines()
         if not first_names or not last_names:
             return "Random Player"
