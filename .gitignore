@@ -28,3 +28,9 @@ Thumbs.db
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Claude Code
+Claude.MD
+
+# AI Analysis Documents
+AIImprove.MD

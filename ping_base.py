@@ -552,17 +552,22 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 # Move paddles
                 paddle_a.move(FRAME_TIME)
                 if ai_mode:
-                    # Use AI to move paddle with ball trajectory information
-                    paddle_b.rect.y = paddle_ai.move_paddle(
-                        ball.rect.x, ball.rect.y,  # Current ball position
-                        ball.ball.velocity_x, ball.ball.velocity_y,  # Ball velocity
+                    # Use AI to move paddle with improved integration
+                    # Let AI determine most threatening ball rather than forcing primary ball
+                    target_y = paddle_ai.move_paddle(
+                        ball.rect.x, ball.rect.y,  # Primary ball position (fallback)
+                        ball.ball.velocity_x, ball.ball.velocity_y,  # Primary ball velocity (fallback)
                         paddle_b.rect.y, paddle_b.speed * FRAME_TIME,
                         ball_frozen,  # Pass ball's frozen state
-                        all_balls=balls  # Pass all active balls for better prediction
+                        all_balls=balls,  # Pass all active balls for better prediction
+                        score_ai=score_b,  # Pass AI score for strategic decisions
+                        score_opponent=score_a,  # Pass opponent score for strategic decisions
+                        frame_time=FRAME_TIME  # Pass frame time for momentum physics
                     )
-                    # Make sure paddle stays within bounds
-                    paddle_b.rect.y = max(arena.scoreboard_height,
-                                        min(paddle_b.rect.y, arena.height - paddle_b.rect.height))
+                    
+                    # AI now handles its own movement validation and momentum using proper game area bounds
+                    # Apply AI-calculated position (AI handles all bounds checking internally)
+                    paddle_b.rect.y = target_y
                 else:
                     paddle_b.move(FRAME_TIME)
 
