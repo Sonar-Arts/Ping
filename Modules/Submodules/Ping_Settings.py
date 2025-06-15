@@ -1,7 +1,659 @@
 import pygame
+import math
+import random
+import time
 from sys import exit
 from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
+
+class RetroAnimatedBackground:
+    """Ultra-creative animated retro background for settings menu."""
+    
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.start_time = time.time()
+        
+        # Color palette
+        self.NEON_CYAN = (0, 255, 255)
+        self.ELECTRIC_BLUE = (0, 120, 255)
+        self.HOT_PINK = (255, 20, 147)
+        self.LIME_GREEN = (0, 255, 0)
+        self.DEEP_PURPLE = (25, 0, 51)
+        self.MATRIX_GREEN = (0, 200, 0)
+        
+        # Initialize animation components
+        self._init_circuit_grid()
+        self._init_particles()
+        self._init_sonar_waves()
+        self._init_data_streams()
+        self._init_terminal_windows()
+        self._init_geometric_shapes()
+        self._init_title_easter_eggs()
+        
+    def _init_circuit_grid(self):
+        """Initialize the animated circuit board grid."""
+        self.circuit_nodes = []
+        self.circuit_paths = []
+        self.data_packets = []
+        
+        # Create grid nodes
+        grid_spacing = 80
+        for x in range(0, self.width + grid_spacing, grid_spacing):
+            for y in range(0, self.height + grid_spacing, grid_spacing):
+                if random.random() > 0.3:  # 70% chance for node
+                    self.circuit_nodes.append({
+                        'x': x, 'y': y,
+                        'pulse_phase': random.uniform(0, math.pi * 2),
+                        'pulse_speed': random.uniform(2, 4),
+                        'brightness': random.uniform(0.3, 1.0)
+                    })
+        
+        # Create paths between nearby nodes
+        for i, node_a in enumerate(self.circuit_nodes):
+            for j, node_b in enumerate(self.circuit_nodes[i+1:], i+1):
+                distance = math.sqrt((node_a['x'] - node_b['x'])**2 + (node_a['y'] - node_b['y'])**2)
+                if distance < grid_spacing * 1.5 and random.random() > 0.6:
+                    self.circuit_paths.append({
+                        'start': node_a, 'end': node_b,
+                        'pulse_offset': random.uniform(0, math.pi * 2)
+                    })
+    
+    def _init_particles(self):
+        """Initialize floating digital particles."""
+        self.particles = []
+        for _ in range(150):
+            self.particles.append({
+                'x': random.uniform(0, self.width),
+                'y': random.uniform(0, self.height),
+                'vx': random.uniform(-20, 20),
+                'vy': random.uniform(-15, 15),
+                'size': random.uniform(1, 4),
+                'color_phase': random.uniform(0, math.pi * 2),
+                'blink_phase': random.uniform(0, math.pi * 2),
+                'lifetime': random.uniform(0, 10)
+            })
+    
+    def _init_sonar_waves(self):
+        """Initialize sonar wave effects."""
+        self.sonar_waves = []
+        self.last_sonar_spawn = 0
+        self.sonar_spawn_interval = random.uniform(2, 4)
+    
+    def _init_data_streams(self):
+        """Initialize matrix-style data rain."""
+        self.data_streams = []
+        for _ in range(20):
+            self.data_streams.append({
+                'x': random.randint(0, self.width),
+                'drops': [{'y': random.randint(-self.height, 0), 
+                         'char': chr(random.randint(33, 126)),
+                         'brightness': random.uniform(0.3, 1.0)} 
+                        for _ in range(random.randint(5, 15))],
+                'speed': random.uniform(50, 150),
+                'spawn_rate': random.uniform(0.1, 0.3)
+            })
+    
+    def _init_terminal_windows(self):
+        """Initialize floating terminal windows."""
+        self.terminal_windows = []
+        for _ in range(3):
+            self.terminal_windows.append({
+                'x': random.uniform(50, self.width - 200),
+                'y': random.uniform(50, self.height - 150),
+                'width': random.uniform(180, 250),
+                'height': random.uniform(100, 180),
+                'drift_speed': random.uniform(5, 15),
+                'drift_direction': random.uniform(0, math.pi * 2),
+                'text_lines': [f"> {chr(random.randint(65, 90))}{chr(random.randint(65, 90))}{random.randint(100, 999)}"
+                              for _ in range(random.randint(4, 8))],
+                'cursor_blink': 0,
+                'alpha': random.uniform(0.3, 0.7)
+            })
+    
+    def _init_geometric_shapes(self):
+        """Initialize rotating wireframe shapes."""
+        self.geometric_shapes = []
+        for _ in range(4):
+            self.geometric_shapes.append({
+                'x': random.uniform(100, self.width - 100),
+                'y': random.uniform(100, self.height - 100),
+                'rotation': 0,
+                'rotation_speed': random.uniform(30, 60),
+                'size': random.uniform(30, 60),
+                'shape_type': random.choice(['cube', 'pyramid', 'diamond']),
+                'color': random.choice([self.NEON_CYAN, self.HOT_PINK, self.LIME_GREEN]),
+                'pulse_phase': random.uniform(0, math.pi * 2)
+            })
+    
+    def _init_title_easter_eggs(self):
+        """Initialize subtle 'PING' title appearances."""
+        self.title_effects = {
+            'particle_constellation': {
+                'last_spawn': 0,
+                'interval': random.uniform(45, 90),  # 45-90 seconds
+                'active': False,
+                'formation_particles': [],
+                'formation_timer': 0,
+                'formation_duration': 8.0,
+                'letter_positions': self._calculate_ping_positions()
+            },
+            'circuit_spell': {
+                'last_spawn': 0,
+                'interval': random.uniform(60, 120),  # 1-2 minutes
+                'active': False,
+                'target_nodes': [],
+                'spell_timer': 0,
+                'spell_duration': 6.0
+            },
+            'data_stream_message': {
+                'last_spawn': 0,
+                'interval': random.uniform(30, 75),  # 30-75 seconds
+                'active': False,
+                'message_streams': [],
+                'message_timer': 0,
+                'message_duration': 10.0
+            }
+        }
+    
+    def _calculate_ping_positions(self):
+        """Calculate positions for PING letters formation."""
+        letter_width = 30
+        letter_spacing = 40
+        total_width = 4 * letter_width + 3 * letter_spacing
+        start_x = (self.width - total_width) // 2
+        center_y = self.height // 2
+        
+        # Define simple letter patterns (5x7 grid for each letter)
+        patterns = {
+            'P': [(0,0),(1,0),(2,0),(0,1),(2,1),(0,2),(1,2),(2,2),(0,3),(0,4),(0,5),(0,6)],
+            'I': [(0,0),(1,0),(2,0),(1,1),(1,2),(1,3),(1,4),(1,5),(0,6),(1,6),(2,6)],
+            'N': [(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(1,2),(2,1),(3,0),(3,1),(3,2),(3,3),(3,4),(3,5),(3,6)],
+            'G': [(1,0),(2,0),(0,1),(0,2),(0,3),(0,4),(0,5),(1,6),(2,6),(3,6),(3,3),(3,4),(3,5),(2,3)]
+        }
+        
+        positions = {}
+        letters = ['P', 'I', 'N', 'G']
+        for i, letter in enumerate(letters):
+            letter_x = start_x + i * (letter_width + letter_spacing)
+            positions[letter] = []
+            for x_offset, y_offset in patterns[letter]:
+                positions[letter].append((
+                    letter_x + x_offset * 4,
+                    center_y - 14 + y_offset * 4
+                ))
+        
+        return positions
+    
+    def update(self, dt, mouse_pos=None):
+        """Update all animation components."""
+        current_time = time.time() - self.start_time
+        
+        # Update particles
+        for particle in self.particles:
+            particle['x'] += particle['vx'] * dt
+            particle['y'] += particle['vy'] * dt
+            particle['lifetime'] += dt
+            
+            # Mouse interaction
+            if mouse_pos:
+                dx = mouse_pos[0] - particle['x']
+                dy = mouse_pos[1] - particle['y']
+                distance = math.sqrt(dx*dx + dy*dy)
+                if distance < 100:
+                    force = (100 - distance) / 100 * 30
+                    particle['vx'] += (dx / distance) * force * dt
+                    particle['vy'] += (dy / distance) * force * dt
+            
+            # Wrap around screen
+            if particle['x'] < 0: particle['x'] = self.width
+            if particle['x'] > self.width: particle['x'] = 0
+            if particle['y'] < 0: particle['y'] = self.height
+            if particle['y'] > self.height: particle['y'] = 0
+        
+        # Update sonar waves
+        current_time_sonar = time.time()
+        if current_time_sonar - self.last_sonar_spawn > self.sonar_spawn_interval:
+            self.sonar_waves.append({
+                'x': random.randint(100, self.width - 100),
+                'y': random.randint(100, self.height - 100),
+                'radius': 0,
+                'max_radius': random.uniform(150, 300),
+                'color': random.choice([self.NEON_CYAN, self.ELECTRIC_BLUE, self.LIME_GREEN]),
+                'birth_time': current_time_sonar
+            })
+            self.last_sonar_spawn = current_time_sonar
+            self.sonar_spawn_interval = random.uniform(2, 5)
+        
+        # Update existing sonar waves
+        self.sonar_waves = [wave for wave in self.sonar_waves 
+                           if current_time_sonar - wave['birth_time'] < 4]
+        for wave in self.sonar_waves:
+            age = current_time_sonar - wave['birth_time']
+            wave['radius'] = (age / 4) * wave['max_radius']
+        
+        # Update data streams
+        for stream in self.data_streams:
+            for drop in stream['drops']:
+                drop['y'] += stream['speed'] * dt
+                if drop['y'] > self.height:
+                    drop['y'] = -20
+                    drop['char'] = chr(random.randint(33, 126))
+                    drop['brightness'] = random.uniform(0.3, 1.0)
+        
+        # Update terminal windows
+        for window in self.terminal_windows:
+            window['x'] += math.cos(window['drift_direction']) * window['drift_speed'] * dt
+            window['y'] += math.sin(window['drift_direction']) * window['drift_speed'] * dt
+            window['cursor_blink'] += dt * 2
+            
+            # Bounce off edges
+            if window['x'] < 0 or window['x'] + window['width'] > self.width:
+                window['drift_direction'] = math.pi - window['drift_direction']
+            if window['y'] < 0 or window['y'] + window['height'] > self.height:
+                window['drift_direction'] = -window['drift_direction']
+        
+        # Update geometric shapes
+        for shape in self.geometric_shapes:
+            shape['rotation'] += shape['rotation_speed'] * dt
+            shape['pulse_phase'] += dt * 3
+        
+        # Update title easter eggs
+        self._update_title_effects(dt, current_time)
+    
+    def draw(self, surface):
+        """Draw all background elements."""
+        current_time = time.time() - self.start_time
+        
+        # Fill with deep space background
+        surface.fill(self.DEEP_PURPLE)
+        
+        # Draw circuit grid
+        self._draw_circuit_grid(surface, current_time)
+        
+        # Draw sonar waves
+        self._draw_sonar_waves(surface)
+        
+        # Draw particles
+        self._draw_particles(surface, current_time)
+        
+        # Draw data streams
+        self._draw_data_streams(surface)
+        
+        # Draw terminal windows
+        self._draw_terminal_windows(surface)
+        
+        # Draw geometric shapes
+        self._draw_geometric_shapes(surface, current_time)
+        
+        # Draw title easter eggs
+        self._draw_title_effects(surface, current_time)
+    
+    def _draw_circuit_grid(self, surface, current_time):
+        """Draw the animated circuit board."""
+        # Draw paths
+        for path in self.circuit_paths:
+            pulse = math.sin(current_time * 2 + path['pulse_offset']) * 0.5 + 0.5
+            alpha = int(pulse * 100 + 50)
+            color = (*self.ELECTRIC_BLUE, alpha)
+            
+            start_pos = (int(path['start']['x']), int(path['start']['y']))
+            end_pos = (int(path['end']['x']), int(path['end']['y']))
+            
+            # Create temporary surface for alpha blending
+            temp_surf = pygame.Surface((abs(end_pos[0] - start_pos[0]) + 4, 
+                                      abs(end_pos[1] - start_pos[1]) + 4), pygame.SRCALPHA)
+            relative_start = (2, 2)
+            relative_end = (end_pos[0] - start_pos[0] + 2, end_pos[1] - start_pos[1] + 2)
+            
+            pygame.draw.line(temp_surf, color[:3], relative_start, relative_end, 2)
+            temp_surf.set_alpha(alpha)
+            surface.blit(temp_surf, (min(start_pos[0], end_pos[0]) - 2, 
+                                   min(start_pos[1], end_pos[1]) - 2))
+        
+        # Draw nodes
+        for node in self.circuit_nodes:
+            pulse = math.sin(current_time * node['pulse_speed'] + node['pulse_phase']) * 0.5 + 0.5
+            radius = int(pulse * 4 + 2)
+            brightness = int(node['brightness'] * 255)
+            color = (brightness, brightness, 255)
+            
+            pygame.draw.circle(surface, color, (int(node['x']), int(node['y'])), radius)
+            pygame.draw.circle(surface, self.NEON_CYAN, (int(node['x']), int(node['y'])), radius, 1)
+    
+    def _draw_sonar_waves(self, surface):
+        """Draw expanding sonar rings."""
+        for wave in self.sonar_waves:
+            if wave['radius'] > 0:
+                age_factor = wave['radius'] / wave['max_radius']
+                alpha = int((1 - age_factor) * 150)
+                
+                if alpha > 0:
+                    temp_surf = pygame.Surface((wave['max_radius'] * 2 + 10, 
+                                              wave['max_radius'] * 2 + 10), pygame.SRCALPHA)
+                    pygame.draw.circle(temp_surf, (*wave['color'], alpha), 
+                                     (int(wave['max_radius'] + 5), int(wave['max_radius'] + 5)), 
+                                     int(wave['radius']), 2)
+                    temp_surf.set_alpha(alpha)
+                    surface.blit(temp_surf, (wave['x'] - wave['max_radius'] - 5, 
+                                           wave['y'] - wave['max_radius'] - 5))
+    
+    def _draw_particles(self, surface, current_time):
+        """Draw floating digital particles."""
+        for particle in self.particles:
+            # Color cycling
+            color_shift = math.sin(current_time * 2 + particle['color_phase']) * 0.5 + 0.5
+            r = int(self.HOT_PINK[0] * color_shift + self.NEON_CYAN[0] * (1 - color_shift))
+            g = int(self.HOT_PINK[1] * color_shift + self.NEON_CYAN[1] * (1 - color_shift))
+            b = int(self.HOT_PINK[2] * color_shift + self.NEON_CYAN[2] * (1 - color_shift))
+            
+            # Blinking effect
+            blink = math.sin(current_time * 4 + particle['blink_phase']) * 0.3 + 0.7
+            alpha = int(blink * 255)
+            
+            # Draw particle with glow
+            glow_radius = int(particle['size'] + 2)
+            temp_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+            
+            # Outer glow
+            pygame.draw.circle(temp_surf, (r//3, g//3, b//3, alpha//3), 
+                             (glow_radius, glow_radius), glow_radius)
+            # Inner particle
+            pygame.draw.circle(temp_surf, (r, g, b, alpha), 
+                             (glow_radius, glow_radius), int(particle['size']))
+            
+            surface.blit(temp_surf, (particle['x'] - glow_radius, particle['y'] - glow_radius))
+    
+    def _draw_data_streams(self, surface):
+        """Draw matrix-style data rain."""
+        font = get_pixel_font(12)
+        
+        for stream in self.data_streams:
+            for i, drop in enumerate(stream['drops']):
+                brightness = int(drop['brightness'] * 255)
+                # Fade effect for trail
+                trail_factor = 1.0 - (i / len(stream['drops'])) * 0.7
+                color = (0, int(brightness * trail_factor), 0)
+                
+                try:
+                    char_surface = font.render(drop['char'], True, color)
+                    surface.blit(char_surface, (stream['x'], int(drop['y'])))
+                except pygame.error:
+                    pass  # Skip problematic characters
+    
+    def _draw_terminal_windows(self, surface):
+        """Draw floating retro terminal windows."""
+        font = get_pixel_font(10)
+        
+        for window in self.terminal_windows:
+            # Window background
+            temp_surf = pygame.Surface((int(window['width']), int(window['height'])), pygame.SRCALPHA)
+            pygame.draw.rect(temp_surf, (0, 50, 0, int(window['alpha'] * 100)), 
+                           (0, 0, int(window['width']), int(window['height'])))
+            pygame.draw.rect(temp_surf, self.MATRIX_GREEN, 
+                           (0, 0, int(window['width']), int(window['height'])), 2)
+            
+            # Window title bar
+            pygame.draw.rect(temp_surf, (0, 80, 0, int(window['alpha'] * 150)), 
+                           (2, 2, int(window['width']) - 4, 20))
+            
+            # Terminal text
+            y_offset = 25
+            for line in window['text_lines']:
+                if y_offset < window['height'] - 15:
+                    try:
+                        text_surf = font.render(line, True, self.MATRIX_GREEN)
+                        temp_surf.blit(text_surf, (5, y_offset))
+                        y_offset += 12
+                    except pygame.error:
+                        pass
+            
+            # Blinking cursor
+            if math.sin(window['cursor_blink']) > 0:
+                cursor_rect = pygame.Rect(5 + len(window['text_lines'][-1]) * 6, 
+                                        y_offset - 12, 8, 10)
+                pygame.draw.rect(temp_surf, self.MATRIX_GREEN, cursor_rect)
+            
+            surface.blit(temp_surf, (int(window['x']), int(window['y'])))
+    
+    def _draw_geometric_shapes(self, surface, current_time):
+        """Draw rotating wireframe geometric shapes."""
+        for shape in self.geometric_shapes:
+            pulse = math.sin(current_time * 2 + shape['pulse_phase']) * 0.3 + 0.7
+            size = int(shape['size'] * pulse)
+            
+            # Simplified wireframe drawing
+            center_x, center_y = int(shape['x']), int(shape['y'])
+            rotation = math.radians(shape['rotation'])
+            
+            if shape['shape_type'] == 'cube':
+                # Draw a rotating square with 3D effect
+                points = []
+                for angle in [0, math.pi/2, math.pi, 3*math.pi/2]:
+                    x = center_x + math.cos(angle + rotation) * size
+                    y = center_y + math.sin(angle + rotation) * size
+                    points.append((int(x), int(y)))
+                
+                if len(points) >= 3:
+                    pygame.draw.polygon(surface, shape['color'], points, 2)
+                    
+                # 3D effect - second square offset
+                offset_points = []
+                for angle in [0, math.pi/2, math.pi, 3*math.pi/2]:
+                    x = center_x + math.cos(angle + rotation) * size * 0.7 + 10
+                    y = center_y + math.sin(angle + rotation) * size * 0.7 - 10
+                    offset_points.append((int(x), int(y)))
+                
+                if len(offset_points) >= 3 and len(points) >= 3:
+                    pygame.draw.polygon(surface, shape['color'], offset_points, 1)
+                    # Connect corners
+                    for i in range(4):
+                        pygame.draw.line(surface, shape['color'], points[i], offset_points[i], 1)
+            
+            elif shape['shape_type'] == 'diamond':
+                points = []
+                for angle in [0, math.pi/2, math.pi, 3*math.pi/2]:
+                    x = center_x + math.cos(angle + rotation) * size
+                    y = center_y + math.sin(angle + rotation) * size * 0.6
+                    points.append((int(x), int(y)))
+                
+                if len(points) >= 3:
+                    pygame.draw.polygon(surface, shape['color'], points, 2)
+    
+    def _update_title_effects(self, dt, current_time):
+        """Update all title easter egg effects."""
+        # Update particle constellation effect
+        constellation = self.title_effects['particle_constellation']
+        if not constellation['active']:
+            if current_time - constellation['last_spawn'] > constellation['interval']:
+                constellation['active'] = True
+                constellation['formation_timer'] = 0
+                constellation['last_spawn'] = current_time
+                constellation['interval'] = random.uniform(45, 90)
+                self._spawn_ping_constellation()
+        else:
+            constellation['formation_timer'] += dt
+            if constellation['formation_timer'] > constellation['formation_duration']:
+                constellation['active'] = False
+                constellation['formation_particles'] = []
+        
+        # Update constellation particles
+        for particle in constellation['formation_particles']:
+            # Move towards target position
+            target_x, target_y = particle['target_pos']
+            dx = target_x - particle['x']
+            dy = target_y - particle['y']
+            distance = math.sqrt(dx*dx + dy*dy)
+            
+            if distance > 2:
+                speed = 50 * dt
+                particle['x'] += (dx / distance) * speed
+                particle['y'] += (dy / distance) * speed
+            
+            particle['brightness'] = min(1.0, particle['brightness'] + dt * 2)
+        
+        # Update circuit spelling effect
+        circuit_spell = self.title_effects['circuit_spell']
+        if not circuit_spell['active']:
+            if current_time - circuit_spell['last_spawn'] > circuit_spell['interval']:
+                circuit_spell['active'] = True
+                circuit_spell['spell_timer'] = 0
+                circuit_spell['last_spawn'] = current_time
+                circuit_spell['interval'] = random.uniform(60, 120)
+                self._select_ping_circuit_nodes()
+        else:
+            circuit_spell['spell_timer'] += dt
+            if circuit_spell['spell_timer'] > circuit_spell['spell_duration']:
+                circuit_spell['active'] = False
+                circuit_spell['target_nodes'] = []
+        
+        # Update data stream message effect
+        data_message = self.title_effects['data_stream_message']
+        if not data_message['active']:
+            if current_time - data_message['last_spawn'] > data_message['interval']:
+                data_message['active'] = True
+                data_message['message_timer'] = 0
+                data_message['last_spawn'] = current_time
+                data_message['interval'] = random.uniform(30, 75)
+                self._spawn_ping_data_streams()
+        else:
+            data_message['message_timer'] += dt
+            if data_message['message_timer'] > data_message['message_duration']:
+                data_message['active'] = False
+                data_message['message_streams'] = []
+        
+        # Update message streams
+        for stream in data_message['message_streams']:
+            stream['y'] += stream['speed'] * dt
+            if stream['y'] > self.height + 50:
+                stream['y'] = -50
+                stream['chars'] = list("PING"[stream['letter_index']] * 8)
+    
+    def _spawn_ping_constellation(self):
+        """Spawn particles that will form PING constellation."""
+        constellation = self.title_effects['particle_constellation']
+        constellation['formation_particles'] = []
+        
+        letters = ['P', 'I', 'N', 'G']
+        for letter in letters:
+            positions = constellation['letter_positions'][letter]
+            for target_pos in positions:
+                # Start particles from random positions
+                start_x = random.uniform(0, self.width)
+                start_y = random.uniform(0, self.height)
+                
+                constellation['formation_particles'].append({
+                    'x': start_x,
+                    'y': start_y,
+                    'target_pos': target_pos,
+                    'brightness': 0.0,
+                    'color': random.choice([self.NEON_CYAN, self.HOT_PINK, self.LIME_GREEN])
+                })
+    
+    def _select_ping_circuit_nodes(self):
+        """Select circuit nodes to spell PING."""
+        circuit_spell = self.title_effects['circuit_spell']
+        circuit_spell['target_nodes'] = []
+        
+        # Find nodes that roughly match PING positions
+        letter_positions = self.title_effects['particle_constellation']['letter_positions']
+        for letter in ['P', 'I', 'N', 'G']:
+            target_positions = letter_positions[letter]
+            for target_pos in target_positions[:5]:  # Limit to 5 positions per letter
+                # Find closest circuit node
+                closest_node = None
+                min_distance = float('inf')
+                
+                for node in self.circuit_nodes:
+                    distance = math.sqrt((node['x'] - target_pos[0])**2 + (node['y'] - target_pos[1])**2)
+                    if distance < min_distance and distance < 100:  # Within reasonable range
+                        min_distance = distance
+                        closest_node = node
+                
+                if closest_node:
+                    circuit_spell['target_nodes'].append(closest_node)
+    
+    def _spawn_ping_data_streams(self):
+        """Spawn data streams that spell PING."""
+        data_message = self.title_effects['data_stream_message']
+        data_message['message_streams'] = []
+        
+        letters = ['P', 'I', 'N', 'G']
+        for i, letter in enumerate(letters):
+            # Create streams at specific x positions
+            x_pos = self.width // 5 * (i + 1)
+            data_message['message_streams'].append({
+                'x': x_pos,
+                'y': random.uniform(-200, -50),
+                'speed': random.uniform(30, 60),
+                'chars': list(letter * 8),  # Repeat letter
+                'letter_index': i,
+                'color': random.choice([self.MATRIX_GREEN, self.NEON_CYAN, self.LIME_GREEN])
+            })
+    
+    def _draw_title_effects(self, surface, current_time):
+        """Draw all title easter egg effects."""
+        # Draw particle constellation
+        constellation = self.title_effects['particle_constellation']
+        if constellation['active']:
+            for particle in constellation['formation_particles']:
+                if particle['brightness'] > 0.1:
+                    alpha = int(particle['brightness'] * 255)
+                    temp_surf = pygame.Surface((8, 8), pygame.SRCALPHA)
+                    pygame.draw.circle(temp_surf, (*particle['color'], alpha), (4, 4), 3)
+                    pygame.draw.circle(temp_surf, (255, 255, 255, alpha//2), (4, 4), 2)
+                    surface.blit(temp_surf, (particle['x'] - 4, particle['y'] - 4))
+        
+        # Draw circuit spelling effect
+        circuit_spell = self.title_effects['circuit_spell']
+        if circuit_spell['active']:
+            spell_progress = circuit_spell['spell_timer'] / circuit_spell['spell_duration']
+            pulse_intensity = math.sin(current_time * 8) * 0.5 + 0.5
+            
+            for node in circuit_spell['target_nodes']:
+                # Enhanced glow for selected nodes
+                radius = int(6 + pulse_intensity * 4)
+                alpha = int((1 - spell_progress * 0.3) * 255)
+                temp_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(temp_surf, (255, 255, 0, alpha), (radius, radius), radius)
+                pygame.draw.circle(temp_surf, (255, 255, 255, alpha), (radius, radius), radius//2)
+                surface.blit(temp_surf, (node['x'] - radius, node['y'] - radius))
+        
+        # Draw data stream message
+        data_message = self.title_effects['data_stream_message']
+        if data_message['active']:
+            font = get_pixel_font(16)
+            for stream in data_message['message_streams']:
+                for i, char in enumerate(stream['chars']):
+                    char_y = stream['y'] + i * 20
+                    if 0 <= char_y <= self.height:
+                        # Enhanced fade effect matching the regular data streams
+                        trail_factor = 1.0 - (i / len(stream['chars'])) * 0.7
+                        
+                        # Additional fade based on distance from top of screen
+                        position_fade = 1.0
+                        if char_y < 100:  # Fade in when appearing
+                            position_fade = char_y / 100
+                        elif char_y > self.height - 100:  # Fade out when leaving
+                            position_fade = (self.height - char_y) / 100
+                        
+                        # Combine both fade effects
+                        final_fade = trail_factor * position_fade
+                        brightness = int(final_fade * 255)
+                        
+                        # Apply brightness to color components (similar to regular streams)
+                        r, g, b = stream['color']
+                        faded_color = (
+                            int(r * final_fade),
+                            int(g * final_fade), 
+                            int(b * final_fade)
+                        )
+                        
+                        try:
+                            char_surface = font.render(char, True, faded_color)
+                            surface.blit(char_surface, (stream['x'], char_y))
+                        except pygame.error:
+                            pass
 
 class SettingsScreen:
     """A class to handle the settings screen functionality and game settings."""
@@ -196,6 +848,9 @@ class SettingsScreen:
         # Colors
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
+        # Initialize animated background (will be properly sized in display method)
+        self.animated_background = None
+        self.last_update_time = time.time()
         self.screen_sizes = [
             (640, 480), (800, 600), (1024, 768), (1280, 720), (1280, 1024),
             (1366, 768), (1440, 900), (1600, 900), (1680, 1050), (1920, 1080),
@@ -346,6 +1001,13 @@ class SettingsScreen:
         """Display the settings screen and handle its events."""
         # sound_manager is now passed directly as an argument
 
+        # Play settings menu music
+        sound_manager.play_music('PSettingsMenuMusicTemp')
+
+        # Initialize animated background if not already done
+        if self.animated_background is None:
+            self.animated_background = RetroAnimatedBackground(WINDOW_WIDTH, WINDOW_HEIGHT)
+
         # Apply initial volumes (already loaded in __init__ or _load_settings)
 
         while True:
@@ -375,6 +1037,17 @@ class SettingsScreen:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
+
+            # Update animated background
+            current_time = time.time()
+            dt = current_time - self.last_update_time
+            self.last_update_time = current_time
+            
+            mouse_pos = pygame.mouse.get_pos()
+            self.animated_background.update(dt, mouse_pos)
+            
+            # Draw animated background
+            self.animated_background.draw(screen)
 
             # Draw settings and handle events
             # Removed sound_test_fn and updated back_fn logic
@@ -436,8 +1109,7 @@ class SettingsScreen:
     # Updated signature: removed sound_test_fn
     def draw_settings_screen(self, screen, events, back_fn=None, sound_manager=None):
         """Draw the settings screen with all options."""
-        # Clear screen and reset states
-        screen.fill(self.BLACK)
+        # Note: Background is now drawn by animated background in display method
         # pygame.event.clear([pygame.MOUSEMOTION]) # Clearing events here might miss clicks
 
         # Get fonts and button instance
@@ -452,10 +1124,11 @@ class SettingsScreen:
         right_column_x = (width * 3) // 4  # Right column at 3/4 width
         button_width = min(200, width // 4)  # Limit button width
 
-        # Create a surface for scrollable content
+        # Create a surface for scrollable content with subtle transparency
         total_height = 1800  # Further Increased height for potential display mode dropdown
-        content_surface = pygame.Surface((width, total_height))
-        content_surface.fill(self.BLACK)
+        content_surface = pygame.Surface((width, total_height), pygame.SRCALPHA)
+        # Add very subtle dark overlay for text readability while keeping background visible
+        content_surface.fill((0, 0, 0, 40))
 
         # Initialize positions
         current_y = 50
@@ -529,13 +1202,29 @@ class SettingsScreen:
                 if hasattr(self, 'debug_console') and self.debug_console and self.debug_console.debug_settings:
                     print(f"[DEBUG] Scrolling: {self.scroll_y}")
 
-        # Create title area with brick pattern
-        title_area = self._create_brick_pattern(width, title_area_height)
+        # Create title area with semi-transparent overlay
+        title_area = pygame.Surface((width, title_area_height), pygame.SRCALPHA)
+        # Add semi-transparent dark overlay for readability
+        pygame.draw.rect(title_area, (0, 0, 0, 120), (0, 0, width, title_area_height))
+        # Add subtle gradient effect
+        for i in range(title_area_height):
+            alpha = int((title_area_height - i) / title_area_height * 60)
+            pygame.draw.line(title_area, (25, 0, 51, alpha), (0, i), (width, i))
 
-        # Draw title in brick area
+        # Draw title with glow effect
         title = title_font.render("Settings", True, self.WHITE)
         title_x = width//2 - title.get_width()//2
         title_y = (title_area_height - title.get_height()) // 2
+        
+        # Draw glow effect for title
+        glow_color = (0, 255, 255, 100)  # Cyan glow
+        glow_offsets = [(-2, -2), (-2, 2), (2, -2), (2, 2), (-1, 0), (1, 0), (0, -1), (0, 1)]
+        for offset_x, offset_y in glow_offsets:
+            glow_title = title_font.render("Settings", True, glow_color[:3])
+            glow_title.set_alpha(glow_color[3])
+            title_area.blit(glow_title, (title_x + offset_x, title_y + offset_y))
+        
+        # Draw main title
         title_area.blit(title, (title_x, title_y))
 
         # Adjust content surface start position
@@ -551,6 +1240,14 @@ class SettingsScreen:
         # Display Mode settings section
         self.display_mode_section_height = spacing # Default height
         display_mode_label = font.render("Display Mode:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = display_mode_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(20, 8)
+        pygame.draw.rect(content_surface, (0, 0, 0, 150), background_rect)
+        pygame.draw.rect(content_surface, (0, 255, 255, 100), background_rect, 2)
+        
         content_surface.blit(display_mode_label, (left_column_x - display_mode_label.get_width()//2, current_y))
         
         display_mode_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 35)
@@ -599,6 +1296,14 @@ class SettingsScreen:
         # Resolution settings section
         self.resolution_section_height = spacing  # Default height
         res_label = font.render("Resolution:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = res_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(20, 8)
+        pygame.draw.rect(content_surface, (0, 0, 0, 150), background_rect)
+        pygame.draw.rect(content_surface, (0, 255, 255, 100), background_rect, 2)
+        
         content_surface.blit(res_label, (left_column_x - res_label.get_width()//2, current_y))
 
         # Current resolution button
@@ -684,6 +1389,14 @@ class SettingsScreen:
 
         # Player name
         name_label = font.render("Player Name:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = name_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(20, 8)
+        pygame.draw.rect(content_surface, (0, 0, 0, 150), background_rect)
+        pygame.draw.rect(content_surface, (0, 255, 255, 100), background_rect, 2)
+        
         content_surface.blit(name_label, (left_column_x - name_label.get_width()//2, current_y))
         name_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
         button.draw(content_surface, name_btn_rect, self.player_name, font,
@@ -692,6 +1405,14 @@ class SettingsScreen:
 
         # Player B name (2P mode)
         name_b_label = font.render("Player B Name:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = name_b_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(20, 8)
+        pygame.draw.rect(content_surface, (0, 0, 0, 150), background_rect)
+        pygame.draw.rect(content_surface, (0, 255, 255, 100), background_rect, 2)
+        
         content_surface.blit(name_b_label, (left_column_x - name_b_label.get_width()//2, current_y))
         name_b_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
         button.draw(content_surface, name_b_btn_rect, self.player_b_name, font,
@@ -704,6 +1425,14 @@ class SettingsScreen:
 
         # Volume controls section header
         volume_text = font.render("Volume Controls", True, self.WHITE)
+        
+        # Add text background for section header
+        header_rect = volume_text.get_rect()
+        header_rect.center = (width//2, current_y + header_rect.height//2)
+        background_rect = header_rect.inflate(30, 12)
+        pygame.draw.rect(content_surface, (0, 0, 0, 180), background_rect)
+        pygame.draw.rect(content_surface, (255, 20, 147, 120), background_rect, 3)  # Hot pink border
+        
         content_surface.blit(volume_text, (width//2 - volume_text.get_width()//2, current_y))
         current_y += spacing * 1.5
 
@@ -712,6 +1441,14 @@ class SettingsScreen:
 
         # Master volume with +/- buttons
         master_label = small_font.render("Master Volume:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = master_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(16, 6)
+        pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+        pygame.draw.rect(content_surface, (0, 200, 0, 80), background_rect, 1)  # Green border
+        
         content_surface.blit(master_label, (left_column_x - master_label.get_width()//2, current_y))
         vol_btn_width = button_width // 4
         display_width = vol_btn_width * 2
@@ -731,6 +1468,14 @@ class SettingsScreen:
 
         # Effects volume with +/- buttons
         effects_label = small_font.render("Effects Volume:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = effects_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(16, 6)
+        pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+        pygame.draw.rect(content_surface, (0, 200, 0, 80), background_rect, 1)  # Green border
+        
         content_surface.blit(effects_label, (left_column_x - effects_label.get_width()//2, current_y))
         effects_vol_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
         effects_vol_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
@@ -744,6 +1489,14 @@ class SettingsScreen:
 
         # Music volume with +/- buttons
         music_label = small_font.render("Music Volume:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = music_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(16, 6)
+        pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+        pygame.draw.rect(content_surface, (0, 200, 0, 80), background_rect, 1)  # Green border
+        
         content_surface.blit(music_label, (left_column_x - music_label.get_width()//2, current_y))
         music_vol_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
         music_vol_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
@@ -757,6 +1510,14 @@ class SettingsScreen:
 
         # Score effect intensity with +/- buttons
         score_effect_label = small_font.render("Score Effect Intensity:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = score_effect_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(16, 6)
+        pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+        pygame.draw.rect(content_surface, (0, 200, 0, 80), background_rect, 1)  # Green border
+        
         content_surface.blit(score_effect_label, (left_column_x - score_effect_label.get_width()//2, current_y))
         score_effect_minus_rect = pygame.Rect(minus_x, current_y, vol_btn_width, 30)
         score_effect_display_rect = pygame.Rect(display_x, current_y, display_width, 30)
@@ -774,6 +1535,14 @@ class SettingsScreen:
 
         # UI effects settings section header
         effects_text = font.render("Additional UI Effects", True, self.WHITE)
+        
+        # Add text background for section header
+        header_rect = effects_text.get_rect()
+        header_rect.center = (width//2, current_y + header_rect.height//2)
+        background_rect = header_rect.inflate(30, 12)
+        pygame.draw.rect(content_surface, (0, 0, 0, 180), background_rect)
+        pygame.draw.rect(content_surface, (0, 255, 0, 120), background_rect, 3)  # Lime green border
+        
         content_surface.blit(effects_text, (width//2 - effects_text.get_width()//2, current_y))
         current_y += spacing * 1.5
 
@@ -804,6 +1573,14 @@ class SettingsScreen:
 
         # UI effects enabled toggle
         effects_label = small_font.render("Enable Additional UI Effects:", True, self.WHITE)
+        
+        # Add text background for readability
+        label_rect = effects_label.get_rect()
+        label_rect.center = (left_column_x, current_y + label_rect.height//2)
+        background_rect = label_rect.inflate(16, 6)
+        pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+        pygame.draw.rect(content_surface, (0, 255, 255, 80), background_rect, 1)  # Cyan border
+        
         content_surface.blit(effects_label, (left_column_x - effects_label.get_width()//2, current_y))
         effects_btn_rect = pygame.Rect(right_column_x - button_width//2, current_y, button_width, 30)
         button.draw(content_surface, effects_btn_rect, "On" if self.retro_effects_enabled else "Off", font,
@@ -821,6 +1598,14 @@ class SettingsScreen:
         if self.retro_effects_enabled:
             # Scanline intensity
             scanline_label = small_font.render("Scanline Intensity:", True, self.WHITE)
+            
+            # Add text background for readability
+            label_rect = scanline_label.get_rect()
+            label_rect.center = (left_column_x, current_y + label_rect.height//2)
+            background_rect = label_rect.inflate(16, 6)
+            pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+            pygame.draw.rect(content_surface, (255, 20, 147, 80), background_rect, 1)  # Hot pink border
+            
             content_surface.blit(scanline_label, (left_column_x - scanline_label.get_width()//2, current_y))
             scanline_minus_hover = scanline_minus_rect.collidepoint(mouse_pos_rel)
             scanline_plus_hover = scanline_plus_rect.collidepoint(mouse_pos_rel)
@@ -831,6 +1616,14 @@ class SettingsScreen:
 
             # Glow intensity
             glow_label = small_font.render("Glow Intensity:", True, self.WHITE)
+            
+            # Add text background for readability
+            label_rect = glow_label.get_rect()
+            label_rect.center = (left_column_x, current_y + label_rect.height//2)
+            background_rect = label_rect.inflate(16, 6)
+            pygame.draw.rect(content_surface, (0, 0, 0, 130), background_rect)
+            pygame.draw.rect(content_surface, (255, 20, 147, 80), background_rect, 1)  # Hot pink border
+            
             content_surface.blit(glow_label, (left_column_x - glow_label.get_width()//2, current_y))
             glow_minus_hover = glow_minus_rect.collidepoint(mouse_pos_rel)
             glow_plus_hover = glow_plus_rect.collidepoint(mouse_pos_rel)
@@ -854,9 +1647,23 @@ class SettingsScreen:
         hints_y = current_y
         hints_height = len(controls) * spacing * 0.7 + spacing * 0.8
         hints_surface = pygame.Surface((width, hints_height), pygame.SRCALPHA)
-        hint_y = 0
-        for hint in controls:
+        
+        # Add background for hints area
+        pygame.draw.rect(hints_surface, (0, 0, 0, 100), (0, 0, width, hints_height))
+        pygame.draw.rect(hints_surface, (128, 128, 128, 80), (0, 0, width, hints_height), 2)
+        
+        hint_y = 10
+        for i, hint in enumerate(controls):
             hint_text = small_font.render(hint, True, hint_color)
+            
+            # Add individual text backgrounds for better readability
+            if i == 0:  # "Controls:" header
+                text_rect = hint_text.get_rect()
+                text_rect.center = (width//2, hint_y + text_rect.height//2)
+                background_rect = text_rect.inflate(20, 4)
+                pygame.draw.rect(hints_surface, (0, 0, 0, 150), background_rect)
+                pygame.draw.rect(hints_surface, (255, 255, 255, 120), background_rect, 1)
+            
             hints_surface.blit(hint_text, (width//2 - hint_text.get_width()//2, hint_y))
             hint_y += spacing * 0.7
         content_surface.blit(hints_surface, (0, hints_y))
@@ -876,7 +1683,13 @@ class SettingsScreen:
 
         # --- Draw Fixed Bottom Button Area ---
         button_area_height = 80
-        button_area_surface = self._create_brick_pattern(width, button_area_height)
+        button_area_surface = pygame.Surface((width, button_area_height), pygame.SRCALPHA)
+        # Add semi-transparent dark overlay for readability
+        pygame.draw.rect(button_area_surface, (0, 0, 0, 120), (0, 0, width, button_area_height))
+        # Add subtle gradient effect (inverted from title)
+        for i in range(button_area_height):
+            alpha = int(i / button_area_height * 60)
+            pygame.draw.line(button_area_surface, (25, 0, 51, alpha), (0, i), (width, i))
         screen.blit(button_area_surface, (0, height - button_area_height))
 
         # Draw buttons over the brick pattern (fixed position)

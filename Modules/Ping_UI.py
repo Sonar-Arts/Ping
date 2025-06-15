@@ -204,10 +204,16 @@ class AnimatedBackground:
 
     def add_cloud(self, initial=True):
         num_puffs = random.randint(3, 7) # Number of ellipses per cloud
-        # Ensure base_x starts clouds fully off-screen when not initial
-        base_x = self.width + random.randint(10, 50) if not initial else random.randint(-100, self.width)
+        
+        # Ensure new clouds start completely off-screen to prevent edge sticking
+        if initial:
+            base_x = random.randint(-150, self.width)
+        else:
+            # For replacement clouds, start them well off-screen right
+            base_x = self.width + random.randint(100, 200)  # Larger buffer to prevent edge sticking
+            
         base_y = random.randint(0, int(self.height * 0.5)) # Clouds in upper 50%
-        speed = random.uniform(15, 50) # Pixels per second
+        speed = random.uniform(30, 80) # Increased speed range to ensure reliable movement
         base_color = (random.randint(30, 50), random.randint(30, 50), random.randint(35, 55)) # Darker greys base
         detail_color = (base_color[0]+15, base_color[1]+15, base_color[2]+15) # Slightly lighter detail
 
@@ -240,7 +246,8 @@ class AnimatedBackground:
             'base_y': base_y,
             # Use min/max calculated coords for more accurate reset logic
             'min_x': min_puff_x,
-            'max_right': max_puff_right
+            'max_right': max_puff_right,
+            'min_left': min_puff_x  # Add this for consistency with update method
         })
 
     def _generate_lightning_bolt(self, start_pos, end_y):
@@ -282,27 +289,32 @@ class AnimatedBackground:
         # Move clouds
         clouds_to_reset = []
         for i, cloud in enumerate(self.clouds):
-            dx = cloud['speed'] * dt
+            # Force integer pixel movement to ensure clouds always move
+            raw_dx = cloud['speed'] * dt
+            dx = max(1, int(raw_dx + 0.5))  # Round to nearest integer, minimum 1 pixel
+            
             cloud['base_x'] -= dx
-            current_max_right = -float('inf') # Reset max_right for this frame
+            current_max_right = -float('inf') 
+            current_min_left = float('inf')
+            
             for puff in cloud['puffs']:
                 puff['rect'].x -= dx
                 current_max_right = max(current_max_right, puff['rect'].right)
+                current_min_left = min(current_min_left, puff['rect'].left)
 
-            # Update the stored max_right for the cloud
+            # Update the stored boundaries for the cloud
             cloud['max_right'] = current_max_right
+            cloud['min_left'] = current_min_left
 
-            # If the rightmost part of the cloud is off-screen left, mark for reset
-            if cloud['max_right'] < 0:
+            # Reset cloud if completely off-screen (with generous buffer)
+            if current_max_right < -50:
                 clouds_to_reset.append(i)
 
         # Remove and re-add clouds that went off-screen
-        # Iterate backwards to avoid index issues when removing
         for i in sorted(clouds_to_reset, reverse=True):
-            # Ensure index is still valid before popping (should be, but safe)
             if i < len(self.clouds):
                 self.clouds.pop(i)
-                self.add_cloud(initial=False) # Add a new one starting off-screen right
+                self.add_cloud(initial=False)
 
         # Lightning logic (mostly unchanged, relies on updated _generate_lightning_bolt and draw)
         if self.lightning_active:
