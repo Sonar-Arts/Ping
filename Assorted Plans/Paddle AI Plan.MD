@@ -1,3 +1,13 @@
+# DEPRECATED - See /docs/ai_upgrade_plan.md
+
+This file has been superseded by the comprehensive AI upgrade plan located at `/docs/ai_upgrade_plan.md`. 
+
+**For all AI development work, refer to `/docs/ai_upgrade_plan.md` instead of this file.**
+
+---
+
+## Original Content (For Reference Only)
+
 AI Algorithm Design
 
 1. Ball Movement Prediction

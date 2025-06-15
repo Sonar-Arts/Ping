@@ -747,6 +747,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     )
                     new_ball.reset_position()
                     balls = [new_ball]
+                    ball = new_ball  # Update primary ball reference for AI
 
                     if ai_mode:
                         paddle_ai.reset_position()  # Start AI paddle moving to center
