@@ -1,8 +1,8 @@
 import pygame
 import random
 import math
-from Modules.Submodules.Ping_Ball import Ball
-from Modules.Submodules.Ping_Particles import WaterSpout
+from .Ping_Ball import Ball
+from .Ping_Particles import WaterSpout
 
 class Bumper:
     def __init__(self, x, y, radius=30):
@@ -760,7 +760,7 @@ class PowerUpBall:
 import pygame
 import math
 import random
-from Modules.Submodules.Ping_Ball import Ball # Assuming Ball class is needed
+from .Ping_Ball import Ball # Assuming Ball class is needed
 # Potentially need Font access later: from Modules.Submodules.Ping_Fonts import FontManager
 
 class RouletteSpinner:

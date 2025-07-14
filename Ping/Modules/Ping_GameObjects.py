@@ -412,7 +412,7 @@ class PowerUpBallObject(ArenaObject):
     def update(self, ball_count, arena_width, arena_height, scoreboard_height, obstacles=None):
         """Update power-up state and check for respawn."""
         return self.power_up.update(ball_count, arena_width, arena_height, scoreboard_height, obstacles)
-from Modules.ping_graphics import load_sprite_image # Need the sprite loading function
+from .ping_graphics import load_sprite_image # Need the sprite loading function
 
 # Existing code...
 

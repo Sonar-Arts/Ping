@@ -12,8 +12,8 @@ import random
 import math
 import time
 import pygame
-from Modules.Ping_Arena import Arena
-from Modules.Ping_GameObjects import PaddleObject
+from .Ping_Arena import Arena
+from .Ping_GameObjects import PaddleObject
 
 
 class AIConfig:

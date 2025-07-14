@@ -9,12 +9,12 @@ import math  # Import math for river animation
 import json # Import JSON for PMF parsing (assuming JSON format)
 import threading
 import time
-from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject, SpriteObject, CandleObject, GhostObstacleObject, Pickles # Import SpriteObject, CandleObject, GhostObstacleObject, and Pickles
-from Modules.Submodules.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle, GhostObstacle # Import the new obstacles
+from .Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject, SpriteObject, CandleObject, GhostObstacleObject, Pickles # Import SpriteObject, CandleObject, GhostObstacleObject, and Pickles
+from .Submodules.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle, GhostObstacle # Import the new obstacles
 # Removed import for DebugLevel, SewerLevel
-from Modules.Submodules.Ping_Scoreboard import Scoreboard
+from .Submodules.Ping_Scoreboard import Scoreboard
 # Import the generation function specifically
-from Modules.ping_graphics import get_background_draw_function, generate_sludge_texture, load_sprite_image
+from .ping_graphics import get_background_draw_function, generate_sludge_texture, load_sprite_image
 
 class LevelCompiler: # Renamed from Arena
     """Handles loading and compiling level data from .pmf files or level instances."""

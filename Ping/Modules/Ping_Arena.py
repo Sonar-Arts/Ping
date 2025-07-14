@@ -1,10 +1,10 @@
 import pygame
 import random  # Import random for background generation
 import math  # Import math for river animation
-from Modules.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject
+from .Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject
 # Removed import for DebugLevel, SewerLevel
-from Modules.Submodules.Ping_Scoreboard import Scoreboard
-from Modules.ping_graphics import draw_sewer_background # Import the new graphics function
+from .Submodules.Ping_Scoreboard import Scoreboard
+from .ping_graphics import draw_sewer_background # Import the new graphics function
 
 class Arena:
     """Represents the game arena where the Ping game takes place."""
