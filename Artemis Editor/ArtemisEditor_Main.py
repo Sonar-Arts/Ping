@@ -29,9 +29,12 @@ from PyQt6.QtGui import QAction # EditorToolBar import removed
 # Import the new function from ping_graphics
 try:
     # Assuming ping_graphics is in Modules directory relative to project root
-    from Modules.ping_graphics import get_background_theme_colors
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+    from Ping.Modules.ping_graphics import get_background_theme_colors
 except ImportError as e:
-    print(f"Warning: Could not import get_background_theme_colors from Modules.ping_graphics: {e}")
+    print(f"Warning: Could not import get_background_theme_colors from Ping.Modules.ping_graphics: {e}")
     get_background_theme_colors = None # Define as None if import fails
 
 class ArtemisEditorWindow(QMainWindow):
@@ -68,7 +71,7 @@ class ArtemisEditorWindow(QMainWindow):
         self.setCentralWidget(self.level_view)
 
         # --- Define Settings Path Early ---
-        self.layout_settings_path = os.path.join("Artemis_Data", "editor_layout.json") # Changed extension
+        self.layout_settings_path = os.path.join(os.path.dirname(__file__), "Artemis_Data", "editor_layout.json") # Changed extension
  
         # --- Layout Save Timer (Removed) ---
  
@@ -452,9 +455,11 @@ class ArtemisEditorWindow(QMainWindow):
         if not self._confirm_unsaved_changes():
             return # User cancelled
 
-        levels_dir = os.path.join(os.getcwd(), "Ping_Levels")
+        # Always point to main project directory for level files
+        project_root = os.path.join(os.path.dirname(__file__), '..')
+        levels_dir = os.path.join(project_root, "Ping", "Ping_Levels")
         if not os.path.exists(levels_dir):
-            levels_dir = os.getcwd()
+            levels_dir = project_root
 
         filepath, selected_filter = QFileDialog.getOpenFileName(
             self, "Open Level File", levels_dir,
@@ -494,13 +499,15 @@ class ArtemisEditorWindow(QMainWindow):
         perform_save_as = save_as or not target_path
 
         if perform_save_as:
-            levels_dir = os.path.join(os.getcwd(), "Ping_Levels")
+            # Always point to main project directory for level files
+            project_root = os.path.join(os.path.dirname(__file__), '..')
+            levels_dir = os.path.join(project_root, "Ping", "Ping_Levels")
             if not os.path.exists(levels_dir):
                 try:
                     os.makedirs(levels_dir)
                 except OSError as e:
                     print(f"Warning: Could not create default save directory '{levels_dir}': {e}")
-                    levels_dir = os.getcwd()
+                    levels_dir = project_root
 
             suggested_name = os.path.basename(target_path) if target_path else "untitled.pmf"
             initial_path = os.path.join(levels_dir, suggested_name)

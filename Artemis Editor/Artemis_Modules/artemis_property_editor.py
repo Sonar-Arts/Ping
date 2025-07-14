@@ -160,7 +160,7 @@ class PropertyEditorWidget(QWidget):
                         sprite_combo.addItem("None")  # Allow removing sprite
                         
                         # Populate sprite list from Sprites directory
-                        sprite_dir = os.path.join("Ping Assets", "Images", "Sprites")
+                        sprite_dir = os.path.join("..", "Ping", "Ping Assets", "Images", "Sprites")
                         if os.path.exists(sprite_dir):
                             for filename in sorted(os.listdir(sprite_dir)):
                                 if any(filename.lower().endswith(ext) for ext in ['.png', '.webp', '.jpg', '.jpeg']):
@@ -305,7 +305,7 @@ class PropertyEditorWidget(QWidget):
 
         # Use same logic as level_view: Construct full path from workspace root
         base_path = "." # Use relative path from workspace root
-        relative_folder = os.path.join("Ping Assets", "Images", "Sprites")
+        relative_folder = os.path.join("..", "Ping", "Ping Assets", "Images", "Sprites")
         full_path = os.path.join(base_path, relative_folder, relative_path)
         full_path = os.path.normpath(full_path)
 
@@ -341,7 +341,7 @@ class PropertyEditorWidget(QWidget):
             return
 
         # Directory where sprites are stored, relative to the workspace root
-        sprite_dir_relative = os.path.join("Ping Assets", "Images", "Sprites")
+        sprite_dir_relative = os.path.join("..", "Ping", "Ping Assets", "Images", "Sprites")
         sprite_dir_abs = os.path.abspath(os.path.join(os.getcwd(), sprite_dir_relative))
         sprite_dir_abs = os.path.normpath(sprite_dir_abs)
 

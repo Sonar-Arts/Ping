@@ -12,7 +12,8 @@ import os
 # Ensure the Modules directory is in the Python path
 # This might be handled better by project structure or startup script in a real app
 # Use a direct import assuming the script is run from the project root (c:/Users/Chace/Ping)
-from Modules.ping_graphics import get_available_backgrounds
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from Ping.Modules.ping_graphics import get_available_backgrounds
 
 class BackgroundPalette(QWidget):
     """

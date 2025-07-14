@@ -5,6 +5,14 @@ from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
 from .Ping_Sound import SoundManager
 
+def get_ping_levels_path():
+    """Get the correct path to Ping_Levels directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Ping_Levels
+    ping_levels_dir = os.path.join(current_dir, "..", "..", "Ping_Levels")
+    return os.path.normpath(ping_levels_dir)
+
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -23,7 +31,7 @@ class LevelSelect:
         # Removed hardcoded Debug and Sewer levels
 
         # Scan for PMF files
-        level_dir = "Ping_Levels"
+        level_dir = get_ping_levels_path()
         try:
             if os.path.isdir(level_dir):
                 for filename in os.listdir(level_dir):

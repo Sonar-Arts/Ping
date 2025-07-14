@@ -2,9 +2,18 @@ import pygame
 import math
 import random
 import time
+import os
 from sys import exit
 from .Ping_Fonts import get_pixel_font
 from .Ping_Button import get_button
+
+def get_game_parameters_path():
+    """Get the correct path to Game Parameters directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Game Parameters
+    game_params_dir = os.path.join(current_dir, "..", "..", "Game Parameters")
+    return os.path.normpath(game_params_dir)
 
 class RetroAnimatedBackground:
     """Ultra-creative animated retro background for settings menu."""
@@ -680,7 +689,7 @@ class SettingsScreen:
     def get_dimensions(cls):
         """Get current window dimensions."""
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 settings = dict(line.strip().split('=') for line in f
                               if '=' in line and not line.strip().startswith('#'))
                 width = int(settings.get('WINDOW_WIDTH', cls.WINDOW_WIDTH))
@@ -696,7 +705,7 @@ class SettingsScreen:
         try:
             current_settings = {}
             try:
-                with open("Game Parameters/settings.txt", "r") as f:
+                with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                     current_settings = dict(line.strip().split('=') for line in f
                                          if '=' in line and not line.strip().startswith('#'))
             except:
@@ -705,7 +714,7 @@ class SettingsScreen:
             current_settings['WINDOW_WIDTH'] = width
             current_settings['WINDOW_HEIGHT'] = height
 
-            with open("Game Parameters/settings.txt", "w") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "w") as f:
                 for key, value in current_settings.items():
                     f.write(f"{key}={value}\n")
             return True
@@ -717,7 +726,7 @@ class SettingsScreen:
     def get_player_name(cls):
         """Get current player name from settings."""
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 settings = dict(line.strip().split('=') for line in f
                               if '=' in line and not line.strip().startswith('#'))
                 return settings.get('PLAYER_NAME', cls.PLAYER_NAME)
@@ -731,7 +740,7 @@ class SettingsScreen:
         try:
             current_settings = {}
             try:
-                with open("Game Parameters/settings.txt", "r") as f:
+                with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                     current_settings = dict(line.strip().split('=') for line in f
                                          if '=' in line and not line.strip().startswith('#'))
             except:
@@ -739,7 +748,7 @@ class SettingsScreen:
 
             current_settings['PLAYER_NAME'] = name
 
-            with open("Game Parameters/settings.txt", "w") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "w") as f:
                 for key, value in current_settings.items():
                     f.write(f"{key}={value}\n")
             return True
@@ -750,7 +759,7 @@ class SettingsScreen:
     def get_shader_enabled(cls):
         """Get current shader enabled state from settings."""
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 settings = dict(line.strip().split('=') for line in f
                               if '=' in line and not line.strip().startswith('#'))
                 return settings.get('SHADER_ENABLED', 'true').lower() == 'true'
@@ -763,11 +772,11 @@ class SettingsScreen:
         """Update shader enabled state in settings file."""
         try:
             current_settings = {}
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 current_settings = dict(line.strip().split('=') for line in f
                                    if '=' in line and not line.strip().startswith('#'))
             current_settings['SHADER_ENABLED'] = str(enabled).lower()
-            with open("Game Parameters/settings.txt", "w") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "w") as f:
                 for key, value in current_settings.items():
                     f.write(f"{key}={value}\n")
             return True
@@ -779,7 +788,7 @@ class SettingsScreen:
     def get_win_scores(cls):
         """Get current win scores setting."""
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 settings = dict(line.strip().split('=') for line in f
                            if '=' in line and not line.strip().startswith('#'))
                 return int(settings.get('WIN_SCORES', cls.WIN_SCORES))
@@ -792,11 +801,11 @@ class SettingsScreen:
         """Update win scores in settings file."""
         try:
             current_settings = {}
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 current_settings = dict(line.strip().split('=') for line in f
                                    if '=' in line and not line.strip().startswith('#'))
             current_settings['WIN_SCORES'] = scores
-            with open("Game Parameters/settings.txt", "w") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "w") as f:
                 for key, value in current_settings.items():
                     f.write(f"{key}={value}\n")
             return True
@@ -810,7 +819,7 @@ class SettingsScreen:
         # Default to False if not found or error occurs
         default_value = False
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 settings = dict(line.strip().split('=') for line in f
                               if '=' in line and not line.strip().startswith('#'))
                 # Read as string 'true'/'false' and convert to boolean
@@ -825,7 +834,7 @@ class SettingsScreen:
         try:
             current_settings = {}
             try: # Read existing settings first to preserve others
-                with open("Game Parameters/settings.txt", "r") as f:
+                with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                     current_settings = dict(line.strip().split('=') for line in f
                                          if '=' in line and not line.strip().startswith('#'))
             except FileNotFoundError:
@@ -836,7 +845,7 @@ class SettingsScreen:
 
             current_settings['SOUND_DEBUG_ENABLED'] = str(enabled).lower() # Save as 'true' or 'false'
 
-            with open("Game Parameters/settings.txt", "w") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "w") as f:
                 for key, value in current_settings.items():
                     f.write(f"{key}={value}\n")
             return True
@@ -922,7 +931,7 @@ class SettingsScreen:
     def _load_settings(self):
         """Load settings from the settings file."""
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "r") as f:
                 settings = {}
                 for line in f:
                     if '=' in line and not line.strip().startswith('#'):
@@ -986,7 +995,7 @@ class SettingsScreen:
                 'SCORE_EFFECT_INTENSITY': self.score_effect_intensity
             }
 
-            with open("Game Parameters/settings.txt", "w") as f:
+            with open(os.path.join(get_game_parameters_path(), "settings.txt"), "w") as f:
                 for key, value in settings_dict.items():
                     f.write(f"{key}={value}\n")
             return True

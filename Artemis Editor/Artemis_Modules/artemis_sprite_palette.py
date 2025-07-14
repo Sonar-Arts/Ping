@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem, 
 from PyQt6.QtCore import pyqtSignal, Qt
 
 # Define the path to the sprites directory relative to the project root
-SPRITE_DIR = "Ping Assets/Images/Sprites"
+SPRITE_DIR = "../Ping/Ping Assets/Images/Sprites"
 ALLOWED_EXTENSIONS = {".png", ".webp", ".jpg", ".jpeg"} # Match extensions supported by LevelView
 
 class SpritePalette(QWidget):

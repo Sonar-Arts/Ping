@@ -22,9 +22,11 @@ from .artemis_tool_palette import TOOL_ERASER, TOOL_SELECT # Import from the new
 
 # Import background drawing functions from the main game module
 try:
-    from Modules.ping_graphics import get_background_draw_function, generate_sludge_texture
+    import sys
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+    from Ping.Modules.ping_graphics import get_background_draw_function, generate_sludge_texture
 except ImportError as e:
-    print(f"Warning: Could not import from Modules.ping_graphics: {e}")
+    print(f"Warning: Could not import from Ping.Modules.ping_graphics: {e}")
     get_background_draw_function = None
     generate_sludge_texture = None
 
@@ -427,7 +429,7 @@ class LevelViewWidget(QWidget):
 
                 if image_path not in self.sprite_cache:
                     try:
-                        full_path = os.path.join("Ping Assets", "Images", "Sprites", image_path)
+                        full_path = os.path.join("..", "Ping", "Ping Assets", "Images", "Sprites", image_path)
                         full_path = os.path.normpath(full_path)
                         if not os.path.isfile(full_path):
                             raise FileNotFoundError(f"Sprite file not found: {full_path}")

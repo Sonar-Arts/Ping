@@ -1,10 +1,12 @@
 import os
+import sys
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFormLayout,
                              QLineEdit, QSpinBox, QCheckBox, QComboBox, QSlider) # Added QCheckBox, QComboBox, QSlider
 from PyQt6.QtCore import Qt, pyqtSignal
 from functools import partial # Added partial
 # Import SoundManager to access music definitions
-from Modules.Submodules.Ping_Sound import SoundManager
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from Ping.Modules.Submodules.Ping_Sound import SoundManager
 
 class LevelPropertiesWidget(QWidget):
     """Widget to display and edit level-specific properties."""

@@ -4,9 +4,12 @@ Artemis Editor - Object Palette Module
 This module contains the widget that displays available game objects
 (like obstacles, balls, power-ups) that can be placed onto the level canvas.
 """
+import sys
+import os
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
-from Modules.Ping_GameObjects import Pickles
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from Ping.Modules.Ping_GameObjects import Pickles
 
 # --- Default Properties ---
 # Derived from Ping_GameObjects.py, Ping_Obstacles.py, Ping_Paddle.py, Ping_Ball.py

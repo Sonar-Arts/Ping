@@ -1,6 +1,14 @@
 import pygame
 import os
 
+def get_ping_assets_path():
+    """Get the correct path to Ping Assets directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Ping Assets
+    ping_assets_dir = os.path.join(current_dir, "..", "..", "Ping Assets")
+    return os.path.normpath(ping_assets_dir)
+
 class Paddle:
     def __init__(self, x, y, width, height, is_left_paddle=True):
         """Initialize a paddle object."""
@@ -11,8 +19,8 @@ class Paddle:
         self.moving_down = False
         
         # Load the appropriate sprite based on paddle side
-        sprite_path = os.path.join('Ping Assets', 'Images', 'Sprites',
-                                 'default_paddle_left.webp' if is_left_paddle else 'default_paddle_right.webp')
+        sprite_filename = 'default_paddle_left.webp' if is_left_paddle else 'default_paddle_right.webp'
+        sprite_path = os.path.join(get_ping_assets_path(), 'Images', 'Sprites', sprite_filename)
         self.sprite = pygame.image.load(sprite_path).convert_alpha()
         
         # Scale sprite to match paddle dimensions

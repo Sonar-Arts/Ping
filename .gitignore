@@ -38,3 +38,9 @@ AIImprove.MD
 
 # Documentation
 docs/
+
+# Artemis Editor layout
+Artemis Editor/Artemis_Data/editor_layout.json
+
+# Game settings
+Game Parameters/settings.txt

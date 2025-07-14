@@ -7,6 +7,31 @@ from queue import Queue, Empty, Full
 from collections import deque
 from ..Submodules.Ping_Settings import SettingsScreen # Import SettingsScreen
 
+def get_game_parameters_path():
+    """Get the correct path to Game Parameters directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Game Parameters
+    game_params_dir = os.path.join(current_dir, "..", "..", "Game Parameters")
+    return os.path.normpath(game_params_dir)
+
+def get_ping_assets_path():
+    """Get the correct path to Ping Assets directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Ping Assets
+    ping_assets_dir = os.path.join(current_dir, "..", "..", "Ping Assets")
+    return os.path.normpath(ping_assets_dir)
+
+def get_ping_sounds_path():
+    """Get the correct path to Ping_Sounds directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Ping_Sounds
+    ping_sounds_dir = os.path.join(current_dir, "..", "..", "Ping_Sounds")
+    return os.path.normpath(ping_sounds_dir)
+
+
 # --- Constants ---
 DEFAULT_SFX_CHANNELS = 16
 DEFAULT_FADE_DURATION = 1.0
@@ -88,23 +113,23 @@ class SoundManager:
         # --- Sound Definitions (Example - load from config later?) ---
         self._sound_paths = {
             'sfx': {
-                'paddle': "Ping_Sounds/Ping_FX/Paddle.wav",
-                'score': "Ping_Sounds/Ping_FX/Score.wav",
-                'wahahoo': "Ping_Sounds/Ping_FX/wahahoo.wav",
-                'wall_break': "Ping_Sounds/Ping_FX/Ping-WallBreak.wav",
-                'bumper': "Ping_Sounds/Ping_FX/Ping-Bumper.wav",
+                'paddle': os.path.join(get_ping_sounds_path(), "Ping_FX", "Paddle.wav"),
+                'score': os.path.join(get_ping_sounds_path(), "Ping_FX", "Score.wav"),
+                'wahahoo': os.path.join(get_ping_sounds_path(), "Ping_FX", "wahahoo.wav"),
+                'wall_break': os.path.join(get_ping_sounds_path(), "Ping_FX", "Ping-WallBreak.wav"),
+                'bumper': os.path.join(get_ping_sounds_path(), "Ping_FX", "Ping-Bumper.wav"),
                 # Add more SFX here
             },
             'music': {
-                'intro_theme': "Ping Assets/Music/PIntroMusicTemp.wav",
-                'main_theme': "Ping Assets/Music/PMainMusicTemp.wav",
-                'sewer_zone': "Ping Assets/Music/PSewerZoneTemp.wav",
+                'intro_theme': os.path.join(get_ping_assets_path(), "Music", "PIntroMusicTemp.wav"),
+                'main_theme': os.path.join(get_ping_assets_path(), "Music", "PMainMusicTemp.wav"),
+                'sewer_zone': os.path.join(get_ping_assets_path(), "Music", "PSewerZoneTemp.wav"),
                 # Add more music tracks here
             }
         }
 
         # --- Automatic Music Discovery ---
-        music_dir = "Ping Assets/Music/"
+        music_dir = os.path.join(get_ping_assets_path(), "Music")
         allowed_extensions = {'.wav'} # Add other extensions like .ogg if needed
         if os.path.isdir(music_dir):
             logger.info(f"Scanning for music files in: {music_dir}")
@@ -226,7 +251,7 @@ class SoundManager:
         try:
             # Example: Reading from settings.txt
             volume_settings = {} # Store only valid volume settings
-            path = "Game Parameters/settings.txt"
+            path = os.path.join(get_game_parameters_path(), "settings.txt")
             expected_volume_keys = {'MASTER_VOLUME', 'EFFECTS_VOLUME', 'MUSIC_VOLUME'}
             if os.path.exists(path):
                  with open(path, "r") as f:
@@ -265,7 +290,7 @@ class SoundManager:
         """Placeholder: Save a single volume setting."""
          # Replace this with your actual settings saving logic
         try:
-            path = "Game Parameters/settings.txt"
+            path = os.path.join(get_game_parameters_path(), "settings.txt")
             if not os.path.exists(os.path.dirname(path)):
                  os.makedirs(os.path.dirname(path))
 
@@ -782,16 +807,16 @@ if __name__ == '__main__':
     pygame.display.set_mode((200, 100)) # Need a display for events
 
     # Create dummy sound files if they don't exist
-    os.makedirs("Ping_Sounds/Ping_FX", exist_ok=True)
-    os.makedirs("Ping Assets/Music", exist_ok=True)
+    os.makedirs(os.path.join(get_ping_sounds_path(), "Ping_FX"), exist_ok=True)
+    os.makedirs(os.path.join(get_ping_assets_path(), "Music"), exist_ok=True)
     dummy_files = {
-        "Ping_Sounds/Ping_FX/Paddle.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
-        "Ping_Sounds/Ping_FX/Score.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
-        "Ping_Sounds/Ping_FX/wahahoo.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
-        "Ping_Sounds/Ping_FX/Ping-Bumper.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
-        "Ping Assets/Music/PIntroMusicTemp.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
-        "Ping Assets/Music/PMainMusicTemp.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
-        "Ping Assets/Music/PSewerZoneTemp.wav": b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_sounds_path(), "Ping_FX", "Paddle.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_sounds_path(), "Ping_FX", "Score.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_sounds_path(), "Ping_FX", "wahahoo.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_sounds_path(), "Ping_FX", "Ping-Bumper.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_assets_path(), "Music", "PIntroMusicTemp.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_assets_path(), "Music", "PMainMusicTemp.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
+        os.path.join(get_ping_assets_path(), "Music", "PSewerZoneTemp.wav"): b'RIFF$\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00\xfa\x00\x00\x01\x00\x08\x00data\x00\x00\x00\x00',
     }
     for fpath, content in dummy_files.items():
         if not os.path.exists(fpath):
@@ -800,7 +825,7 @@ if __name__ == '__main__':
             print(f"Created dummy file: {fpath}")
 
     # Create dummy settings file
-    settings_path = "Game Parameters/settings.txt"
+    settings_path = os.path.join(get_game_parameters_path(), "settings.txt")
     if not os.path.exists(settings_path):
          os.makedirs(os.path.dirname(settings_path), exist_ok=True)
          with open(settings_path, "w") as f:

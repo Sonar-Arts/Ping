@@ -1,6 +1,15 @@
 import pygame
 import math
+import os
 from .Ping_Fonts import get_pixel_font
+
+def get_game_parameters_path():
+    """Get the correct path to Game Parameters directory."""
+    # Get the directory of this file (Ping/Modules/Submodules/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up two levels to get to Ping directory, then into Game Parameters
+    game_params_dir = os.path.join(current_dir, "..", "..", "Game Parameters")
+    return os.path.normpath(game_params_dir)
 
 class Scoreboard:
     """Handles the scoreboard display with retro arcade styling."""
@@ -27,7 +36,8 @@ class Scoreboard:
     def load_settings(self):
         """Load scoreboard style settings from settings file."""
         try:
-            with open("Game Parameters/settings.txt", "r") as f:
+            settings_path = os.path.join(get_game_parameters_path(), "settings.txt")
+            with open(settings_path, "r") as f:
                 settings = dict(line.strip().split('=') for line in f if '=' in line and not line.strip().startswith('#'))
             
             # Load and validate settings with defaults
