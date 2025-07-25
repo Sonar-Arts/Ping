@@ -97,13 +97,19 @@ class AnimatedBackground:
         pixel_size = 4 # Size of each 'pixel' block
         building_bottom = height
 
-        # Define a slightly wider palette for buildings
+        # Enhanced color palette with more variety and depth
         BUILDING_COLORS = [
-            (50, 55, 60), (55, 60, 65), (60, 65, 70),
-            (70, 75, 80), (75, 80, 85)
+            (45, 50, 55), (55, 60, 65), (60, 65, 70),  # Dark buildings
+            (70, 75, 80), (75, 80, 85), (80, 85, 90),  # Medium buildings
+            (85, 90, 95), (65, 70, 85), (55, 65, 75)   # Lighter and tinted buildings
         ]
-        WINDOW_COLOR_UNLIT = (30, 30, 35)
-        WINDOW_COLOR_LIT = (210, 210, 150) # Dim yellow light
+        
+        # Enhanced window colors with more variety
+        WINDOW_COLOR_UNLIT = (25, 25, 30)
+        WINDOW_COLOR_LIT_WARM = (220, 200, 140)    # Warm yellow light
+        WINDOW_COLOR_LIT_COOL = (140, 180, 220)    # Cool blue light
+        WINDOW_COLOR_LIT_RED = (200, 120, 100)     # Emergency/red light
+        WINDOW_COLOR_FLICKERING = (180, 160, 100)  # Dim/flickering light
 
         # Ensure skyline calculations are snapped to pixel grid
         skyline_height_base = round(height * 0.4 / pixel_size) * pixel_size
@@ -111,25 +117,62 @@ class AnimatedBackground:
 
         x = 0
         while x < width:
-            # Ensure width and height are multiples of pixel_size
-            building_width = random.randrange(pixel_size * 8, pixel_size * 25 + 1, pixel_size)
-            building_height = skyline_height_base + random.randrange(-skyline_height_variation, skyline_height_variation // 2 + 1, pixel_size)
-            building_height = max(pixel_size * 5, building_height) # Minimum height
+            # Create more architectural variety with different building types
+            building_type = random.choice(['residential', 'office', 'industrial', 'mixed'])
+            
+            # Building dimensions based on type for more realistic architecture
+            if building_type == 'residential':
+                building_width = random.randrange(pixel_size * 10, pixel_size * 18 + 1, pixel_size)
+                height_multiplier = random.uniform(0.8, 1.2)  # Medium height variation
+            elif building_type == 'office':
+                building_width = random.randrange(pixel_size * 12, pixel_size * 22 + 1, pixel_size)
+                height_multiplier = random.uniform(1.1, 1.8)  # Taller buildings
+            elif building_type == 'industrial':
+                building_width = random.randrange(pixel_size * 15, pixel_size * 28 + 1, pixel_size)
+                height_multiplier = random.uniform(0.6, 0.9)  # Wider, shorter buildings
+            else:  # mixed
+                building_width = random.randrange(pixel_size * 8, pixel_size * 20 + 1, pixel_size)
+                height_multiplier = random.uniform(0.9, 1.4)
+            
+            building_height = int((skyline_height_base + random.randrange(-skyline_height_variation, skyline_height_variation // 2 + 1, pixel_size)) * height_multiplier)
+            building_height = max(pixel_size * 6, building_height) # Slightly higher minimum
             building_top = building_bottom - building_height
 
             # Define the building's core rectangle (snapped to grid)
             building_rect = pygame.Rect(x, building_top, building_width, building_height)
-            base_color = random.choice(BUILDING_COLORS)
+            
+            # Choose base color based on building type for more realistic variety
+            if building_type == 'residential':
+                base_color = random.choice([(55, 65, 70), (65, 70, 85), (60, 65, 70), (70, 75, 80)])
+            elif building_type == 'office':
+                base_color = random.choice([(70, 75, 80), (75, 80, 85), (80, 85, 90), (85, 90, 95)])
+            elif building_type == 'industrial':
+                base_color = random.choice([(45, 50, 55), (55, 60, 65), (50, 55, 60), (60, 65, 70)])
+            else:  # mixed
+                base_color = random.choice(BUILDING_COLORS)
+            
+            # Calculate distance-based darkening for depth (buildings further back are darker)
+            distance_factor = min(1.0, x / (width * 0.7))  # Buildings get darker toward the back
+            depth_modifier = int(distance_factor * 15)  # Up to 15 units darker
+            base_color = (
+                max(30, base_color[0] - depth_modifier),
+                max(30, base_color[1] - depth_modifier), 
+                max(30, base_color[2] - depth_modifier)
+            )
 
-            # --- Draw Building using Pixel Blocks ---
+            # --- Draw Building using Pixel Blocks with subtle gradient ---
             for px in range(building_rect.left, building_rect.right, pixel_size):
                 for py in range(building_rect.top, building_rect.bottom, pixel_size):
+                    # Add subtle vertical gradient (darker at bottom)
+                    height_factor = (py - building_rect.top) / building_height
+                    gradient_modifier = int(height_factor * 8)  # Up to 8 units darker at bottom
+                    
                     # Add slight random color variation for texture
-                    tex_color_mod = random.randint(-5, 5)
+                    tex_color_mod = random.randint(-3, 3)
                     tex_color = (
-                        max(0, min(255, base_color[0] + tex_color_mod)),
-                        max(0, min(255, base_color[1] + tex_color_mod)),
-                        max(0, min(255, base_color[2] + tex_color_mod))
+                        max(0, min(255, base_color[0] + tex_color_mod - gradient_modifier)),
+                        max(0, min(255, base_color[1] + tex_color_mod - gradient_modifier)),
+                        max(0, min(255, base_color[2] + tex_color_mod - gradient_modifier))
                     )
                     pygame.draw.rect(surface, tex_color, (px, py, pixel_size, pixel_size))
 
@@ -148,53 +191,208 @@ class AnimatedBackground:
                      for py in range(mod_y_start, mod_y_end, pixel_size):
                           pygame.draw.rect(surface, (20, 20, 30, 255), (px, py, pixel_size, pixel_size))
 
-            # --- Add Pixelated Windows ---
-            window_chance = 0.6 # Chance for a potential window spot to actually have one
-            for wx in range(building_rect.left + pixel_size, building_rect.right - pixel_size * 2, pixel_size * 3): # Spaced out windows
-                for wy in range(building_rect.top + pixel_size, building_rect.bottom - pixel_size * 2, pixel_size * 3):
+            # --- Add Architectural Windows Based on Building Type ---
+            # Adjust window patterns and lighting based on building type
+            if building_type == 'residential':
+                window_chance = 0.55  # Moderate window density
+                window_spacing_x = pixel_size * 4  # Wider spacing for residential
+                window_spacing_y = pixel_size * 5  # Taller spacing between floors
+                light_chance_total = 0.06  # 6% total lit windows - more subtle
+            elif building_type == 'office':
+                window_chance = 0.75  # High window density for office buildings
+                window_spacing_x = pixel_size * 3  # Closer spacing
+                window_spacing_y = pixel_size * 4  # Regular floor spacing
+                light_chance_total = 0.08  # 8% lit windows - late workers
+            elif building_type == 'industrial':
+                window_chance = 0.35  # Lower window density
+                window_spacing_x = pixel_size * 5  # Wider industrial windows
+                window_spacing_y = pixel_size * 6  # Taller industrial spaces
+                light_chance_total = 0.04  # 4% lit windows - minimal lighting
+            else:  # mixed
+                window_chance = 0.60
+                window_spacing_x = pixel_size * 3
+                window_spacing_y = pixel_size * 4
+                light_chance_total = 0.07  # 7% lit windows
+            
+            for wx in range(building_rect.left + pixel_size, building_rect.right - pixel_size * 2, window_spacing_x):
+                for wy in range(building_rect.top + pixel_size * 2, building_rect.bottom - pixel_size * 3, window_spacing_y):
                     if random.random() < window_chance:
-                        # Choose lit or unlit (Reduced chance for lit)
-                        win_color = WINDOW_COLOR_LIT if random.random() < 0.05 else WINDOW_COLOR_UNLIT # 5% chance lit
-                        pygame.draw.rect(surface, win_color, (wx, wy, pixel_size, pixel_size)) # Simple 1-pixel window
+                        # Much more subtle lighting - reduced frequency across all types
+                        light_chance = random.random()
+                        if light_chance < light_chance_total:
+                            # Distribute the reduced lighting across different types
+                            relative_chance = light_chance / light_chance_total
+                            if relative_chance < 0.6:  # 60% of lit windows are warm
+                                win_color = WINDOW_COLOR_LIT_WARM
+                            elif relative_chance < 0.85:  # 25% cool light
+                                win_color = WINDOW_COLOR_LIT_COOL
+                            elif relative_chance < 0.95:  # 10% red light  
+                                win_color = WINDOW_COLOR_LIT_RED
+                            else:  # 5% flickering
+                                win_color = WINDOW_COLOR_FLICKERING
+                        else:
+                            win_color = WINDOW_COLOR_UNLIT
+                        
+                        # Draw windows with architectural variety
+                        if building_type == 'office':
+                            # Larger office windows
+                            pygame.draw.rect(surface, win_color, (wx, wy, pixel_size * 2, pixel_size * 3))
+                        elif building_type == 'industrial':
+                            # Wide industrial windows
+                            pygame.draw.rect(surface, win_color, (wx, wy, pixel_size * 3, pixel_size * 2))
+                        else:
+                            # Standard residential/mixed windows
+                            pygame.draw.rect(surface, win_color, (wx, wy, pixel_size * 2, pixel_size * 2))
+                        
+                        # Add subtle window frame only for lit windows
+                        if win_color != WINDOW_COLOR_UNLIT:
+                            frame_color = (max(0, win_color[0] - 50), max(0, win_color[1] - 50), max(0, win_color[2] - 50))
+                            # Very subtle frame
+                            pygame.draw.rect(surface, frame_color, (wx - pixel_size//4, wy - pixel_size//4, 
+                                           (pixel_size * 3 if building_type == 'industrial' else pixel_size * 2) + pixel_size//2, 
+                                           (pixel_size * 3 if building_type == 'office' else pixel_size * 2) + pixel_size//2), pixel_size//4)
 
-            # --- Add Simple Antenna (sometimes) ---
-            if random.random() < 0.2: # 20% chance for an antenna
-                antenna_x = random.randrange(building_rect.left, building_rect.right, pixel_size)
-                antenna_height = random.randrange(pixel_size * 3, pixel_size * 8 + 1, pixel_size)
-                antenna_color = (40, 40, 40)
-                for ay in range(building_rect.top - antenna_height, building_rect.top, pixel_size):
-                    pygame.draw.rect(surface, antenna_color, (antenna_x, ay, pixel_size, pixel_size))
+            # --- Add Building-Type Specific Rooftop Details ---
+            rooftop_chance = random.random()
+            rooftop_frequency = 0.30 if building_type == 'office' else 0.25 if building_type == 'industrial' else 0.20
+            
+            if rooftop_chance < rooftop_frequency:
+                feature_x = random.randrange(building_rect.left + pixel_size * 2, building_rect.right - pixel_size * 3, pixel_size)
+                
+                # Building-type specific rooftop features
+                if building_type == 'residential':
+                    if rooftop_chance < 0.08:  # Chimney for residential
+                        chimney_width = pixel_size * 2
+                        chimney_height = pixel_size * 4
+                        chimney_color = (65, 55, 50)  # Brick-like color
+                        for cx in range(feature_x, feature_x + chimney_width, pixel_size):
+                            for cy in range(building_rect.top - chimney_height, building_rect.top, pixel_size):
+                                pygame.draw.rect(surface, chimney_color, (cx, cy, pixel_size, pixel_size))
+                        # Chimney cap
+                        cap_color = (75, 65, 60)
+                        pygame.draw.rect(surface, cap_color, (feature_x - pixel_size//2, building_rect.top - chimney_height - pixel_size//2, chimney_width + pixel_size, pixel_size))
+                    
+                    elif rooftop_chance < 0.15:  # Small residential antenna
+                        antenna_height = pixel_size * 5
+                        antenna_color = (45, 45, 45)
+                        for ay in range(building_rect.top - antenna_height, building_rect.top, pixel_size):
+                            pygame.draw.rect(surface, antenna_color, (feature_x, ay, pixel_size, pixel_size))
+                        # Simple crossbeam
+                        pygame.draw.rect(surface, antenna_color, (feature_x - pixel_size, building_rect.top - antenna_height // 2, pixel_size * 3, pixel_size))
+                
+                elif building_type == 'office':
+                    if rooftop_chance < 0.10:  # HVAC system for office
+                        hvac_width = pixel_size * 5
+                        hvac_height = pixel_size * 3
+                        hvac_color = (60, 65, 70)
+                        for hx in range(feature_x, feature_x + hvac_width, pixel_size):
+                            for hy in range(building_rect.top - hvac_height, building_rect.top, pixel_size):
+                                pygame.draw.rect(surface, hvac_color, (hx, hy, pixel_size, pixel_size))
+                        # HVAC vents
+                        vent_color = (50, 55, 60)
+                        for vx in range(feature_x + pixel_size, feature_x + hvac_width - pixel_size, pixel_size * 2):
+                            pygame.draw.rect(surface, vent_color, (vx, building_rect.top - pixel_size, pixel_size, pixel_size))
+                    
+                    elif rooftop_chance < 0.20:  # Communication array
+                        array_height = pixel_size * 8
+                        array_color = (55, 60, 65)
+                        # Main support
+                        for ay in range(building_rect.top - array_height, building_rect.top, pixel_size):
+                            pygame.draw.rect(surface, array_color, (feature_x, ay, pixel_size, pixel_size))
+                        # Multiple dishes
+                        for dish_y in range(building_rect.top - array_height + pixel_size, building_rect.top - pixel_size, pixel_size * 3):
+                            pygame.draw.rect(surface, array_color, (feature_x - pixel_size, dish_y, pixel_size * 3, pixel_size))
+                
+                elif building_type == 'industrial':
+                    if rooftop_chance < 0.12:  # Industrial smokestack
+                        stack_width = pixel_size * 2
+                        stack_height = pixel_size * 8
+                        stack_color = (45, 50, 55)
+                        for sx in range(feature_x, feature_x + stack_width, pixel_size):
+                            for sy in range(building_rect.top - stack_height, building_rect.top, pixel_size):
+                                pygame.draw.rect(surface, stack_color, (sx, sy, pixel_size, pixel_size))
+                        # Stack top/cap
+                        cap_color = (55, 60, 65)
+                        pygame.draw.rect(surface, cap_color, (feature_x - pixel_size//2, building_rect.top - stack_height - pixel_size, stack_width + pixel_size, pixel_size))
+                    
+                    elif rooftop_chance < 0.20:  # Industrial cooling unit
+                        cooling_width = pixel_size * 6
+                        cooling_height = pixel_size * 2
+                        cooling_color = (50, 55, 60)
+                        for cx in range(feature_x, feature_x + cooling_width, pixel_size):
+                            for cy in range(building_rect.top - cooling_height, building_rect.top, pixel_size):
+                                pygame.draw.rect(surface, cooling_color, (cx, cy, pixel_size, pixel_size))
+                        # Cooling fins
+                        fin_color = (40, 45, 50)
+                        for fx in range(feature_x, feature_x + cooling_width, pixel_size * 2):
+                            pygame.draw.rect(surface, fin_color, (fx, building_rect.top - cooling_height - pixel_size//2, pixel_size, pixel_size//2))
+                
+                else:  # mixed - water tower or general antenna
+                    if rooftop_chance < 0.10:  # Water tower
+                        tower_width = pixel_size * 3
+                        tower_height = pixel_size * 6
+                        tower_color = (60, 65, 70)
+                        # Draw water tower base
+                        for tx in range(feature_x, feature_x + tower_width, pixel_size):
+                            for ty in range(building_rect.top - tower_height, building_rect.top - pixel_size * 2, pixel_size):
+                                pygame.draw.rect(surface, tower_color, (tx, ty, pixel_size, pixel_size))
+                        # Draw water tower tank (top part)
+                        tank_color = (70, 75, 80)
+                        for tx in range(feature_x - pixel_size//2, feature_x + tower_width + pixel_size//2, pixel_size):
+                            for ty in range(building_rect.top - tower_height - pixel_size * 2, building_rect.top - tower_height, pixel_size):
+                                pygame.draw.rect(surface, tank_color, (tx, ty, pixel_size, pixel_size))
 
-            # --- Apply Damage (Remove larger chunks) ---
-            num_damage_chunks = random.randint(0, 3) # 0 to 3 chunks removed per building
-            damage_zone_height = building_height * 0.6 # Apply damage mostly to the top 60%
-            damage_zone_top = building_rect.top
+            # --- Apply Enhanced Damage (Remove larger chunks with better patterns) ---
+            damage_intensity = random.choice([0, 1, 2, 3, 4])  # More variation in damage
+            if damage_intensity > 0:
+                damage_zone_height = building_height * 0.7 # Apply damage to more of the building
+                damage_zone_top = building_rect.top
 
-            for _ in range(num_damage_chunks):
-                # Chunk size (multiples of pixel_size)
-                chunk_w = random.randrange(pixel_size * 2, pixel_size * 8 + 1, pixel_size)
-                chunk_h = random.randrange(pixel_size * 2, pixel_size * 8 + 1, pixel_size)
+                for _ in range(damage_intensity):
+                    # More varied chunk sizes based on damage type
+                    if random.random() < 0.3:  # Large blast damage
+                        chunk_w = random.randrange(pixel_size * 6, pixel_size * 12 + 1, pixel_size)
+                        chunk_h = random.randrange(pixel_size * 6, pixel_size * 12 + 1, pixel_size)
+                    else:  # Small debris damage
+                        chunk_w = random.randrange(pixel_size * 2, pixel_size * 6 + 1, pixel_size)
+                        chunk_h = random.randrange(pixel_size * 2, pixel_size * 6 + 1, pixel_size)
 
-                # Chunk position (biased towards top and edges)
-                # Bias Y towards top
-                max_y = damage_zone_top + damage_zone_height - chunk_h
-                chunk_y = random.triangular(damage_zone_top, max_y, damage_zone_top) # triangular distribution peaks at the top
-                chunk_y = round(chunk_y / pixel_size) * pixel_size # Snap to grid
+                    # Enhanced positioning with more realistic damage patterns
+                    max_y = damage_zone_top + damage_zone_height - chunk_h
+                    
+                    # Create more realistic damage clustering
+                    if random.random() < 0.4:  # 40% chance for top damage (explosions from above)
+                        chunk_y = random.triangular(damage_zone_top, damage_zone_top + damage_zone_height * 0.3, damage_zone_top)
+                    else:  # Random damage throughout
+                        chunk_y = random.uniform(damage_zone_top, max_y)
+                    chunk_y = round(chunk_y / pixel_size) * pixel_size
 
-                # Bias X towards edges
-                max_x = building_rect.right - chunk_w
-                if random.random() < 0.5: # Bias left
-                    chunk_x = random.triangular(building_rect.left, max_x, building_rect.left)
-                else: # Bias right
-                    chunk_x = random.triangular(building_rect.left, max_x, max_x)
-                chunk_x = round(chunk_x / pixel_size) * pixel_size # Snap to grid
+                    # Enhanced edge bias for more realistic structural damage
+                    max_x = building_rect.right - chunk_w
+                    edge_bias = random.random()
+                    if edge_bias < 0.4:  # Left edge bias
+                        chunk_x = random.triangular(building_rect.left, building_rect.left + building_width * 0.3, building_rect.left)
+                    elif edge_bias < 0.8:  # Right edge bias  
+                        chunk_x = random.triangular(building_rect.right - building_width * 0.3, max_x, max_x)
+                    else:  # Center damage
+                        chunk_x = random.uniform(building_rect.left + building_width * 0.2, building_rect.right - building_width * 0.2 - chunk_w)
+                    chunk_x = round(chunk_x / pixel_size) * pixel_size
 
-                # Ensure chunk is within building bounds (horizontally)
-                chunk_x = max(building_rect.left, min(chunk_x, building_rect.right - chunk_w))
+                    # Ensure chunk is within building bounds
+                    chunk_x = max(building_rect.left, min(chunk_x, building_rect.right - chunk_w))
+                    chunk_y = max(damage_zone_top, min(chunk_y, damage_zone_top + damage_zone_height - chunk_h))
 
-                # Draw sky color to 'remove' the chunk
-                damage_rect = pygame.Rect(chunk_x, chunk_y, chunk_w, chunk_h)
-                pygame.draw.rect(surface, (20, 20, 30, 255), damage_rect)
+                    # Draw sky color to 'remove' the chunk
+                    damage_rect = pygame.Rect(chunk_x, chunk_y, chunk_w, chunk_h)
+                    pygame.draw.rect(surface, (20, 20, 30, 255), damage_rect)
+                    
+                    # Add debris/rubble effect around damage
+                    if random.random() < 0.6:  # 60% chance for debris
+                        debris_color = (max(15, base_color[0] - 20), max(15, base_color[1] - 20), max(15, base_color[2] - 20))
+                        debris_x = chunk_x + random.randrange(-pixel_size, chunk_w + pixel_size, pixel_size)
+                        debris_y = min(building_rect.bottom - pixel_size, chunk_y + chunk_h)
+                        if building_rect.left <= debris_x < building_rect.right:
+                            pygame.draw.rect(surface, debris_color, (debris_x, debris_y, pixel_size, pixel_size))
 
 
             # Move to next building position (ensure some gap/overlap, snapped)
@@ -441,6 +639,7 @@ class AnimatedBackground:
                     start_point = end_point # Move to next segment
 
 from .Submodules.Ping_MainMenu import MainMenu
+from .Submodules.Ping_QuickPlayMenu import QuickPlayMenu
 from .Submodules.Ping_Pause import PauseMenu
 from .Submodules.Ping_LevelSelect import LevelSelect
 from .Submodules.Ping_Fonts import get_pixel_font
@@ -557,7 +756,9 @@ def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console
 class TitleScreen:
     def __init__(self, sound_manager):
         self.menu = MainMenu(sound_manager) # Pass sound_manager to MainMenu
+        self.quick_play_menu = QuickPlayMenu(sound_manager) # Add Quick Play menu
         self.background = None
+        self.current_menu = "main"  # Track current menu state
 
     def display(self, screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
         """Display the title screen with game options."""
@@ -590,17 +791,37 @@ class TitleScreen:
             # (Requires debug_console.update to return more info or modify events list)
             # Example: events = [e for e in events if not processed_by_console]
 
-            menu_action = self.menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
+            # Handle input based on current menu
+            if self.current_menu == "main":
+                menu_action = self.menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
+                
+                if menu_action == "quit":
+                    pygame.quit()
+                    exit()
+                elif menu_action == "quick_play":
+                    self.current_menu = "quick_play"
+                elif menu_action == "campaign":
+                    # Campaign does nothing for now, just stay on main menu
+                    pass
+                elif menu_action is not None:  # Settings or other actions
+                    return menu_action
+            
+            elif self.current_menu == "quick_play":
+                quick_play_action = self.quick_play_menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
+                
+                if quick_play_action == "back":
+                    self.current_menu = "main"
+                elif quick_play_action is not None:  # True for 1P, False for 2P
+                    self.menu.sound_manager.stop_music()  # Stop music when starting game
+                    return quick_play_action
 
-            if menu_action == "quit":
-                pygame.quit()
-                exit()
-            elif menu_action is not None:  # Keep the fixed condition
-                return menu_action
-
-            self.background.update(dt)
-            self.background.draw(screen)
-            self.menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+            # Draw appropriate background and menu
+            if self.current_menu == "main":
+                self.background.update(dt)
+                self.background.draw(screen)
+                self.menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+            elif self.current_menu == "quick_play":
+                self.quick_play_menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
 
             if debug_console and debug_console.visible:
                 debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)

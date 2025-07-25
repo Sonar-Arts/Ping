@@ -54,7 +54,7 @@ class Ball:
 
 class MainMenu:
     def __init__(self, sound_manager):
-        self.options = ["1P Game", "2P Game", "Settings", "Quit"]
+        self.options = ["Campaign", "Quick Play", "Settings", "Quit"]
         self.selected_option = 0
         self.button = get_button() # Get the button renderer instance
         # Sound setup
@@ -109,12 +109,10 @@ class MainMenu:
                 elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                     # Action based on keyboard selection
                     action = self.options[self.selected_option].lower().replace(" ", "_")
-                    if action == "1p_game":
-                        self.sound_manager.stop_music() # Use new method
-                        return True # AI mode
-                    if action == "2p_game":
-                        self.sound_manager.stop_music() # Use new method
-                        return False # Player vs Player
+                    if action == "campaign":
+                        return "campaign"
+                    if action == "quick_play":
+                        return "quick_play"
                     if action == "settings":
                         self.sound_manager.stop_music() # Use new method
                         return "settings"
@@ -135,12 +133,10 @@ class MainMenu:
                         # Action based on clicked button
                         self.selected_option = i # Update selection to the clicked item
                         action = option.lower().replace(" ", "_")
-                        if action == "1p_game":
-                            self.sound_manager.stop_music() # Use new method
-                            return True # AI mode
-                        if action == "2p_game":
-                            self.sound_manager.stop_music() # Use new method
-                            return False # Player vs Player
+                        if action == "campaign":
+                            return "campaign"
+                        if action == "quick_play":
+                            return "quick_play"
                         if action == "settings":
                             self.sound_manager.stop_music() # Use new method
                             return "settings"
