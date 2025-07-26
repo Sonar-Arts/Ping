@@ -3,7 +3,7 @@ import os
 
 def get_ping_assets_path():
     """Get the correct path to Ping Assets directory."""
-    # Get the directory of this file (Ping/Modules/Submodules/)
+    # Get the directory of this file (Ping/Modules/Objects/)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # Go up two levels to get to Ping directory, then into Ping Assets
     ping_assets_dir = os.path.join(current_dir, "..", "..", "Ping Assets")

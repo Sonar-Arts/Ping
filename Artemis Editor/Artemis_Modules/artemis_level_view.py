@@ -7,11 +7,10 @@ with the Ping level being edited, using an embedded Pygame surface.
 import pygame
 import os
 import math # Added for spinner drawing calculations
-import random # For unique IDs initially
 import traceback # For error handling
 # Ensure pygame is imported for SysFont
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication, QSizePolicy # Removed QScrollArea
+from PyQt6.QtWidgets import QWidget, QSizePolicy # Removed QScrollArea
 # Import pyqtSignal
 # Ensure QRect is imported
 from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, QRect
@@ -24,7 +23,7 @@ from .artemis_tool_palette import TOOL_ERASER, TOOL_SELECT # Import from the new
 try:
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-    from Ping.Modules.ping_graphics import get_background_draw_function, generate_sludge_texture
+    from Ping.Modules.Graphics.ping_graphics import get_background_draw_function, generate_sludge_texture
 except ImportError as e:
     print(f"Warning: Could not import from Ping.Modules.ping_graphics: {e}")
     get_background_draw_function = None

@@ -1,6 +1,6 @@
 import pygame
 import time
-from ..Submodules.Ping_Fonts import get_pixel_font
+from .Ping_Fonts import get_pixel_font
 from collections import deque
 
 class DebugConsole:
@@ -174,7 +174,7 @@ class DebugConsole:
     
     def cmd_toggle_shader(self, args):
         """Toggle shader on/off."""
-        from ..Submodules.Ping_Settings import SettingsScreen
+        from ..Menus.Ping_Settings import SettingsScreen
         current = SettingsScreen.get_shader_enabled()
         SettingsScreen.update_shader_enabled(not current)
         self.log(f"Shader {'disabled' if current else 'enabled'}")
@@ -189,7 +189,7 @@ class DebugConsole:
             if new_score <= 0:
                 self.log("Error: Score must be greater than 0")
                 return
-            from ..Submodules.Ping_Settings import SettingsScreen
+            from ..Menus.Ping_Settings import SettingsScreen
             SettingsScreen.update_win_scores(new_score)
             self.log(f"Win scores set to {new_score}")
         except ValueError:
@@ -240,7 +240,7 @@ class DebugConsole:
         """Spawn a new ball in the game."""
         if self.game_state and hasattr(self.game_state, 'balls') and hasattr(self.game_state, 'arena'):
             try:
-                from ..Ping_GameObjects import BallObject
+                from Ping.Modules.Objects.Ping_GameObjects import BallObject
                 new_ball = BallObject(
                     arena_width=self.game_state.arena.width,
                     arena_height=self.game_state.arena.height,

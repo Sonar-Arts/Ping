@@ -1,10 +1,8 @@
 import pygame
-import random  # Import random for background generation
-import math  # Import math for river animation
-from .Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject
+from Ping.Modules.Objects.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, ManHoleObject
 # Removed import for DebugLevel, SewerLevel
-from .Submodules.Ping_Scoreboard import Scoreboard
-from .ping_graphics import draw_sewer_background # Import the new graphics function
+from Ping.Modules.Graphics.UI.Ping_Scoreboard import Scoreboard
+
 
 class Arena:
     """Represents the game arena where the Ping game takes place."""
@@ -28,12 +26,12 @@ class Arena:
         self._settings = None
         self._shader_instance = None
         try:
-            from .Submodules.Ping_Settings import SettingsScreen
-            from .Submodules.Ping_Shader import get_shader
+            from Ping.Modules.Graphics.Menus.Ping_Settings import SettingsScreen
+            from Ping.Modules.Graphics.Effects.Ping_Shader import get_shader
             self._settings = SettingsScreen
             self._shader_instance = get_shader()  # Create shader instance once
         except ImportError as e:
-            from .Submodules.Ping_DBConsole import get_console
+            from Ping.Modules.Graphics.UI.Ping_DBConsole import get_console
             debug_console = get_console()
             debug_console.log(f"Warning: Shader system unavailable: {e}")
             self._shader_warning_shown = True
@@ -353,7 +351,7 @@ class Arena:
                 return
             except Exception as e:
                 if not self._shader_warning_shown:
-                    from .Submodules.Ping_DBConsole import get_console
+                    from Ping.Modules.Graphics.UI.Ping_DBConsole import get_console
                     debug_console = get_console()
                     debug_console.log(f"Warning: Shader processing failed, using fallback rendering: {e}")
                     self._shader_warning_shown = True

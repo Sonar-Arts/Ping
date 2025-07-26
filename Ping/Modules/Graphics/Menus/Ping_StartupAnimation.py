@@ -4,8 +4,8 @@ import time
 import math
 import sys
 import random
-from .Ping_Fonts import get_pixel_font
-from .Ping_Sound import SoundManager
+from ..UI.Ping_Fonts import get_pixel_font
+from ...Audio.Ping_Sound import SoundManager
 
 # Ultra-Creative Animation Constants
 BACKGROUND_COLOR = (0, 5, 15)  # Deep ocean blue-black

@@ -2,8 +2,8 @@ import pygame
 import time
 import random
 import math
-from .Ping_Fonts import get_pixel_font
-from .Ping_Button import get_button
+from ..UI.Ping_Fonts import get_pixel_font
+from ..UI.Ping_Button import get_button
 
 # Colors
 WHITE = (255, 255, 255)

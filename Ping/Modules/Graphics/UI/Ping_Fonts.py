@@ -17,7 +17,10 @@ class FontManager:
                 return pygame.font.match_font(font)
                 
         # If not found in system fonts, try the project's font directory
-        font_dir = os.path.join("Ping Assets", "Fonts")
+        # Get the directory of this file (Ping/Modules/Submodules/Graphics/UI/)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up four levels to get to Ping directory, then into Ping Assets
+        font_dir = os.path.join(current_dir, "..", "..", "..", "..", "Ping Assets", "Fonts")
         font_path = os.path.join(font_dir, "PressStart2P-Regular.ttf")
         
         if os.path.exists(font_path):

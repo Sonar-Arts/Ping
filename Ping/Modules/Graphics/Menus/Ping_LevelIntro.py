@@ -1,7 +1,7 @@
 import pygame
 import time
 import random
-from .Ping_Fonts import get_pixel_font
+from ..UI.Ping_Fonts import get_pixel_font
 
 def _generate_random_color(min_brightness=50):
     """Generates a random RGB color tuple with minimum brightness."""

@@ -11,9 +11,6 @@ See /docs/old_ai_integration_backup.md for original system documentation.
 import random
 import math
 import time
-import pygame
-from .Ping_Arena import Arena
-from .Ping_GameObjects import PaddleObject
 
 
 class AIConfig:

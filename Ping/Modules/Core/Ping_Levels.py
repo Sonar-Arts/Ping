@@ -10,4 +10,4 @@ DEFAULT_HEIGHT = 600
 
 import random
 import pygame  # Import pygame for color definitions if not already present
-from .Ping_Sound import SoundManager
+from ..audio.Ping_Sound import SoundManager

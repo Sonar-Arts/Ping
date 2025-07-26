@@ -1,7 +1,7 @@
 import pygame
 from sys import exit
-from .Ping_Fonts import get_pixel_font
-from .Ping_Button import get_button
+from ..UI.Ping_Fonts import get_pixel_font
+from ..UI.Ping_Button import get_button
 
 class PauseMenu:
     def __init__(self, sound_manager):

@@ -4,7 +4,7 @@
 Widget for selecting the level background in the Artemis Editor.
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QLabel
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem
 from PyQt6.QtCore import pyqtSignal, Qt
 import sys
 import os
@@ -13,7 +13,7 @@ import os
 # This might be handled better by project structure or startup script in a real app
 # Use a direct import assuming the script is run from the project root (c:/Users/Chace/Ping)
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from Ping.Modules.ping_graphics import get_available_backgrounds
+from Ping.Modules.Graphics.ping_graphics import get_available_backgrounds
 
 class BackgroundPalette(QWidget):
     """

@@ -4,15 +4,15 @@ import random
 import time
 import os
 from sys import exit
-from .Ping_Fonts import get_pixel_font
-from .Ping_Button import get_button
+from ..UI.Ping_Fonts import get_pixel_font
+from ..UI.Ping_Button import get_button
 
 def get_game_parameters_path():
     """Get the correct path to Game Parameters directory."""
-    # Get the directory of this file (Ping/Modules/Submodules/)
+    # Get the directory of this file (Ping/Modules/Graphics/Menus/)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Go up two levels to get to Ping directory, then into Game Parameters
-    game_params_dir = os.path.join(current_dir, "..", "..", "Game Parameters")
+    # Go up three levels to get to Ping directory, then into Game Parameters
+    game_params_dir = os.path.join(current_dir, "..", "..", "..", "Game Parameters")
     return os.path.normpath(game_params_dir)
 
 class RetroAnimatedBackground:
@@ -1804,13 +1804,13 @@ class SettingsScreen:
                         if self.show_resolutions: self.show_display_modes = False # Close other dropdown
                         if not self.show_resolutions: self.dropdown_scroll_offset = 0
                     elif name_btn_rect.collidepoint(mouse_pos_rel):
-                        from ..Ping_UI import player_name_screen # Local import
+                        from ....Ping_UI import player_name_screen # Local import
                         # Pass debug console if available
                         new_name = player_name_screen(screen, pygame.time.Clock(), width, height, self.debug_console)
                         if new_name:
                             self.player_name = new_name
                     elif name_b_btn_rect.collidepoint(mouse_pos_rel):
-                        from ..Ping_UI import player_name_screen
+                        from ....Ping_UI import player_name_screen
                         new_name = player_name_screen(screen, pygame.time.Clock(), width, height, self.debug_console)
                         if new_name:
                             self.player_b_name = new_name

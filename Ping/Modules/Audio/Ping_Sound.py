@@ -5,11 +5,11 @@ import os
 import logging
 from queue import Queue, Empty, Full
 from collections import deque
-from ..Submodules.Ping_Settings import SettingsScreen # Import SettingsScreen
+from ..Graphics.Menus.Ping_Settings import SettingsScreen # Import SettingsScreen
 
 def get_game_parameters_path():
     """Get the correct path to Game Parameters directory."""
-    # Get the directory of this file (Ping/Modules/Submodules/)
+    # Get the directory of this file (Ping/Modules/Audio/)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # Go up two levels to get to Ping directory, then into Game Parameters
     game_params_dir = os.path.join(current_dir, "..", "..", "Game Parameters")
@@ -17,18 +17,18 @@ def get_game_parameters_path():
 
 def get_ping_assets_path():
     """Get the correct path to Ping Assets directory."""
-    # Get the directory of this file (Ping/Modules/Submodules/)
+    # Get the directory of this file (Ping/Modules/Audio/)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # Go up two levels to get to Ping directory, then into Ping Assets
     ping_assets_dir = os.path.join(current_dir, "..", "..", "Ping Assets")
     return os.path.normpath(ping_assets_dir)
 
 def get_ping_sounds_path():
-    """Get the correct path to Ping_Sounds directory."""
-    # Get the directory of this file (Ping/Modules/Submodules/)
+    """Get the correct path to Ping Assets/Sounds directory."""
+    # Get the directory of this file (Ping/Modules/Audio/)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Go up two levels to get to Ping directory, then into Ping_Sounds
-    ping_sounds_dir = os.path.join(current_dir, "..", "..", "Ping_Sounds")
+    # Go up two levels to get to Ping directory, then into Ping Assets/Sounds
+    ping_sounds_dir = os.path.join(current_dir, "..", "..", "Ping Assets", "Sounds")
     return os.path.normpath(ping_sounds_dir)
 
 
@@ -585,6 +585,11 @@ class SoundManager:
             to_channel = self._music_channel_b if from_channel == self._music_channel_a else self._music_channel_a
 
             try:
+                # Check if mixer is still initialized before proceeding
+                if not pygame.mixer.get_init():
+                    logger.error(f"Pygame mixer not initialized in music thread for '{target_name}'")
+                    return
+                
                 # Start loading/playing the new track on the 'to' channel at volume 0
                 logger.info(f"Attempting to load sound for '{target_name}' from: {target_path}")
                 sound_object = pygame.mixer.Sound(target_path) # Load sound here for streaming

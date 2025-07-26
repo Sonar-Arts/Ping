@@ -2,20 +2,18 @@ import pygame
 import pygame.sndarray
 import random
 import time
-from Modules.Submodules.Ping_Ball import Ball # Import Ball class for type checking
-import threading
-import numpy as np
+from Modules.Objects.Ping_Ball import Ball # Import Ball class for type checking
 from sys import exit
-from Modules.Ping_AI import PaddleAI
-from Modules.Ping_UI import init_display, settings_screen, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
-from Modules.Ping_GameObjects import PaddleObject, BallObject
-from Modules.Submodules.Ping_DBConsole import get_console
+from Ping.Modules.AI.Ping_AI import PaddleAI
+from Ping.Modules.Graphics.Ping_UI import init_display, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
+from Ping.Modules.Objects.Ping_GameObjects import PaddleObject, BallObject
+from Modules.Graphics.UI.Ping_DBConsole import get_console
 # Removed import for DebugLevel and SewerLevel as they no longer exist
-from Modules.Submodules.Ping_Fonts import get_pixel_font  # Moved import here
-from Modules.Submodules.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
-from Modules.Submodules.Ping_LevelIntro import play_level_intro # Import the level intro function
+from Modules.Graphics.UI.Ping_Fonts import get_pixel_font  # Moved import here
+from Modules.Graphics.Menus.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
+from Modules.Graphics.Menus.Ping_LevelIntro import play_level_intro # Import the level intro function
  
-from Modules.Submodules.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle # Import the RouletteSpinner, PistonObstacle, and TeslaCoilObstacle classes
+from Modules.Objects.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle # Import the RouletteSpinner, PistonObstacle, and TeslaCoilObstacle classes
 """
 Ping Base Code
 This is the base code for the Ping game, which includes the main game loop, event handling, and rendering.
@@ -27,9 +25,8 @@ This will serve as our base code skeleton for Ping. It is where all the upper ti
 pygame.init()
 pygame.mixer.init()
 
-from Modules.Ping_Arena import Arena # Import the old Arena for specific levels
-from Modules.Ping_MCompile import LevelCompiler # Import the new compiler for PMF levels
-from Modules.Submodules.Ping_Settings import SettingsScreen
+from Ping.Modules.Core.Ping_MCompile import LevelCompiler # Import the new compiler for PMF levels
+from Modules.Graphics.Menus.Ping_Settings import SettingsScreen
 
 # Initialize global debug console (singleton)
 debug_console = get_console()
@@ -133,7 +130,7 @@ except (pygame.error, FileNotFoundError) as e:
 clock = pygame.time.Clock()
 
 # Initialize sound manager
-from Modules.Submodules.Ping_Sound import SoundManager
+from Modules.Audio.Ping_Sound import SoundManager
 sound_manager = SoundManager()
 # Provide the console with access to the sound manager instance
 debug_console.sound_manager = sound_manager

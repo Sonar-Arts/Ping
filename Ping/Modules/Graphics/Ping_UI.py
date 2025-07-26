@@ -1,10 +1,8 @@
 import pygame
 import time
 import random
-import math # Added for lightning bolt generation
 from sys import exit
-from .Submodules.Ping_Settings import SettingsScreen
-from .Submodules.Ping_Fonts import get_pixel_font
+from Ping.Modules.Graphics.Menus.Ping_Settings import SettingsScreen
 
 # Colors
 WHITE = (255, 255, 255)
@@ -638,12 +636,12 @@ class AnimatedBackground:
 
                     start_point = end_point # Move to next segment
 
-from .Submodules.Ping_MainMenu import MainMenu
-from .Submodules.Ping_QuickPlayMenu import QuickPlayMenu
-from .Submodules.Ping_Pause import PauseMenu
-from .Submodules.Ping_LevelSelect import LevelSelect
-from .Submodules.Ping_Fonts import get_pixel_font
-from .Submodules.Ping_Button import get_button
+from Ping.Modules.Graphics.Menus.Ping_MainMenu import MainMenu
+from Ping.Modules.Graphics.Menus.Ping_QuickPlayMenu import QuickPlayMenu
+from Ping.Modules.Graphics.Menus.Ping_Pause import PauseMenu
+from Ping.Modules.Graphics.Menus.Ping_LevelSelect import LevelSelect
+from Ping.Modules.Graphics.UI.Ping_Fonts import get_pixel_font
+from Ping.Modules.Graphics.UI.Ping_Button import get_button
 
 def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, flags=0):
     """Initialize the display with the given dimensions and flags."""
@@ -660,7 +658,7 @@ def settings_screen(screen, clock, sound_manager, WINDOW_WIDTH, WINDOW_HEIGHT, i
 
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
     """Display the player name input screen."""
-    from .Submodules.Ping_Settings import SettingsScreen
+    from .Graphics.Menus.Ping_Settings import SettingsScreen
     scale_y = WINDOW_HEIGHT / 600
     scale_x = WINDOW_WIDTH / 800
     scale = min(scale_x, scale_y)

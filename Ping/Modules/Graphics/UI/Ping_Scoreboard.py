@@ -5,10 +5,10 @@ from .Ping_Fonts import get_pixel_font
 
 def get_game_parameters_path():
     """Get the correct path to Game Parameters directory."""
-    # Get the directory of this file (Ping/Modules/Submodules/)
+    # Get the directory of this file (Ping/Modules/Graphics/UI/)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Go up two levels to get to Ping directory, then into Game Parameters
-    game_params_dir = os.path.join(current_dir, "..", "..", "Game Parameters")
+    # Go up three levels to get to Ping directory, then into Game Parameters
+    game_params_dir = os.path.join(current_dir, "..", "..", "..", "Game Parameters")
     return os.path.normpath(game_params_dir)
 
 class Scoreboard:

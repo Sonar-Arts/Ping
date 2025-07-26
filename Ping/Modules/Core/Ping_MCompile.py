@@ -9,12 +9,13 @@ import math  # Import math for river animation
 import json # Import JSON for PMF parsing (assuming JSON format)
 import threading
 import time
-from .Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject, SpriteObject, CandleObject, GhostObstacleObject, Pickles # Import SpriteObject, CandleObject, GhostObstacleObject, and Pickles
-from .Submodules.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle, GhostObstacle # Import the new obstacles
+from Ping.Modules.Objects.Ping_GameObjects import ObstacleObject, GoalObject, PortalObject, PowerUpBallObject, BallObject, ManHoleObject, BumperObject, SpriteObject, CandleObject, GhostObstacleObject, Pickles # Import SpriteObject, CandleObject, GhostObstacleObject, and Pickles
+from Ping.Modules.Objects.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle, GhostObstacle # Import the new obstacles
 # Removed import for DebugLevel, SewerLevel
-from .Submodules.Ping_Scoreboard import Scoreboard
+from Ping.Modules.Graphics.UI.Ping_Scoreboard import Scoreboard
 # Import the generation function specifically
-from .ping_graphics import get_background_draw_function, generate_sludge_texture, load_sprite_image
+from Ping.Modules.Graphics.ping_graphics import get_background_draw_function, generate_sludge_texture
+
 
 class LevelCompiler: # Renamed from Arena
     """Handles loading and compiling level data from .pmf files or level instances."""
@@ -93,8 +94,8 @@ class LevelCompiler: # Renamed from Arena
         self._settings = None
         self._shader_instance = None
         try:
-            from .Submodules.Ping_Settings import SettingsScreen
-            from .Submodules.Ping_Shader import get_shader
+            from Ping.Modules.Graphics.Menus.Ping_Settings import SettingsScreen
+            from Ping.Modules.Graphics.Effects.Ping_Shader import get_shader
             self._settings = SettingsScreen
             self._shader_instance = get_shader()  # Create shader instance once
         except ImportError as e:
@@ -990,7 +991,7 @@ class LevelCompiler: # Renamed from Arena
     def _log_warning(self, message):
         """Logs a warning message, trying the debug console first."""
         try:
-            from .Submodules.Ping_DBConsole import get_console
+            from Ping.Modules.Graphics.UI.Ping_DBConsole import get_console
             debug_console = get_console()
             debug_console.log(f"Warning: {message}")
         except ImportError:

@@ -1,12 +1,9 @@
 import sys
 import pygame
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QMenuBar, QStatusBar, QDockWidget, QMenu, QFileDialog, QMessageBox
+    QApplication, QMainWindow, QStatusBar, QDockWidget, QFileDialog, QMessageBox
 )
-from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt, QSize, QByteArray, QDir, QTimer # Added QByteArray, QDir, QTimer
-import os
+from PyQt6.QtCore import Qt, QSize  # Added QByteArray, QDir, QTimer
 # import json # No longer needed here
 # Import the actual widgets from Artemis Modules
 # from Artemis_Modules.artemis_level_view import LevelViewWidget # Changed import style
@@ -32,7 +29,7 @@ try:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from Ping.Modules.ping_graphics import get_background_theme_colors
+    from Ping.Modules.Graphics.ping_graphics import get_background_theme_colors
 except ImportError as e:
     print(f"Warning: Could not import get_background_theme_colors from Ping.Modules.ping_graphics: {e}")
     get_background_theme_colors = None # Define as None if import fails
@@ -457,7 +454,7 @@ class ArtemisEditorWindow(QMainWindow):
 
         # Always point to main project directory for level files
         project_root = os.path.join(os.path.dirname(__file__), '..')
-        levels_dir = os.path.join(project_root, "Ping", "Ping_Levels")
+        levels_dir = os.path.join(project_root, "Ping", "Ping Assets", "Levels")
         if not os.path.exists(levels_dir):
             levels_dir = project_root
 
@@ -501,7 +498,7 @@ class ArtemisEditorWindow(QMainWindow):
         if perform_save_as:
             # Always point to main project directory for level files
             project_root = os.path.join(os.path.dirname(__file__), '..')
-            levels_dir = os.path.join(project_root, "Ping", "Ping_Levels")
+            levels_dir = os.path.join(project_root, "Ping", "Ping Assets", "Levels")
             if not os.path.exists(levels_dir):
                 try:
                     os.makedirs(levels_dir)

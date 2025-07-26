@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 from .Ping_Ball import Ball
-from .Ping_Particles import WaterSpout
+from ..Graphics.Effects.Ping_Particles import WaterSpout
 
 class Bumper:
     def __init__(self, x, y, radius=30):

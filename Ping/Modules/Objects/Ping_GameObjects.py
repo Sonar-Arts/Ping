@@ -1,9 +1,9 @@
 import pygame
 import math
 import random
-from .Submodules.Ping_Ball import Ball
-from .Submodules.Ping_Paddle import Paddle
-from .Submodules.Ping_Obstacles import Obstacle, Goal, Portal, PowerUpBall, Manhole, Bumper, GhostObstacle # Added Bumper and GhostObstacle
+from Ping.Modules.Objects.Ping_Ball import Ball
+from Ping.Modules.Objects.Ping_Paddle import Paddle
+from Ping.Modules.Objects.Ping_Obstacles import Obstacle, Goal, Portal, PowerUpBall, Manhole, Bumper, GhostObstacle # Added Bumper and GhostObstacle
 
 class ArenaObject:
     """Base class for objects that need arena properties."""
@@ -412,7 +412,7 @@ class PowerUpBallObject(ArenaObject):
     def update(self, ball_count, arena_width, arena_height, scoreboard_height, obstacles=None):
         """Update power-up state and check for respawn."""
         return self.power_up.update(ball_count, arena_width, arena_height, scoreboard_height, obstacles)
-from .ping_graphics import load_sprite_image # Need the sprite loading function
+from Ping.Modules.Graphics.ping_graphics import load_sprite_image # Need the sprite loading function
 
 # Existing code...
 
