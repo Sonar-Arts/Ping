@@ -1,0 +1,133 @@
+{
+  "zones": {
+    "new_arkadia_sewerlines": {
+      "name": "New Arkadia Sewerlines",
+      "id": "new_arkadia_sewerlines",
+      "nodes": {
+        "start": {
+          "id": "start",
+          "type": "start",
+          "position": [
+            400,
+            50
+          ],
+          "connections": [
+            "path1_node1",
+            "path2_node1"
+          ],
+          "level_file": "Manhole Mayhem.pmf",
+          "is_completed": false,
+          "is_accessible": true,
+          "properties": {}
+        },
+        "path1_node1": {
+          "id": "path1_node1",
+          "type": "level",
+          "position": [
+            200,
+            150
+          ],
+          "connections": [
+            "path1_node2"
+          ],
+          "level_file": "Spooky Test.pmf",
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        },
+        "path1_node2": {
+          "id": "path1_node2",
+          "type": "shop",
+          "position": [
+            150,
+            250
+          ],
+          "connections": [
+            "path1_node3"
+          ],
+          "level_file": null,
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        },
+        "path1_node3": {
+          "id": "path1_node3",
+          "type": "level",
+          "position": [
+            100,
+            350
+          ],
+          "connections": [
+            "boss"
+          ],
+          "level_file": "Roulette Test.pmf",
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        },
+        "path2_node1": {
+          "id": "path2_node1",
+          "type": "level",
+          "position": [
+            600,
+            150
+          ],
+          "connections": [
+            "path2_node2"
+          ],
+          "level_file": "Spooky Test.pmf",
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        },
+        "path2_node2": {
+          "id": "path2_node2",
+          "type": "level",
+          "position": [
+            650,
+            250
+          ],
+          "connections": [
+            "path2_node3"
+          ],
+          "level_file": "Debug Level.pmf",
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        },
+        "path2_node3": {
+          "id": "path2_node3",
+          "type": "shop",
+          "position": [
+            700,
+            350
+          ],
+          "connections": [
+            "boss"
+          ],
+          "level_file": null,
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        },
+        "boss": {
+          "id": "boss",
+          "type": "boss",
+          "position": [
+            400,
+            450
+          ],
+          "connections": [],
+          "level_file": "Manhole Mayhem.pmf",
+          "is_completed": false,
+          "is_accessible": false,
+          "properties": {}
+        }
+      },
+      "current_node_id": "start",
+      "music_file": "New Arkadia Sewerlines",
+      "background_theme": "sewer"
+    }
+  },
+  "current_zone_id": "new_arkadia_sewerlines"
+}

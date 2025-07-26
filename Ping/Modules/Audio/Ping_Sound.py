@@ -118,12 +118,14 @@ class SoundManager:
                 'wahahoo': os.path.join(get_ping_sounds_path(), "Ping_FX", "wahahoo.wav"),
                 'wall_break': os.path.join(get_ping_sounds_path(), "Ping_FX", "Ping-WallBreak.wav"),
                 'bumper': os.path.join(get_ping_sounds_path(), "Ping_FX", "Ping-Bumper.wav"),
+                'ArtemisStatic': os.path.join(get_ping_sounds_path(), "Ping_FX", "ArtemisStatic.wav"),
                 # Add more SFX here
             },
             'music': {
                 'intro_theme': os.path.join(get_ping_assets_path(), "Music", "PIntroMusicTemp.wav"),
                 'main_theme': os.path.join(get_ping_assets_path(), "Music", "PMainMusicTemp.wav"),
                 'sewer_zone': os.path.join(get_ping_assets_path(), "Music", "PSewerZoneTemp.wav"),
+                'New Arkadia Sewerlines': os.path.join(get_ping_assets_path(), "Music", "New Arkadia Sewerlines.wav"),
                 # Add more music tracks here
             }
         }

@@ -858,6 +858,28 @@ if __name__ == "__main__":
                 # If game_mode is None, assume user closed window or error occurred
                 running = False
                 break
+            # Handle map tree level selection
+            elif isinstance(game_mode, str) and game_mode.startswith("level:"):
+                # Extract level file from map tree
+                level_file = game_mode.split(":", 1)[1]
+                # Get the most up-to-date player name before starting the game
+                current_player_name = settings.get_player_name()
+                width, height = settings.get_dimensions()
+                # Start game in single player campaign mode with the selected level
+                game_result = main_game(True, current_player_name, level_file, width, height, debug_console)
+                
+                # Handle game completion for map tree progression
+                if game_result == "level_completed":
+                    # Mark level as completed in map state and continue to title screen
+                    from Ping.Modules.Core.Ping_MapState import get_map_state
+                    map_state = get_map_state()
+                    # Award currency and mark completion - score would be passed from main_game if needed
+                    map_state.complete_current_level(1000)  # Placeholder score
+                    continue  # Back to title screen to show updated map
+                elif game_result == "title":
+                    continue  # Go back to title screen
+                else:
+                    continue  # Handle other results by going back to title
 
             # Show level selection screen only if a game mode was selected (True or False)
             width, height = settings.get_dimensions()

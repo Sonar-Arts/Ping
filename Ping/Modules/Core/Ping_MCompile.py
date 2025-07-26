@@ -999,6 +999,16 @@ class LevelCompiler: # Renamed from Arena
 
     def _load_pmf(self, file_path):
         """Loads and parses a .pmf file (assuming JSON format)."""
+        import os
+        
+        # Build full path if only filename is provided
+        if not os.path.isabs(file_path) and not os.path.exists(file_path):
+            # Try to build path relative to the levels directory
+            levels_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "Ping Assets", "Levels")
+            full_path = os.path.join(levels_dir, file_path)
+            if os.path.exists(full_path):
+                file_path = full_path
+        
         print(f"Attempting to load PMF: {file_path}") # Debug print
         try:
             with open(file_path, 'r') as f:

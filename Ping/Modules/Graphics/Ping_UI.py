@@ -3,6 +3,7 @@ import time
 import random
 from sys import exit
 from Ping.Modules.Graphics.Menus.Ping_Settings import SettingsScreen
+from Ping.Modules.Graphics.Menus.Campaign.Ping_NewArkadiaSewerlines import NewArkadiaSewerlines
 
 # Colors
 WHITE = (255, 255, 255)
@@ -640,6 +641,9 @@ from Ping.Modules.Graphics.Menus.Ping_MainMenu import MainMenu
 from Ping.Modules.Graphics.Menus.Ping_QuickPlayMenu import QuickPlayMenu
 from Ping.Modules.Graphics.Menus.Ping_Pause import PauseMenu
 from Ping.Modules.Graphics.Menus.Ping_LevelSelect import LevelSelect
+from Ping.Modules.Graphics.Menus.Ping_Transition import play_transition
+from Ping.Modules.Graphics.Menus.Campaign.Ping_CampaignMenu import CampaignMenu
+from Ping.Modules.Graphics.Menus.Campaign.Ping_CampaignIntro import CampaignIntro
 from Ping.Modules.Graphics.UI.Ping_Fonts import get_pixel_font
 from Ping.Modules.Graphics.UI.Ping_Button import get_button
 
@@ -653,8 +657,17 @@ def init_display(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, flags=0):
 def settings_screen(screen, clock, sound_manager, WINDOW_WIDTH, WINDOW_HEIGHT, in_game=False, debug_console=None):
     """Display the settings screen."""
     settings = SettingsScreen()
+    # Play transition before showing settings
+    if not play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager):
+        pygame.quit()
+        exit()
     # Pass sound_manager to the display method (will require updating SettingsScreen.display)
-    return settings.display(screen, clock, sound_manager, WINDOW_WIDTH, WINDOW_HEIGHT, in_game, debug_console)
+    result = settings.display(screen, clock, sound_manager, WINDOW_WIDTH, WINDOW_HEIGHT, in_game, debug_console)
+    # Play transition when leaving settings
+    if not play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager):
+        pygame.quit()
+        exit()
+    return result
 
 def player_name_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console=None):
     """Display the player name input screen."""
@@ -755,6 +768,9 @@ class TitleScreen:
     def __init__(self, sound_manager):
         self.menu = MainMenu(sound_manager) # Pass sound_manager to MainMenu
         self.quick_play_menu = QuickPlayMenu(sound_manager) # Add Quick Play menu
+        self.campaign_menu = CampaignMenu(sound_manager) # Add Campaign menu
+        self.campaign_intro = CampaignIntro(sound_manager) # Add Campaign intro
+        self.new_arkadia_sewerlines = NewArkadiaSewerlines(sound_manager) # Add New Arkadia Sewerlines
         self.background = None
         self.current_menu = "main"  # Track current menu state
 
@@ -797,21 +813,135 @@ class TitleScreen:
                     pygame.quit()
                     exit()
                 elif menu_action == "quick_play":
-                    self.current_menu = "quick_play"
+                    # Play transition before switching to quick play menu
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.menu.sound_manager):
+                        self.current_menu = "quick_play"
+                    else:
+                        pygame.quit()
+                        exit()
                 elif menu_action == "campaign":
-                    # Campaign does nothing for now, just stay on main menu
-                    pass
+                    # Play transition before switching to campaign menu
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.menu.sound_manager):
+                        self.current_menu = "campaign"
+                    else:
+                        pygame.quit()
+                        exit()
                 elif menu_action is not None:  # Settings or other actions
-                    return menu_action
+                    # Play transition before returning to settings
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.menu.sound_manager):
+                        return menu_action
+                    else:
+                        pygame.quit()
+                        exit()
             
             elif self.current_menu == "quick_play":
                 quick_play_action = self.quick_play_menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
                 
                 if quick_play_action == "back":
-                    self.current_menu = "main"
+                    # Play transition before going back to main menu
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.quick_play_menu.sound_manager):
+                        self.current_menu = "main"
+                    else:
+                        pygame.quit()
+                        exit()
                 elif quick_play_action is not None:  # True for 1P, False for 2P
-                    self.menu.sound_manager.stop_music()  # Stop music when starting game
-                    return quick_play_action
+                    # Play transition before starting game
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.quick_play_menu.sound_manager):
+                        self.menu.sound_manager.stop_music()  # Stop music when starting game
+                        return quick_play_action
+                    else:
+                        pygame.quit()
+                        exit()
+            
+            elif self.current_menu == "campaign":
+                campaign_action = self.campaign_menu.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
+                
+                if campaign_action == "back":
+                    # Play transition before going back to main menu
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.campaign_menu.sound_manager):
+                        self.current_menu = "main"
+                    else:
+                        pygame.quit()
+                        exit()
+                elif campaign_action == "start_new_run":
+                    # Play campaign intro sequence
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.campaign_menu.sound_manager):
+                        # Show campaign intro
+                        intro_result = self.campaign_intro.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
+                        if intro_result == "quit":
+                            pygame.quit()
+                            exit()
+                        else:
+                            # After intro, initialize map state and go to map tree
+                            # Initialize new map tree run (this is already done in campaign menu, but ensure it's done)
+                            map_state = self.campaign_menu.map_state
+                            if not map_state.get_current_zone():
+                                map_state.initialize_new_run()
+                            # Start the zone music with a proper fade transition
+                            zone = map_state.get_current_zone()
+                            if zone and zone.music_file and self.campaign_menu.sound_manager:
+                                print(f"Starting zone music: {zone.music_file}")
+                                self.campaign_menu.sound_manager.play_music(zone.music_file, loops=-1, fade_duration=2.0)
+                            # Switch to New Arkadia Sewerlines menu (map tree)
+                            self.current_menu = "new_arkadia_sewerlines"
+                    else:
+                        pygame.quit()
+                        exit()
+                elif campaign_action == "continue_run":
+                    # Continue run goes directly to map tree
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.campaign_menu.sound_manager):
+                        # Start the zone music with a proper fade transition
+                        map_state = self.campaign_menu.map_state
+                        zone = map_state.get_current_zone()
+                        if zone and zone.music_file and self.campaign_menu.sound_manager:
+                            print(f"Starting zone music: {zone.music_file}")
+                            self.campaign_menu.sound_manager.play_music(zone.music_file, loops=-1, fade_duration=2.0)
+                        # Switch to New Arkadia Sewerlines menu (map tree)
+                        self.current_menu = "new_arkadia_sewerlines"
+                    else:
+                        pygame.quit()
+                        exit()
+                elif campaign_action == "map_tree":
+                    # Switch to New Arkadia Sewerlines
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.campaign_menu.sound_manager):
+                        # Start the zone music with a proper fade transition
+                        map_state = self.campaign_menu.map_state
+                        zone = map_state.get_current_zone()
+                        if zone and zone.music_file and self.campaign_menu.sound_manager:
+                            print(f"Starting zone music: {zone.music_file}")
+                            self.campaign_menu.sound_manager.play_music(zone.music_file, loops=-1, fade_duration=2.0)
+                        self.current_menu = "new_arkadia_sewerlines"
+                    else:
+                        pygame.quit()
+                        exit()
+
+            elif self.current_menu == "new_arkadia_sewerlines":
+                sewerlines_action = self.new_arkadia_sewerlines.handle_input(events, WINDOW_WIDTH, WINDOW_HEIGHT)
+                
+                if sewerlines_action == "back_to_campaign":
+                    # Go back to campaign menu
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.new_arkadia_sewerlines.sound_manager):
+                        self.current_menu = "campaign"
+                    else:
+                        pygame.quit()
+                        exit()
+                elif sewerlines_action == "back_to_title":
+                    # Go back to main menu
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.new_arkadia_sewerlines.sound_manager):
+                        self.current_menu = "main"
+                    else:
+                        pygame.quit()
+                        exit()
+                elif sewerlines_action and sewerlines_action.startswith("start_level:"):
+                    # Extract level file and start the game
+                    level_file = sewerlines_action.split(":", 1)[1]
+                    if play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, self.new_arkadia_sewerlines.sound_manager):
+                        self.menu.sound_manager.stop_music()
+                        # Return level file for the main game loop to use
+                        return f"level:{level_file}"
+                    else:
+                        pygame.quit()
+                        exit()
 
             # Draw appropriate background and menu
             if self.current_menu == "main":
@@ -820,6 +950,10 @@ class TitleScreen:
                 self.menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
             elif self.current_menu == "quick_play":
                 self.quick_play_menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+            elif self.current_menu == "campaign":
+                self.campaign_menu.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
+            elif self.current_menu == "new_arkadia_sewerlines":
+                self.new_arkadia_sewerlines.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
 
             if debug_console and debug_console.visible:
                 debug_console.draw(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -895,9 +1029,28 @@ def win_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, winner_name, debug_co
 def pause_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager, debug_console=None):
     """Display the pause menu with options to resume, go to title screen, or settings."""
     pause_menu = PauseMenu(sound_manager) # Pass sound_manager
-    return pause_menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
+    # Play transition before showing pause menu
+    if not play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager):
+        pygame.quit()
+        exit()
+    result = pause_menu.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
+    # Play transition when leaving pause menu (unless resuming)
+    if result != "resume":
+        if not play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager):
+            pygame.quit()
+            exit()
+    return result
 
 def level_select_screen(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager, debug_console=None):
     """Display the level selection screen."""
     level_select = LevelSelect(sound_manager) # Pass sound_manager
-    return level_select.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
+    # Play transition before showing level select
+    if not play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager):
+        pygame.quit()
+        exit()
+    result = level_select.display(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, debug_console)
+    # Play transition when leaving level select
+    if not play_transition(screen, clock, WINDOW_WIDTH, WINDOW_HEIGHT, sound_manager):
+        pygame.quit()
+        exit()
+    return result
