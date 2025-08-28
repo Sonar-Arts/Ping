@@ -876,7 +876,7 @@ class RouletteSpinner:
             if self.hold_timer <= 0:
                 self.release_ball()
 
-    def handle_collision(self, ball):
+    def handle_collision(self, ball, sound_manager=None):
         """Detect collision, capture ball, and initiate spinning."""
         if self.is_spinning or not hasattr(ball, 'rect') or not hasattr(ball, 'ball'): # Don't capture if already spinning or invalid ball
             return False
