@@ -617,7 +617,7 @@ class PowerUpBall:
         self.height = size
         self.size = size
         self.spawn_timer = 0
-        self.active = True
+        self.active = False  # Start inactive to prevent immediate collision
         self.next_spawn_time = random.randint(3, 15) * 60  # 3-15 seconds (at 60 FPS)
         self.glow_timer = 0
         self.base_color = (0, 255, 0)  # Bright green
@@ -682,15 +682,18 @@ class PowerUpBall:
             return False
 
         if ball.rect.colliderect(self.rect):
+            print(f"PowerUpBall collision detected! Creating new ball...")
             # Create new raw ball with same properties
             new_ball = Ball(ball.ball.size)
-            new_ball.rect.x = self.rect.x # Start at power-up location
-            new_ball.rect.y = self.rect.y
+            # Start new ball offset from power-up location to avoid immediate collision
+            new_ball.rect.x = self.rect.x + 30  # Offset to avoid overlapping with original ball
+            new_ball.rect.y = self.rect.y + 30
             new_ball.dx = ball.ball.dx
             new_ball.dy = ball.ball.dy
             new_ball.speed = ball.ball.speed
             new_ball.velocity_x = ball.ball.velocity_x
             new_ball.velocity_y = ball.ball.velocity_y
+            print(f"New ball created at ({new_ball.rect.x}, {new_ball.rect.y}) with velocity ({new_ball.velocity_x}, {new_ball.velocity_y})")
 
             # Deactivate power up
             self.active = False

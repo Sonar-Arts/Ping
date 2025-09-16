@@ -892,11 +892,13 @@ class LevelCompiler: # Renamed from Arena
         
          # Create default powerup if flag is set AND none were created from list
         if not powerup_created_from_list and self.can_spawn_powerups:
+             print(f"Creating default powerup! can_spawn_powerups: {self.can_spawn_powerups}, powerup_created_from_list: {powerup_created_from_list}")
              self._log_warning("No powerup defined in PMF 'objects', creating default powerup because 'can_spawn_powerups' is true.")
              # Create default powerup (PowerUpBallObject handles positioning)
              # Pass empty properties dict for default powerup
              default_x = self.width / 2
              default_y = self.height / 2
+             print(f"Creating powerup at position ({default_x}, {default_y})")
              self.power_up = PowerUpBallObject(
                  arena_width=self.width,
                  arena_height=self.height,
@@ -907,6 +909,7 @@ class LevelCompiler: # Renamed from Arena
                  # Use default size from constructor
                  properties={}
              )
+             print(f"Powerup created successfully. Active: {self.power_up.power_up.active}")
 
 
     def _create_objects_from_params(self, params):

@@ -60,7 +60,7 @@
           "connections": [
             "boss"
           ],
-          "level_file": "Spooky Test.pmf",
+          "level_file": "Roulette Test.pmf",
           "is_completed": false,
           "is_accessible": false,
           "properties": {}
@@ -90,7 +90,7 @@
           "connections": [
             "path2_node3"
           ],
-          "level_file": "Spooky Test.pmf",
+          "level_file": "Roulette Test.pmf",
           "is_completed": false,
           "is_accessible": false,
           "properties": {}

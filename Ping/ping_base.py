@@ -2,18 +2,18 @@ import pygame
 import pygame.sndarray
 import random
 import time
-from Modules.Objects.Ping_Ball import Ball # Import Ball class for type checking
+from Ping.Modules.Objects.Ping_Ball import Ball # Import Ball class for type checking
 from sys import exit
 from Ping.Modules.AI.Ping_AI import PaddleAI
 from Ping.Modules.Graphics.Ping_UI import init_display, player_name_screen, TitleScreen, pause_screen, win_screen, level_select_screen
 from Ping.Modules.Objects.Ping_GameObjects import PaddleObject, BallObject
-from Modules.Graphics.UI.Ping_DBConsole import get_console
+from Ping.Modules.Graphics.UI.Ping_DBConsole import get_console
 # Removed import for DebugLevel and SewerLevel as they no longer exist
-from Modules.Graphics.UI.Ping_Fonts import get_pixel_font  # Moved import here
-from Modules.Graphics.Menus.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
-from Modules.Graphics.Menus.Ping_LevelIntro import play_level_intro # Import the level intro function
- 
-from Modules.Objects.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle # Import the RouletteSpinner, PistonObstacle, and TeslaCoilObstacle classes
+from Ping.Modules.Graphics.UI.Ping_Fonts import get_pixel_font  # Moved import here
+from Ping.Modules.Graphics.Menus.Ping_StartupAnimation import run_startup_animation  # Import the new animation function
+from Ping.Modules.Graphics.Menus.Ping_LevelIntro import play_level_intro # Import the level intro function
+
+from Ping.Modules.Objects.Ping_Obstacles import RouletteSpinner, PistonObstacle, TeslaCoilObstacle # Import the RouletteSpinner, PistonObstacle, and TeslaCoilObstacle classes
 """
 Ping Base Code
 This is the base code for the Ping game, which includes the main game loop, event handling, and rendering.
@@ -26,7 +26,7 @@ pygame.init()
 pygame.mixer.init()
 
 from Ping.Modules.Core.Ping_MCompile import LevelCompiler # Import the new compiler for PMF levels
-from Modules.Graphics.Menus.Ping_Settings import SettingsScreen
+from Ping.Modules.Graphics.Menus.Ping_Settings import SettingsScreen
 
 # Initialize global debug console (singleton)
 debug_console = get_console()
@@ -130,7 +130,7 @@ except (pygame.error, FileNotFoundError) as e:
 clock = pygame.time.Clock()
 
 # Initialize sound manager
-from Modules.Audio.Ping_Sound import SoundManager
+from Ping.Modules.Audio.Ping_Sound import SoundManager
 sound_manager = SoundManager()
 # Provide the console with access to the sound manager instance
 debug_console.sound_manager = sound_manager
@@ -668,6 +668,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                     new_ball_result = arena.check_power_up_collision(current_ball, len(balls))
                     # Check if the collision result is a raw Ball instance
                     if isinstance(new_ball_result, Ball):
+                        print(f"PowerUp triggered! Adding new ball to game. Current ball count: {len(balls)}")
                         # Prepare initial state from the raw Ball instance
                         initial_state = {
                             'x': new_ball_result.rect.x, # Use position from the raw ball
@@ -688,6 +689,7 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                             initial_state=initial_state # Pass the prepared state
                         )
                         balls.append(new_ball_object) # Append the wrapped object
+                        print(f"New ball added! New ball count: {len(balls)}")
                     # No need for an elif here, as Arena won't return a BallObject anymore
 
                     # Handle wall collisions and scoring based on arena properties

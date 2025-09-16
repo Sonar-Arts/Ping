@@ -275,9 +275,16 @@ class Arena:
     def check_power_up_collision(self, ball, ball_count):
         """Check for collisions between ball and power-up."""
         if self.power_up:
+            print(f"Checking powerup collision. Powerup active: {self.power_up.power_up.active}")
+            print(f"Ball position: ({ball.rect.x}, {ball.rect.y}), Powerup position: ({self.power_up.rect.x}, {self.power_up.rect.y})")
             # Directly return the result from the power-up's collision handler
             # This will be either a raw Ball instance or None/False
-            return self.power_up.handle_collision(ball)
+            result = self.power_up.handle_collision(ball)
+            if result:
+                print(f"Powerup collision returned: {type(result)}")
+            return result
+        else:
+            print("No powerup exists in arena")
         return None
 
     def update_power_up(self, ball_count):
