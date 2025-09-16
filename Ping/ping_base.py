@@ -579,6 +579,81 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                 if arena.can_spawn_powerups and arena.power_up:
                     arena.update_power_up(len(balls))
 
+                # Update obstacle respawn timers
+                if hasattr(arena, 'obstacle_respawn_queue'):
+                    obstacles_to_respawn = []
+                    for i, respawn_data in enumerate(arena.obstacle_respawn_queue):
+                        respawn_data['timer'] -= FRAME_TIME
+                        if respawn_data['timer'] <= 0:
+                            obstacles_to_respawn.append(i)
+
+                    # Respawn obstacles whose timers have expired (in reverse order)
+                    for index in reversed(obstacles_to_respawn):
+                        respawn_data = arena.obstacle_respawn_queue.pop(index)
+                        data = respawn_data['obstacle_data']
+
+                        # Find a valid position that avoids collisions
+                        margin = 20  # Minimum distance from walls and obstacles
+                        max_attempts = 50  # Maximum attempts to find valid position
+
+                        # Define paddle movement areas to avoid
+                        paddle_margin = 100
+                        left_paddle_zone = pygame.Rect(0, arena.scoreboard_height, paddle_margin, arena.height - arena.scoreboard_height)
+                        right_paddle_zone = pygame.Rect(arena.width - paddle_margin, arena.scoreboard_height, paddle_margin, arena.height - arena.scoreboard_height)
+
+                        valid_x, valid_y = None, None
+                        for attempt in range(max_attempts):
+                            # Generate random position with margins
+                            test_x = random.randint(margin + paddle_margin, arena.width - data['width'] - margin - paddle_margin)
+                            test_y = random.randint(arena.scoreboard_height + margin, arena.height - data['height'] - margin)
+
+                            # Create test rect for collision checking
+                            test_rect = pygame.Rect(test_x, test_y, data['width'], data['height'])
+
+                            # Check paddle zones
+                            if test_rect.colliderect(left_paddle_zone) or test_rect.colliderect(right_paddle_zone):
+                                continue
+
+                            # Check existing obstacles
+                            collision_found = False
+                            for existing_obstacle in arena.obstacles:
+                                expanded_rect = existing_obstacle.rect.inflate(margin * 2, margin * 2)
+                                if test_rect.colliderect(expanded_rect):
+                                    collision_found = True
+                                    break
+
+                            # Check portals if they exist
+                            if hasattr(arena, 'portals') and arena.portals:
+                                for portal in arena.portals:
+                                    expanded_rect = portal.rect.inflate(margin * 2, margin * 2)
+                                    if test_rect.colliderect(expanded_rect):
+                                        collision_found = True
+                                        break
+
+                            if not collision_found:
+                                valid_x, valid_y = test_x, test_y
+                                break
+
+                        # If no valid position found, use center position
+                        if valid_x is None:
+                            valid_x = (arena.width - data['width']) // 2
+                            valid_y = (arena.height - data['height']) // 2
+
+                        # Create new obstacle with valid position
+                        from Ping.Modules.Objects.Ping_GameObjects import ObstacleObject
+                        new_obstacle = ObstacleObject(
+                            arena_width=arena.width,
+                            arena_height=arena.height,
+                            scoreboard_height=arena.scoreboard_height,
+                            scale_rect=arena.scale_rect,
+                            x=valid_x,
+                            y=valid_y,
+                            width=data['width'],
+                            height=data['height'],
+                            properties=data['properties']
+                        )
+                        arena.obstacles.append(new_obstacle)
+
                 # Update manhole states if they exist
                 if arena.manholes:
                     arena.update_manholes(FRAME_TIME) # Pass frame time for smooth particle animation
@@ -616,7 +691,8 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                         sound_manager.play_sfx('paddle') # Use new method
 
                     # Ball collision with obstacles (iterate through the list)
-                    for obstacle in arena.obstacles: # Loop through the list
+                    obstacles_to_remove = []
+                    for i, obstacle in enumerate(arena.obstacles): # Loop through the list with index
                         if obstacle: # Check if the obstacle instance exists
                             collision_handled = False
                             # Check the type of obstacle to call the correct collision handler
@@ -626,21 +702,38 @@ def main_game(ai_mode, player_name, level, window_width, window_height, debug_co
                                     collision_handled = True
                                     # No reset needed for RouletteSpinner
                             elif hasattr(obstacle, 'handle_collision'):
-                                # Assume other obstacles might use the old signature
+                                # Handle collision for other obstacle types
                                 if obstacle.handle_collision(current_ball, sound_manager):
                                     collision_handled = True
-                                    # Decide if this specific obstacle type should be reset upon collision
-                                    # For now, let's assume only the old ObstacleObject might need resetting
-                                    # (Though reset_obstacle now clears the whole list, which might be undesirable here)
-                                    # TODO: Revisit obstacle reset logic per-type if needed.
-                                    # For now, removing the reset call here to avoid clearing all obstacles.
-                                    # arena.reset_obstacle() # Removed reset call here
+
+                                    # Check if this obstacle should be removed after collision
+                                    # Basic breakable obstacles (like walls) should be removed
+                                    from Ping.Modules.Objects.Ping_GameObjects import ObstacleObject
+                                    if isinstance(obstacle, ObstacleObject):
+                                        obstacles_to_remove.append((i, obstacle))
 
                             # If a collision was handled by any obstacle, we might want to break
                             # or continue checking depending on game design (e.g., can ball hit multiple obstacles?)
                             # For now, let's assume ball can only interact with one obstacle per frame check.
                             if collision_handled:
                                 break # Exit the obstacle loop for this ball if collision occurred
+
+                    # Remove obstacles that were marked for removal (in reverse order to maintain indices)
+                    for index, obstacle in reversed(obstacles_to_remove):
+                        arena.obstacles.pop(index)
+                        # Store obstacle info for respawning
+                        if not hasattr(arena, 'obstacle_respawn_queue'):
+                            arena.obstacle_respawn_queue = []
+                        arena.obstacle_respawn_queue.append({
+                            'timer': 3.0,  # 3 second respawn delay
+                            'obstacle_data': {
+                                'x': obstacle.obstacle.x,
+                                'y': obstacle.obstacle.y,
+                                'width': obstacle.obstacle.width,
+                                'height': obstacle.obstacle.height,
+                                'properties': getattr(obstacle, 'properties', {})
+                            }
+                        })
 
                     # Check portal collisions
                     arena.check_portal_collisions(current_ball)
